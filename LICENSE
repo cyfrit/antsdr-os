@@ -1,0 +1,12 @@
+# License Notice
+
+This repository contains components under multiple licenses.
+
+There is no single blanket license for the complete repository. Each source
+file, patch, submodule, and generated artifact retains its applicable license.
+
+Original project files authored in this repository are licensed under the MIT
+License unless another SPDX identifier or license notice is present.
+
+See the `LICENSES/` directory and the SPDX identifiers in individual files for
+third-party license terms and notices.
