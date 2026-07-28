@@ -1,6 +1,6 @@
 // Copyright 2015 Ettus Research, a National Instruments Company
 // Copyright 2021-2024 MicroPhase Inc.
-// Copyright 2026 ANTSDR Firmware contributors
+// Copyright 2026 Cyfrit <i@cli.tf>
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 //

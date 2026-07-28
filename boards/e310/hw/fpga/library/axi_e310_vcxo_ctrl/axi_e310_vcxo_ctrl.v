@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Copyright (C) 2026 ANTSDR Firmware contributors
+// Copyright (C) 2026 Cyfrit <i@cli.tf>
 
 `timescale 1ns/100ps
 

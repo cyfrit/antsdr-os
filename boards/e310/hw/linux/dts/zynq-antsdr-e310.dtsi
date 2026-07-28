@@ -3,7 +3,7 @@
  * MicroPhase ANTSDR E310 Rev.C (Zynq-7020 / AD9363)
  *
  * Copyright (C) 2021-2024 MicroPhase Inc.
- * Copyright (C) 2026 ANTSDR Firmware contributors
+ * Copyright (C) 2026 Cyfrit <i@cli.tf>
  */
 
 #include "zynq.dtsi"

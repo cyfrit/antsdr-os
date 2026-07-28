@@ -37,6 +37,22 @@ class LicenseAuditTest(unittest.TestCase):
     def test_repository_has_no_license_errors(self) -> None:
         self.assertEqual(self.result.errors(), [])
 
+    def test_contributor_identity_has_no_placeholder(self) -> None:
+        matches = []
+        placeholder = "ANTSDR Firmware " + "contributors"
+        for mode, relative in license_audit.git_entries(ROOT):
+            if mode == "160000" or relative.startswith("LICENSES/"):
+                continue
+            path = ROOT / relative
+            try:
+                text = path.read_text(encoding="utf-8")
+            except UnicodeDecodeError:
+                continue
+            self.assertNotIn(placeholder, text, relative)
+            if "Cyfrit <i@cli.tf>" in text:
+                matches.append(relative)
+        self.assertGreaterEqual(len(matches), 10)
+
     def test_adi_license_ref_is_recognized(self) -> None:
         record = next(
             item
