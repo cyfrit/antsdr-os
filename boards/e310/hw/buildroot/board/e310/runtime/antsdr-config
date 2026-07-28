@@ -1,0 +1,282 @@
+#!/bin/sh
+# SPDX-License-Identifier: MIT
+# Manage the small, explicitly supported U-Boot runtime environment surface.
+
+set -eu
+
+ROOT_PREFIX=${ANTSDR_ROOT_PREFIX:-}
+
+root_path() {
+    printf '%s%s\n' "$ROOT_PREFIX" "$1"
+}
+
+DEFAULTS=$(root_path /etc/antsdr/defaults.conf)
+RUN_DIR=$(root_path /run/antsdr)
+
+# shellcheck disable=SC1090
+. "$DEFAULTS"
+mkdir -p "$RUN_DIR"
+
+read_env() {
+    value=$(fw_printenv -n "$1" 2>/dev/null || true)
+    if [ -n "$value" ]; then
+        printf '%s\n' "$value"
+    else
+        printf '%s\n' "$2"
+    fi
+}
+
+load_values() {
+    USB_HOSTNAME=$(read_env hostname "$USB_HOSTNAME")
+    USB_IPADDR=$(read_env ipaddr "$USB_IPADDR")
+    USB_IPADDR_HOST=$(read_env ipaddr_host "$USB_IPADDR_HOST")
+    USB_NETMASK=$(read_env netmask "$USB_NETMASK")
+    USB_ETHERNET_MODE=$(read_env usb_ethernet_mode "$USB_ETHERNET_MODE")
+    NETWORK_IPADDR=$(read_env ipaddr_eth "$NETWORK_IPADDR")
+    NETWORK_NETMASK=$(read_env netmask_eth "$NETWORK_NETMASK")
+    NETWORK_GATEWAY=$(read_env eth_gateway "$NETWORK_GATEWAY")
+    WLAN_SSID=$(read_env ssid_wlan "$WLAN_SSID")
+    WLAN_PASSWORD=$(read_env pwd_wlan "$WLAN_PASSWORD")
+    WLAN_IPADDR=$(read_env ipaddr_wlan "$WLAN_IPADDR")
+    XO_CORRECTION=$(read_env xo_correction "$XO_CORRECTION")
+    UDC_HANDLE_SUSPEND=$(read_env udc_handle_suspend "$UDC_HANDLE_SUSPEND")
+
+    persisted_mode=$(read_env network_mode "")
+    if [ -n "$persisted_mode" ]; then
+        NETWORK_MODE=$persisted_mode
+    elif [ -n "$NETWORK_IPADDR" ]; then
+        NETWORK_MODE=static
+    fi
+}
+
+valid_hostname() {
+    [ -n "$1" ] && [ "${#1}" -le 63 ] || return 1
+    case "$1" in
+        -*|*-) return 1 ;;
+        *[!A-Za-z0-9-]*) return 1 ;;
+    esac
+}
+
+valid_ipv4() {
+    [ -n "$1" ] || return 1
+    printf '%s\n' "$1" | awk -F. '
+        NF != 4 { exit 1 }
+        {
+            for (field = 1; field <= 4; field++) {
+                if ($field !~ /^[0-9]+$/ || $field > 255) exit 1
+            }
+        }
+    '
+}
+
+valid_optional_ipv4() {
+    [ -z "$1" ] || valid_ipv4 "$1"
+}
+
+valid_text() {
+    [ "${#1}" -le "$2" ] || return 1
+    case "$1" in
+        *"$(printf '\t')"*|*"$(printf '\r')"*) return 1 ;;
+    esac
+}
+
+validate_values() {
+    valid_hostname "$USB_HOSTNAME" || return 1
+    valid_ipv4 "$USB_IPADDR" || return 1
+    valid_ipv4 "$USB_IPADDR_HOST" || return 1
+    valid_ipv4 "$USB_NETMASK" || return 1
+    case "$USB_ETHERNET_MODE" in rndis|ncm|ecm) ;; *) return 1 ;; esac
+    case "$NETWORK_MODE" in dhcp|static) ;; *) return 1 ;; esac
+    valid_optional_ipv4 "$NETWORK_IPADDR" || return 1
+    valid_ipv4 "$NETWORK_NETMASK" || return 1
+    valid_optional_ipv4 "$NETWORK_GATEWAY" || return 1
+    if [ "$NETWORK_MODE" = static ] && [ -z "$NETWORK_IPADDR" ]; then
+        return 1
+    fi
+    valid_text "$WLAN_SSID" 32 || return 1
+    valid_text "$WLAN_PASSWORD" 64 || return 1
+    valid_optional_ipv4 "$WLAN_IPADDR" || return 1
+    case "$UDC_HANDLE_SUSPEND" in 0|1) ;; *) return 1 ;; esac
+    case "$XO_CORRECTION" in *[!0-9]*) return 1 ;; esac
+}
+
+parse_config() {
+    awk '
+        function trim(value) {
+            sub(/\r$/, "", value)
+            sub(/^[[:space:]]+/, "", value)
+            sub(/[[:space:]]+$/, "", value)
+            return value
+        }
+        function allowed(section, key) {
+            return (section == "USB_ETHERNET" &&
+                    (key == "hostname" || key == "ipaddr" ||
+                     key == "ipaddr_host" || key == "netmask" ||
+                     key == "usb_ethernet_mode")) ||
+                   (section == "NETWORK" &&
+                    (key == "mode" || key == "ipaddr" ||
+                     key == "ipaddr_eth" || key == "netmask" ||
+                     key == "netmask_eth" || key == "gateway" ||
+                     key == "eth_gateway")) ||
+                   (section == "WLAN" &&
+                    (key == "ssid" || key == "ssid_wlan" ||
+                     key == "password" || key == "pwd_wlan" ||
+                     key == "ipaddr" || key == "ipaddr_wlan")) ||
+                   (section == "SYSTEM" &&
+                    (key == "xo_correction" || key == "udc_handle_suspend"))
+        }
+        {
+            line = trim($0)
+            if (line == "" || line ~ /^[#;]/) next
+            if (line ~ /^\[[A-Z_]+\]$/) {
+                section = substr(line, 2, length(line) - 2)
+                next
+            }
+            separator = index(line, "=")
+            if (separator == 0) next
+            key = trim(substr(line, 1, separator - 1))
+            value = trim(substr(line, separator + 1))
+            if (allowed(section, key)) print section "\t" key "\t" value
+        }
+    ' "$1"
+}
+
+import_config() {
+    [ -r "$1" ] || {
+        echo "configuration file is not readable: $1" >&2
+        return 1
+    }
+
+    load_values
+    parsed=$(mktemp "$RUN_DIR/config.XXXXXX")
+    environment=
+    trap 'rm -f "$parsed" "${environment:-}"' EXIT HUP INT TERM
+    parse_config "$1" > "$parsed"
+
+    while IFS="$(printf '\t')" read -r section key value; do
+        case "$section:$key" in
+            USB_ETHERNET:hostname) USB_HOSTNAME=$value ;;
+            USB_ETHERNET:ipaddr) USB_IPADDR=$value ;;
+            USB_ETHERNET:ipaddr_host) USB_IPADDR_HOST=$value ;;
+            USB_ETHERNET:netmask) USB_NETMASK=$value ;;
+            USB_ETHERNET:usb_ethernet_mode) USB_ETHERNET_MODE=$value ;;
+            NETWORK:mode) NETWORK_MODE=$value ;;
+            NETWORK:ipaddr|NETWORK:ipaddr_eth) NETWORK_IPADDR=$value ;;
+            NETWORK:netmask|NETWORK:netmask_eth) NETWORK_NETMASK=$value ;;
+            NETWORK:gateway|NETWORK:eth_gateway) NETWORK_GATEWAY=$value ;;
+            WLAN:ssid|WLAN:ssid_wlan) WLAN_SSID=$value ;;
+            WLAN:password|WLAN:pwd_wlan) WLAN_PASSWORD=$value ;;
+            WLAN:ipaddr|WLAN:ipaddr_wlan) WLAN_IPADDR=$value ;;
+            SYSTEM:xo_correction) XO_CORRECTION=$value ;;
+            SYSTEM:udc_handle_suspend) UDC_HANDLE_SUSPEND=$value ;;
+        esac
+    done < "$parsed"
+
+    validate_values || {
+        echo "configuration contains an invalid supported value" >&2
+        return 1
+    }
+
+    # Refuse to initialize an unknown environment partition. fw_setenv -s
+    # updates only the listed keys, but its input must still be a known E310
+    # boot environment rather than erased or corrupt flash.
+    fw_printenv qspiboot >/dev/null 2>&1 || {
+        echo "refusing to update an unrecognized U-Boot environment" >&2
+        return 1
+    }
+
+    environment=$(mktemp "$RUN_DIR/environment.XXXXXX")
+    umask 077
+    {
+        printf 'hostname %s\n' "$USB_HOSTNAME"
+        printf 'ipaddr %s\n' "$USB_IPADDR"
+        printf 'ipaddr_host %s\n' "$USB_IPADDR_HOST"
+        printf 'netmask %s\n' "$USB_NETMASK"
+        printf 'usb_ethernet_mode %s\n' "$USB_ETHERNET_MODE"
+        printf 'network_mode %s\n' "$NETWORK_MODE"
+        printf 'ipaddr_eth %s\n' "$NETWORK_IPADDR"
+        printf 'netmask_eth %s\n' "$NETWORK_NETMASK"
+        printf 'eth_gateway %s\n' "$NETWORK_GATEWAY"
+        printf 'ssid_wlan %s\n' "$WLAN_SSID"
+        printf 'pwd_wlan %s\n' "$WLAN_PASSWORD"
+        printf 'ipaddr_wlan %s\n' "$WLAN_IPADDR"
+        printf 'xo_correction %s\n' "$XO_CORRECTION"
+        printf 'udc_handle_suspend %s\n' "$UDC_HANDLE_SUSPEND"
+    } > "$environment"
+    fw_setenv -s "$environment"
+}
+
+export_config() {
+    load_values
+    cat <<EOF
+# ANTSDR E310 configuration file
+# Save and eject the USB configuration volume. Changes are persisted for the
+# next boot; no update, flash, or reboot action is executed automatically.
+
+[USB_ETHERNET]
+hostname = $USB_HOSTNAME
+ipaddr = $USB_IPADDR
+ipaddr_host = $USB_IPADDR_HOST
+netmask = $USB_NETMASK
+usb_ethernet_mode = $USB_ETHERNET_MODE
+
+[NETWORK]
+mode = $NETWORK_MODE
+ipaddr_eth = $NETWORK_IPADDR
+netmask_eth = $NETWORK_NETMASK
+eth_gateway = $NETWORK_GATEWAY
+
+[WLAN]
+ssid_wlan = $WLAN_SSID
+pwd_wlan = $WLAN_PASSWORD
+ipaddr_wlan = $WLAN_IPADDR
+
+[SYSTEM]
+xo_correction = $XO_CORRECTION
+udc_handle_suspend = $UDC_HANDLE_SUSPEND
+EOF
+}
+
+get_value() {
+    load_values
+    case "$1" in
+        hostname) printf '%s\n' "$USB_HOSTNAME" ;;
+        usb_ipaddr) printf '%s\n' "$USB_IPADDR" ;;
+        usb_ipaddr_host) printf '%s\n' "$USB_IPADDR_HOST" ;;
+        usb_netmask) printf '%s\n' "$USB_NETMASK" ;;
+        usb_ethernet_mode) printf '%s\n' "$USB_ETHERNET_MODE" ;;
+        network_mode) printf '%s\n' "$NETWORK_MODE" ;;
+        network_ipaddr) printf '%s\n' "$NETWORK_IPADDR" ;;
+        network_netmask) printf '%s\n' "$NETWORK_NETMASK" ;;
+        network_gateway) printf '%s\n' "$NETWORK_GATEWAY" ;;
+        wlan_ssid) printf '%s\n' "$WLAN_SSID" ;;
+        wlan_password) printf '%s\n' "$WLAN_PASSWORD" ;;
+        wlan_ipaddr) printf '%s\n' "$WLAN_IPADDR" ;;
+        xo_correction) printf '%s\n' "$XO_CORRECTION" ;;
+        udc_handle_suspend) printf '%s\n' "$UDC_HANDLE_SUSPEND" ;;
+        *) echo "unknown ANTSDR setting: $1" >&2; return 1 ;;
+    esac
+}
+
+case "${1:-}" in
+    export)
+        [ "$#" -eq 2 ] || exit 2
+        export_config > "$2"
+        ;;
+    print)
+        [ "$#" -eq 1 ] || exit 2
+        export_config
+        ;;
+    import)
+        [ "$#" -eq 2 ] || exit 2
+        import_config "$2"
+        ;;
+    get)
+        [ "$#" -eq 2 ] || exit 2
+        get_value "$2"
+        ;;
+    *)
+        echo "Usage: $0 {export FILE|print|import FILE|get NAME}" >&2
+        exit 2
+        ;;
+esac

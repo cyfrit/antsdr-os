@@ -1,0 +1,42 @@
+# SPDX-License-Identifier: MIT
+schema_version: 1
+component: buildroot
+files:
+  - source: configs/zynq_antsdr_e310_defconfig
+    destination: configs/zynq_antsdr_e310_defconfig
+  - source: board/e310/post-build.sh
+    destination: board/e310/post-build.sh
+  - source: board/e310/genimage-config.cfg
+    destination: board/e310/genimage-config.cfg
+  - source: board/e310/busybox.fragment
+    destination: board/e310/busybox.fragment
+  - source: board/e310/board.conf
+    destination: board/e310/board.conf
+  - source: board/e310/defaults.conf
+    destination: board/e310/defaults.conf
+  - source: board/e310/fw_env.config
+    destination: board/e310/fw_env.config
+  - source: board/e310/mdev.conf
+    destination: board/e310/mdev.conf
+  - source: board/e310/config.txt
+    destination: board/e310/config.txt
+  - source: board/e310/INFO.html
+    destination: board/e310/INFO.html
+  - source: board/e310/index.html
+    destination: board/e310/index.html
+  - source: board/e310/runtime/antsdr-config
+    destination: board/e310/runtime/antsdr-config
+  - source: board/e310/runtime/antsdr-persist
+    destination: board/e310/runtime/antsdr-persist
+  - source: board/e310/runtime/antsdr-udc-suspend
+    destination: board/e310/runtime/antsdr-udc-suspend
+  - source: board/e310/runtime/net-hotplug
+    destination: board/e310/runtime/net-hotplug
+  - source: board/e310/runtime/S15antsdr-persistence
+    destination: board/e310/runtime/S15antsdr-persistence
+  - source: board/e310/runtime/S20antsdr-gadget
+    destination: board/e310/runtime/S20antsdr-gadget
+  - source: board/e310/runtime/S30antsdr-network
+    destination: board/e310/runtime/S30antsdr-network
+  - source: board/e310/runtime/S40antsdr-config-volume
+    destination: board/e310/runtime/S40antsdr-config-volume

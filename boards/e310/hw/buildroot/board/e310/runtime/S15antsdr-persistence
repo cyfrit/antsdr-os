@@ -1,0 +1,74 @@
+#!/bin/sh
+# SPDX-License-Identifier: MIT
+
+set -eu
+
+PERSIST_DEVICE=/dev/mtdblock2
+PERSIST_DIR=/mnt/antsdr-persist
+
+mounted() {
+    grep -qs " $PERSIST_DIR " /proc/mounts
+}
+
+mount_persist() {
+    mkdir -p "$PERSIST_DIR"
+    if ! mounted; then
+        mount -t jffs2 -o rw,noatime "$PERSIST_DEVICE" "$PERSIST_DIR"
+    fi
+}
+
+restore_credentials() {
+    [ -f "$PERSIST_DIR/etc/credentials.sha256" ] || return 0
+    if (cd "$PERSIST_DIR/etc" && sha256sum -c credentials.sha256 >/dev/null 2>&1); then
+        install -m 0644 "$PERSIST_DIR/etc/passwd" /etc/passwd
+        install -m 0600 "$PERSIST_DIR/etc/shadow" /etc/shadow
+        install -m 0644 "$PERSIST_DIR/etc/group" /etc/group
+    else
+        logger -t antsdr-persist "credential checksum verification failed"
+    fi
+}
+
+restore_keys() {
+    [ -f "$PERSIST_DIR/etc/dropbear/keys.sha256" ] || return 0
+    if (cd "$PERSIST_DIR/etc/dropbear" && sha256sum -c keys.sha256 >/dev/null 2>&1); then
+        mkdir -p /etc/dropbear
+        install -m 0600 "$PERSIST_DIR"/etc/dropbear/dropbear_*_host_key /etc/dropbear/
+    else
+        logger -t antsdr-persist "Dropbear key checksum verification failed"
+    fi
+
+    [ -f "$PERSIST_DIR/root/.ssh/authorized_keys.sha256" ] || return 0
+    if (cd "$PERSIST_DIR/root/.ssh" && sha256sum -c authorized_keys.sha256 >/dev/null 2>&1); then
+        mkdir -p /root/.ssh
+        install -m 0600 "$PERSIST_DIR/root/.ssh/authorized_keys" /root/.ssh/authorized_keys
+    else
+        logger -t antsdr-persist "authorized key checksum verification failed"
+    fi
+}
+
+restore_xo_correction() {
+    value=$(/usr/sbin/antsdr-config get xo_correction)
+    [ -n "$value" ] || return 0
+    for candidate in /sys/bus/iio/devices/iio:device*; do
+        [ -r "$candidate/name" ] || continue
+        if [ "$(cat "$candidate/name")" = ad9361-phy ] && [ -w "$candidate/xo_correction" ]; then
+            printf '%s\n' "$value" > "$candidate/xo_correction"
+            return 0
+        fi
+    done
+}
+
+case "${1:-}" in
+    start|"")
+        if [ -b "$PERSIST_DEVICE" ] && mount_persist; then
+            restore_credentials
+            restore_keys
+        fi
+        restore_xo_correction
+        ;;
+    stop) ;;
+    *)
+        echo "Usage: $0 {start|stop}" >&2
+        exit 2
+        ;;
+esac

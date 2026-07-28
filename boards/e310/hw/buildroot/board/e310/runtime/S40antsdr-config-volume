@@ -1,0 +1,99 @@
+#!/bin/sh
+# SPDX-License-Identifier: MIT
+
+set -eu
+
+IMAGE=/opt/antsdr/config.vfat
+MOUNT_DIR=/run/antsdr/config-volume
+STATE_FILE=/run/antsdr/config-volume.sha256
+PID_FILE=/run/antsdr/config-volume.pid
+LUN=/sys/kernel/config/usb_gadget/antsdr/functions/mass_storage.0/lun.0/file
+CONFIG=/usr/sbin/antsdr-config
+
+mounted() {
+    grep -qs " $MOUNT_DIR " /proc/mounts
+}
+
+mount_volume() {
+    mkdir -p "$MOUNT_DIR"
+    mounted || mount -t vfat -o loop,rw "$IMAGE" "$MOUNT_DIR"
+}
+
+unmount_volume() {
+    mounted && umount "$MOUNT_DIR"
+}
+
+checksum() {
+    sha256sum "$1" | awk '{print $1}'
+}
+
+attach_volume() {
+    printf '%s\n' "$IMAGE" > "$LUN"
+}
+
+prepare_volume() {
+    printf '\n' > "$LUN" 2>/dev/null || true
+    mount_volume
+    $CONFIG export "$MOUNT_DIR/config.txt"
+    cp /www/index.html "$MOUNT_DIR/index.html"
+    printf '%s\n' "$(checksum "$MOUNT_DIR/config.txt")" > "$STATE_FILE"
+    sync
+    unmount_volume
+    attach_volume
+}
+
+process_eject() {
+    sleep 1
+    mount_volume || return 1
+    current=$(checksum "$MOUNT_DIR/config.txt")
+    previous=$(cat "$STATE_FILE" 2>/dev/null || true)
+    if [ "$current" != "$previous" ]; then
+        if $CONFIG import "$MOUNT_DIR/config.txt"; then
+            printf 'Configuration saved. Reboot to apply it.\r\n' > "$MOUNT_DIR/CONFIG_APPLIED.TXT"
+            $CONFIG export "$MOUNT_DIR/config.txt"
+            current=$(checksum "$MOUNT_DIR/config.txt")
+            rm -f "$MOUNT_DIR/CONFIG_ERROR.TXT"
+        else
+            printf 'Configuration was not saved: an accepted setting is invalid.\r\n' > "$MOUNT_DIR/CONFIG_ERROR.TXT"
+        fi
+    fi
+    printf '%s\n' "$current" > "$STATE_FILE"
+    sync
+    unmount_volume
+    attach_volume
+}
+
+watch() {
+    while :; do
+        if [ ! -s "$LUN" ]; then
+            process_eject || logger -t antsdr-config-volume "unable to process USB configuration volume"
+        fi
+        sleep 1
+    done
+}
+
+start() {
+    mkdir -p /run/antsdr
+    [ -w "$LUN" ] || {
+        echo "USB mass-storage gadget is unavailable" >&2
+        return 1
+    }
+    prepare_volume
+    start-stop-daemon -S -b -q -m -p "$PID_FILE" -x "$0" -- watch
+}
+
+stop() {
+    start-stop-daemon -K -q -p "$PID_FILE" 2>/dev/null || true
+    printf '\n' > "$LUN" 2>/dev/null || true
+}
+
+case "${1:-}" in
+    start) start ;;
+    stop) stop ;;
+    restart) stop; start ;;
+    watch) watch ;;
+    *)
+        echo "Usage: $0 {start|stop|restart}" >&2
+        exit 2
+        ;;
+esac

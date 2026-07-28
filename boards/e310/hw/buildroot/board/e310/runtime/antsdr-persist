@@ -1,0 +1,77 @@
+#!/bin/sh
+# SPDX-License-Identifier: MIT
+# Explicit credential persistence for the dedicated E310 JFFS2 partition.
+
+set -eu
+
+PERSIST_DEVICE=/dev/mtdblock2
+PERSIST_DIR=/mnt/antsdr-persist
+
+mounted() {
+    grep -qs " $PERSIST_DIR " /proc/mounts
+}
+
+mount_persist() {
+    mkdir -p "$PERSIST_DIR"
+    if ! mounted; then
+        mount -t jffs2 -o rw,noatime "$PERSIST_DEVICE" "$PERSIST_DIR"
+    fi
+}
+
+save_credentials() {
+    mount_persist
+    install -D -m 0644 /etc/passwd "$PERSIST_DIR/etc/passwd"
+    install -D -m 0600 /etc/shadow "$PERSIST_DIR/etc/shadow"
+    install -D -m 0644 /etc/group "$PERSIST_DIR/etc/group"
+    (
+        cd "$PERSIST_DIR/etc"
+        sha256sum passwd shadow group > credentials.sha256
+    )
+}
+
+save_keys() {
+    mount_persist
+    mkdir -p "$PERSIST_DIR/etc/dropbear" "$PERSIST_DIR/root/.ssh"
+    if ls /etc/dropbear/dropbear_*_host_key >/dev/null 2>&1; then
+        install -m 0600 /etc/dropbear/dropbear_*_host_key "$PERSIST_DIR/etc/dropbear/"
+        (
+            cd "$PERSIST_DIR/etc/dropbear"
+            sha256sum dropbear_*_host_key > keys.sha256
+        )
+    fi
+    if [ -f /root/.ssh/authorized_keys ]; then
+        install -m 0600 /root/.ssh/authorized_keys "$PERSIST_DIR/root/.ssh/authorized_keys"
+        (
+            cd "$PERSIST_DIR/root/.ssh"
+            sha256sum authorized_keys > authorized_keys.sha256
+        )
+    fi
+}
+
+case "${1:-}" in
+    init)
+        [ "${2:-}" = "--confirm" ] || {
+            echo "refusing to erase persistent storage without --confirm" >&2
+            exit 2
+        }
+        flash_erase /dev/mtd2 0 0
+        mkdir -p "$PERSIST_DIR"
+        mount_persist
+        ;;
+    credentials)
+        save_credentials
+        ;;
+    keys)
+        save_keys
+        ;;
+    all)
+        save_credentials
+        save_keys
+        ;;
+    *)
+        echo "Usage: $0 {init --confirm|credentials|keys|all}" >&2
+        exit 2
+        ;;
+esac
+
+sync

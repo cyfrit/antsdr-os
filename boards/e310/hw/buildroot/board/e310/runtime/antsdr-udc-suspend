@@ -1,0 +1,36 @@
+#!/bin/sh
+# SPDX-License-Identifier: MIT
+# Preserve the optional AD936x ENSM suspend policy without polling debugfs.
+
+set -eu
+
+udc=${1:?UDC name is required}
+iio_dir=""
+
+for candidate in /sys/bus/iio/devices/iio:device*; do
+    [ -r "$candidate/name" ] || continue
+    if [ "$(cat "$candidate/name")" = ad9361-phy ]; then
+        iio_dir=$candidate
+        break
+    fi
+done
+
+[ -n "$iio_dir" ] || exit 0
+previous=$(cat "$iio_dir/ensm_mode")
+
+while :; do
+    state=$(cat "/sys/class/udc/$udc/state" 2>/dev/null || echo unknown)
+    case "$state" in
+        suspended)
+            previous=$(cat "$iio_dir/ensm_mode")
+            printf 'sleep\n' > "$iio_dir/ensm_mode"
+            ;;
+        *)
+            current=$(cat "$iio_dir/ensm_mode")
+            if [ "$current" != "$previous" ]; then
+                printf '%s\n' "$previous" > "$iio_dir/ensm_mode"
+            fi
+            ;;
+    esac
+    sleep 1
+done

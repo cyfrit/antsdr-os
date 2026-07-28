@@ -17,6 +17,7 @@ support:
   limitations:
     - Only E310 Rev.C is in scope for initial hardware validation.
     - The E310 device tree is compile-checked against the pinned ADI Linux tree but has not been boot-tested.
+    - The Buildroot overlay and runtime configuration policy are statically tested but the root filesystem has not been built or boot-tested.
     - Vivado, FSBL and full kernel builds remain pending until their toolchains are available.
     - E200 and E310V2/E316 are separate board targets and are not implied compatible.
 
@@ -64,6 +65,7 @@ build:
     - zynq-antsdr-e310-ad9363-2r2t.dtb
   linux_defconfig: zynq_antsdr_e310_defconfig
   u_boot_defconfig: zynq_antsdr_e310_defconfig
+  buildroot_defconfig: zynq_antsdr_e310_defconfig
   profile_selection:
     dimensions:
       rf_model: [ad9363, ad9361]

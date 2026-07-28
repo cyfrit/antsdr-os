@@ -86,7 +86,7 @@
     "build": {
       "type": "object",
       "additionalProperties": false,
-        "required": ["hdl_project", "linux_dtbs", "linux_defconfig", "u_boot_defconfig", "profile_selection"],
+        "required": ["hdl_project", "linux_dtbs", "linux_defconfig", "u_boot_defconfig", "buildroot_defconfig", "profile_selection"],
         "properties": {
           "hdl_project": { "type": "string" },
           "linux_dtbs": {
@@ -97,6 +97,7 @@
           },
           "linux_defconfig": { "type": "string" },
           "u_boot_defconfig": { "type": "string" },
+          "buildroot_defconfig": { "type": "string" },
           "profile_selection": {
             "type": "object",
             "additionalProperties": false,

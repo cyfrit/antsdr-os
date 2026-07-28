@@ -1,0 +1,25 @@
+# ANTSDR E310 configuration file
+# Save and eject the USB configuration volume. Changes are persisted for the
+# next boot; no update, flash, or reboot action is executed automatically.
+
+[USB_ETHERNET]
+hostname = antsdr
+ipaddr = 192.168.2.1
+ipaddr_host = 192.168.2.10
+netmask = 255.255.255.0
+usb_ethernet_mode = rndis
+
+[NETWORK]
+mode = dhcp
+ipaddr_eth =
+netmask_eth = 255.255.255.0
+eth_gateway =
+
+[WLAN]
+ssid_wlan =
+pwd_wlan =
+ipaddr_wlan =
+
+[SYSTEM]
+xo_correction =
+udc_handle_suspend = 0

@@ -1,0 +1,76 @@
+#!/bin/sh
+# SPDX-License-Identifier: MIT
+
+set -eu
+
+CONFIG=/usr/sbin/antsdr-config
+INTERFACES=/etc/network/interfaces
+UDHCPD_CONF=/etc/udhcpd.conf
+
+write_network_files() {
+    hostname=$($CONFIG get hostname)
+    usb_ipaddr=$($CONFIG get usb_ipaddr)
+    usb_host=$($CONFIG get usb_ipaddr_host)
+    usb_netmask=$($CONFIG get usb_netmask)
+    network_mode=$($CONFIG get network_mode)
+    network_ipaddr=$($CONFIG get network_ipaddr)
+    network_netmask=$($CONFIG get network_netmask)
+    network_gateway=$($CONFIG get network_gateway)
+    wlan_ssid=$($CONFIG get wlan_ssid)
+    wlan_ipaddr=$($CONFIG get wlan_ipaddr)
+
+    printf '%s\n' "$hostname" > /etc/hostname
+    hostname "$hostname"
+    cat > "$UDHCPD_CONF" <<EOF
+start $usb_host
+end $usb_host
+interface usb0
+option subnet $usb_netmask
+EOF
+
+    {
+        printf 'auto lo\niface lo inet loopback\n\n'
+        printf 'auto usb0\niface usb0 inet static\n\taddress %s\n\tnetmask %s\n\n' "$usb_ipaddr" "$usb_netmask"
+        printf 'auto eth0\n'
+        if [ "$network_mode" = static ]; then
+            printf 'iface eth0 inet static\n\taddress %s\n\tnetmask %s\n' "$network_ipaddr" "$network_netmask"
+            [ -n "$network_gateway" ] && printf '\tgateway %s\n' "$network_gateway"
+        else
+            printf 'iface eth0 inet dhcp\n'
+        fi
+        if [ -n "$wlan_ssid" ]; then
+            printf '\nauto wlan0\n'
+            if [ -n "$wlan_ipaddr" ]; then
+                printf 'iface wlan0 inet static\n\taddress %s\n\tnetmask 255.255.255.0\n' "$wlan_ipaddr"
+            else
+                printf 'iface wlan0 inet dhcp\n'
+            fi
+        fi
+    } > "$INTERFACES"
+}
+
+start() {
+    mkdir -p /run/network /run/antsdr
+    write_network_files
+    ifup lo 2>/dev/null || true
+    ifup usb0 2>/dev/null || true
+    ifup eth0 2>/dev/null || true
+    start-stop-daemon -S -q -p /run/antsdr/udhcpd.pid -x /usr/sbin/udhcpd -- "$UDHCPD_CONF"
+    httpd -h /www
+}
+
+stop() {
+    killall -q httpd 2>/dev/null || true
+    start-stop-daemon -K -q -p /run/antsdr/udhcpd.pid 2>/dev/null || true
+    ifdown -a 2>/dev/null || true
+}
+
+case "${1:-}" in
+    start) start ;;
+    stop) stop ;;
+    restart) stop; start ;;
+    *)
+        echo "Usage: $0 {start|stop|restart}" >&2
+        exit 2
+        ;;
+esac

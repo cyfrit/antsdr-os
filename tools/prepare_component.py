@@ -20,6 +20,7 @@ COMPONENTS = {
     "hdl": ("fpga", "hdl"),
     "linux": ("linux", "linux"),
     "u_boot": ("uboot", "u-boot-xlnx"),
+    "buildroot": ("buildroot", "buildroot"),
 }
 
 

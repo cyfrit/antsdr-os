@@ -1,0 +1,172 @@
+#!/bin/sh
+# SPDX-License-Identifier: MIT
+
+set -eu
+
+. /etc/antsdr/board.conf
+
+CONFIGFS=/sys/kernel/config
+GADGET=$CONFIGFS/usb_gadget/antsdr
+IIO_FFS=/dev/iio_ffs
+IIOD_PID=/run/antsdr/iiod.pid
+SUSPEND_PID=/run/antsdr/udc-suspend.pid
+
+mounted() {
+    grep -qs " $1 " /proc/mounts
+}
+
+find_udc() {
+    for candidate in /sys/class/udc/*; do
+        [ -d "$candidate" ] || continue
+        basename "$candidate"
+        return 0
+    done
+    return 1
+}
+
+read_usb_mode() {
+    case "$(/usr/sbin/antsdr-config get usb_ethernet_mode)" in
+        ncm) printf '%s\n' ncm.usb0 ;;
+        ecm) printf '%s\n' ecm.usb0 ;;
+        *) printf '%s\n' rndis.0 ;;
+    esac
+}
+
+read_serial() {
+    for candidate in \
+        /sys/firmware/devicetree/base/serial-number \
+        /sys/devices/soc0/serial_number; do
+        [ -r "$candidate" ] || continue
+        value=$(tr -cd 'A-Fa-f0-9' < "$candidate")
+        [ -n "$value" ] && {
+            printf '%s\n' "$value"
+            return
+        }
+    done
+    value=$(dmesg 2>/dev/null | sed -n 's/.*SPI-NOR-UniqueID[[:space:]]*//p' | head -n 1 | tr -cd 'A-Fa-f0-9')
+    [ -n "$value" ] && {
+        printf '%s\n' "$value"
+        return
+    }
+    printf '%s\n' 000000000000
+}
+
+mac_from_serial() {
+    prefix=$1
+    offset=$2
+    hash=$(printf '%s' "$serial" | sha256sum | awk '{print $1}')
+    suffix=$(printf '%s' "$hash" | dd bs=1 skip="$offset" count=6 2>/dev/null | sed 's/../:&/g; s/^://')
+    printf '%s:%s\n' "$prefix" "$suffix"
+}
+
+write_libiio_context() {
+    model=$(tr -d '\000' < /sys/firmware/devicetree/base/model 2>/dev/null || printf '%s' "$BOARD_MODEL")
+    rf_model=unknown
+    xo_correction=
+    for candidate in /sys/bus/iio/devices/iio:device*; do
+        [ -r "$candidate/name" ] || continue
+        [ "$(cat "$candidate/name")" = ad9361-phy ] || continue
+        rf_model=$(tr '\000' '\n' < "$candidate/of_node/compatible" 2>/dev/null | sed -n 's/^adi,//p' | head -n 1)
+        xo_correction=$(cat "$candidate/xo_correction" 2>/dev/null || true)
+        break
+    done
+    firmware_version=$(sed -n 's/^firmware=//p' /etc/antsdr/release 2>/dev/null | head -n 1)
+    : "${firmware_version:=development}"
+    {
+        printf '[Context Attributes]\n'
+        printf 'hw_model=%s\n' "$model"
+        printf 'hw_serial=%s\n' "$serial"
+        printf 'fw_version=%s\n' "$firmware_version"
+        printf 'ad9361-phy,model=%s\n' "$rf_model"
+        [ -n "$xo_correction" ] && printf 'ad9361-phy,xo_correction=%s\n' "$xo_correction"
+    } > /etc/libiio.ini
+}
+
+start() {
+    mkdir -p /run/antsdr "$IIO_FFS"
+    if ! mounted /sys/kernel/config; then
+        mount -t configfs none /sys/kernel/config
+    fi
+
+    if [ -d "$GADGET" ]; then
+        if [ -n "$(cat "$GADGET/UDC" 2>/dev/null || true)" ]; then
+            return 0
+        fi
+        rmdir "$GADGET" 2>/dev/null || true
+    fi
+
+    serial=$(read_serial)
+    ethernet_function=$(read_usb_mode)
+    host_addr=$(mac_from_serial 00:E0:22 0)
+    device_addr=$(mac_from_serial 00:05:F7 6)
+    udc=$(find_udc) || {
+        echo "no USB device controller found" >&2
+        return 1
+    }
+
+    mkdir -p "$GADGET"
+    printf '%s\n' "$USB_VENDOR_ID" > "$GADGET/idVendor"
+    printf '%s\n' "$USB_PRODUCT_ID" > "$GADGET/idProduct"
+    mkdir -p "$GADGET/strings/0x409"
+    printf '%s\n' "$USB_MANUFACTURER" > "$GADGET/strings/0x409/manufacturer"
+    printf '%s\n' "$USB_PRODUCT" > "$GADGET/strings/0x409/product"
+    printf '%s\n' "$serial" > "$GADGET/strings/0x409/serialnumber"
+
+    mkdir -p "$GADGET/functions/ffs.iio_ffs" \
+        "$GADGET/functions/acm.usb0" \
+        "$GADGET/functions/$ethernet_function" \
+        "$GADGET/functions/mass_storage.0"
+    printf '1\n' > "$GADGET/functions/mass_storage.0/lun.0/removable"
+    printf '%s\n' "$host_addr" > "$GADGET/functions/$ethernet_function/host_addr"
+    printf '%s\n' "$device_addr" > "$GADGET/functions/$ethernet_function/dev_addr"
+
+    mkdir -p "$GADGET/configs/c.1/strings/0x409"
+    printf '%s\n' 'RNDIS/MSD/ACM/IIOUSBD' > "$GADGET/configs/c.1/strings/0x409/configuration"
+    printf '500\n' > "$GADGET/configs/c.1/MaxPower"
+    ln -s "$GADGET/functions/$ethernet_function" "$GADGET/configs/c.1/"
+    ln -s "$GADGET/functions/mass_storage.0" "$GADGET/configs/c.1/"
+    ln -s "$GADGET/functions/acm.usb0" "$GADGET/configs/c.1/"
+    ln -s "$GADGET/functions/ffs.iio_ffs" "$GADGET/configs/c.1/ffs.iio_ffs"
+
+    if ! mounted "$IIO_FFS"; then
+        mount -t functionfs iio_ffs "$IIO_FFS"
+    fi
+    write_libiio_context
+    start-stop-daemon -S -b -q -m -p "$IIOD_PID" -x /usr/sbin/iiod -- \
+        -D -n "$IIOD_ENDPOINTS" -F "$IIO_FFS"
+    sleep 1
+    printf '%s\n' "$udc" > "$GADGET/UDC"
+
+    if [ "$(/usr/sbin/antsdr-config get udc_handle_suspend)" = 1; then
+        start-stop-daemon -S -b -q -m -p "$SUSPEND_PID" -x /usr/sbin/antsdr-udc-suspend -- "$udc"
+    fi
+}
+
+stop() {
+    start-stop-daemon -K -q -p "$SUSPEND_PID" 2>/dev/null || true
+    start-stop-daemon -K -q -p "$IIOD_PID" 2>/dev/null || true
+    [ -d "$GADGET" ] || return 0
+    ethernet_function=$(read_usb_mode)
+    printf '\n' > "$GADGET/UDC" 2>/dev/null || true
+    rm -f "$GADGET/configs/c.1/$ethernet_function" \
+        "$GADGET/configs/c.1/mass_storage.0" \
+        "$GADGET/configs/c.1/acm.usb0" \
+        "$GADGET/configs/c.1/ffs.iio_ffs"
+    rmdir "$GADGET/configs/c.1/strings/0x409" "$GADGET/configs/c.1" 2>/dev/null || true
+    rmdir "$GADGET/functions/ffs.iio_ffs" \
+        "$GADGET/functions/acm.usb0" \
+        "$GADGET/functions/$ethernet_function" \
+        "$GADGET/functions/mass_storage.0" 2>/dev/null || true
+    rmdir "$GADGET/strings/0x409" "$GADGET" 2>/dev/null || true
+    umount "$IIO_FFS" 2>/dev/null || true
+}
+
+case "${1:-}" in
+    start) start ;;
+    stop) stop ;;
+    restart) stop; start ;;
+    *)
+        echo "Usage: $0 {start|stop|restart}" >&2
+        exit 2
+        ;;
+esac

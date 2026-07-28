@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# The Buildroot default already supplies the standard base applets. The E310
+# adds only the local DHCP server and static status page required by its USB
+# compatibility interface; CGI is deliberately left disabled.
+CONFIG_HTTPD=y
+CONFIG_UDHCPD=y

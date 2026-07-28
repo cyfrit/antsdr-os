@@ -1,0 +1,39 @@
+#!/bin/sh
+# SPDX-License-Identifier: MIT
+
+set -eu
+
+CONFIG=/usr/sbin/antsdr-config
+
+start_wlan() {
+    ssid=$($CONFIG get wlan_ssid)
+    password=$($CONFIG get wlan_password)
+    [ -n "$ssid" ] || return 0
+    if [ -n "$password" ]; then
+        wpa_passphrase "$ssid" "$password" > /run/antsdr/wpa_supplicant.conf
+    else
+        cat > /run/antsdr/wpa_supplicant.conf <<EOF
+network={
+    ssid="$ssid"
+    key_mgmt=NONE
+}
+EOF
+    fi
+    start-stop-daemon -S -b -q -p /run/antsdr/wpa_supplicant.pid \
+        -x /usr/sbin/wpa_supplicant -- -i "$MDEV" -c /run/antsdr/wpa_supplicant.conf
+}
+
+case "${ACTION:-}" in
+    add|"")
+        mkdir -p /run/antsdr
+        ifconfig "$MDEV" up
+        case "$MDEV" in wlan*) start_wlan ;; esac
+        ifup "$MDEV" 2>/dev/null || true
+        ;;
+    remove)
+        ifdown "$MDEV" 2>/dev/null || true
+        case "$MDEV" in
+            wlan*) start-stop-daemon -K -q -p /run/antsdr/wpa_supplicant.pid 2>/dev/null || true ;;
+        esac
+        ;;
+esac
