@@ -316,6 +316,16 @@ hardware:
       product_id: 0xb674
       alt_targets:
         - { name: qspi-linux, offset: 0x200000, size: 0x1e00000 }
+    uenv:
+      path: /uEnv.txt
+      format: text-key-value
+      import: ram-only
+      compatibility:
+        variables: [bootenv, uenv_image, uenvcmd]
+        qspi_extra_environment: crc32-uboot-environment
+      locked_build:
+        imported_variables: [rf_model, rf_topology]
+        uenvcmd: disabled
     fsbl_input: system_top.xsa
     sources: [microphase_hdl_ps7, microphase_linux_e310, microphase_uboot_e310, adi_fsbl_script]
 

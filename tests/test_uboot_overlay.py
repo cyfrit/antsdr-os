@@ -16,6 +16,7 @@ UBOOT = BOARD / "hw" / "uboot"
 DTS = UBOOT / "dts" / "zynq-antsdr-e310.dts"
 DEFCONFIG = UBOOT / "configs" / "zynq_antsdr_e310_defconfig"
 HEADER = UBOOT / "include" / "configs" / "zynq_antsdr_e310.h"
+UENV_COMMAND = UBOOT / "cmd" / "antsdr_uenv.c"
 UPSTREAM = ROOT / "upstream" / "adi-plutosdr-fw" / "u-boot-xlnx"
 
 
@@ -57,6 +58,9 @@ class UbootOverlayTest(unittest.TestCase):
             "CONFIG_G_DNL_VENDOR_NUM=0x0456",
             "CONFIG_G_DNL_PRODUCT_NUM=0xb674",
             "CONFIG_DFU_SF=y",
+            "CONFIG_CMD_IMPORTENV=y",
+            "CONFIG_CMD_ANTSDR_UENV=y",
+            "CONFIG_ANTSDR_UENV_COMPAT=y",
         }
         self.assertFalse(required - set(config.splitlines()))
 
@@ -115,9 +119,14 @@ class UbootOverlayTest(unittest.TestCase):
         self.assertIn("qspi_fit_offset=0x00200000", header)
         self.assertIn("qspi_fit_max_size=0x01e00000", header)
 
+        self.assertIn('"bootenv=uEnv.txt\\0"', header)
         self.assertIn('"uenv_image=uEnv.txt\\0"', header)
+        self.assertIn("select_bootenv", header)
+        self.assertIn("setenv uenv_file ${bootenv};", header)
         self.assertIn("env import -t ${uenv_load_address} ${filesize};", header)
         self.assertIn('"run_uenvcmd=if test -n ${uenvcmd}; then run uenvcmd; fi\\0"', header)
+        self.assertIn("CONFIG_ANTSDR_UENV_COMPAT", header)
+        self.assertIn("antsdr_uenv ${uenv_load_address} ${filesize};", header)
         self.assertIn('"preboot=if test \\"${modeboot}\\" = sdboot; then "', header)
         self.assertIn("qspi_extraenv_offset=0x000ff000", header)
         self.assertIn("env import -c ${qspi_extraenv_load_address}", header)
@@ -134,6 +143,15 @@ class UbootOverlayTest(unittest.TestCase):
         self.assertNotRegex(header, r"\\bfdt\\s+(?:set|rm)\\b")
         self.assertNotRegex(header, r"\\b(?:http|wget|tftp)\\b")
         self.assertNotIn("md5", header.lower())
+
+    def test_locked_uenv_importer_has_a_narrow_variable_allowlist(self) -> None:
+        command = UENV_COMMAND.read_text(encoding="utf-8")
+
+        self.assertIn('\"rf_model\"', command)
+        self.assertIn('\"rf_topology\"', command)
+        self.assertIn("setenv(key_buffer, value_buffer)", command)
+        self.assertNotIn('\"uenvcmd\"', command)
+        self.assertNotIn("saveenv", command)
 
     @unittest.skipUnless(shutil.which("cpp") and shutil.which("dtc"), "cpp and dtc are required")
     def test_device_tree_compiles(self) -> None:

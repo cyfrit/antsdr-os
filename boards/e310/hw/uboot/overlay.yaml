@@ -2,6 +2,8 @@
 schema_version: 1
 component: u_boot
 files:
+  - source: cmd/antsdr_uenv.c
+    destination: cmd/antsdr_uenv.c
   - source: dts/zynq-antsdr-e310.dts
     destination: arch/arm/dts/zynq-antsdr-e310.dts
   - source: configs/zynq_antsdr_e310_defconfig

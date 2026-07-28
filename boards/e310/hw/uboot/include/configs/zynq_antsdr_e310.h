@@ -8,6 +8,20 @@
 #ifndef __CONFIG_ZYNQ_ANTSDR_E310_H
 #define __CONFIG_ZYNQ_ANTSDR_E310_H
 
+#ifdef CONFIG_ANTSDR_UENV_COMPAT
+#define ANTSDR_UENV_IMPORT \
+	"env import -t ${uenv_load_address} ${filesize}; "
+#define ANTSDR_UENV_POSTLOAD "run run_uenvcmd; "
+#define ANTSDR_UENV_COMPAT_ENV \
+	"run_uenvcmd=if test -n ${uenvcmd}; then run uenvcmd; fi\0"
+
+#else
+#define ANTSDR_UENV_IMPORT \
+	"antsdr_uenv ${uenv_load_address} ${filesize}; "
+#define ANTSDR_UENV_POSTLOAD ""
+#define ANTSDR_UENV_COMPAT_ENV
+#endif
+
 /*
  * This board intentionally owns its environment rather than inheriting the
  * Pluto-specific runtime DT mutations from zynq-common.h. It retains the
@@ -22,7 +36,9 @@
 	"ramdisk_load_address=0x04000000\0" \
 	"devicetree_image=devicetree.dtb\0" \
 	"devicetree_load_address=0x02000000\0" \
+	"bootenv=uEnv.txt\0" \
 	"uenv_image=uEnv.txt\0" \
+	"uenv_file=uEnv.txt\0" \
 	"uenv_load_address=0x02000000\0" \
 	"qspi_extraenv_load_address=0x0207e000\0" \
 	"qspi_extraenv_offset=0x000ff000\0" \
@@ -30,19 +46,23 @@
 	"qspi_fit_offset=0x00200000\0" \
 	"qspi_fit_max_size=0x01e00000\0" \
 	"dfu_alt_info=qspi-linux raw 0x00200000 0x01e00000\0" \
-	"load_uenv=if test -e mmc 0 /${uenv_image}; then " \
-		"if fatload mmc 0 ${uenv_load_address} ${uenv_image}; then " \
-			"env import -t ${uenv_load_address} ${filesize}; " \
+	"select_bootenv=if test -n ${bootenv}; then " \
+		"setenv uenv_file ${bootenv}; " \
+		"else setenv uenv_file ${uenv_image}; fi\0" \
+	"load_uenv=run select_bootenv; " \
+		"if test -e mmc 0 /${uenv_file}; then " \
+		"if fatload mmc 0 ${uenv_load_address} ${uenv_file}; then " \
+			ANTSDR_UENV_IMPORT \
 		"fi; " \
 	"fi\0" \
-	"run_uenvcmd=if test -n ${uenvcmd}; then run uenvcmd; fi\0" \
+	ANTSDR_UENV_COMPAT_ENV \
 	"load_qspi_extraenv=if sf probe 0:0 50000000 0; then " \
 		"if sf read ${qspi_extraenv_load_address} ${qspi_extraenv_offset} ${qspi_extraenv_size}; then " \
 			"env import -c ${qspi_extraenv_load_address} ${qspi_extraenv_size} || true; " \
 		"fi; " \
 	"fi\0" \
 	"preboot=if test \"${modeboot}\" = sdboot; then " \
-		"run load_uenv; run run_uenvcmd; " \
+		"run load_uenv; " ANTSDR_UENV_POSTLOAD \
 		"else if test \"${modeboot}\" = qspiboot; then run load_qspi_extraenv; fi; fi\0" \
 	"validate_rf_model=if test \"${rf_model}\" = ad9363; then true; " \
 		"else if test \"${rf_model}\" = ad9361; then true; else false; fi; fi\0" \
