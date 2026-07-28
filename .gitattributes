@@ -1,0 +1,11 @@
+* text=auto eol=lf
+
+*.json text eol=lf
+*.md text eol=lf
+*.patch text eol=lf
+*.py text eol=lf
+*.tcl text eol=lf
+*.v text eol=lf
+*.xdc text eol=lf
+*.yaml text eol=lf
+Makefile text eol=lf

@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/cyfrit/antsdr-firmware/boards/schema/profile-v1.schema.json",
+  "title": "ANTSDR board profile v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "id", "board", "status", "transceiver", "datapath", "sources"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+    "board": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+    "status": { "enum": ["development", "build-validated", "hardware-validated"] },
+    "transceiver": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["physical_marking", "driver_compatible", "rx_channels", "tx_channels", "rx_frequency_hz", "tx_frequency_hz", "bandwidth_hz", "reference_clock_hz"],
+      "properties": {
+        "physical_marking": { "type": "string" },
+        "driver_compatible": { "type": "string" },
+        "rx_channels": { "type": "integer", "minimum": 1 },
+        "tx_channels": { "type": "integer", "minimum": 1 },
+        "rx_frequency_hz": { "$ref": "#/$defs/range" },
+        "tx_frequency_hz": { "$ref": "#/$defs/range" },
+        "bandwidth_hz": { "$ref": "#/$defs/range" },
+        "reference_clock_hz": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "datapath": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "interface", "sample_width_bits", "dma_width_bits"],
+      "properties": {
+        "mode": { "const": "2r2t" },
+        "interface": { "const": "cmos-full-port" },
+        "sample_width_bits": { "const": 12 },
+        "dma_width_bits": {
+          "type": "object",
+          "required": ["rx", "tx"],
+          "properties": {
+            "rx": { "type": "integer" },
+            "tx": { "type": "integer" }
+          }
+        }
+      }
+    },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string" },
+      "uniqueItems": true
+    }
+  },
+  "$defs": {
+    "range": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["min", "max"],
+      "properties": {
+        "min": { "type": "integer", "minimum": 0 },
+        "max": { "type": "integer", "minimum": 1 }
+      }
+    }
+  }
+}

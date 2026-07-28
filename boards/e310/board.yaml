@@ -1,0 +1,396 @@
+schema_version: 1
+id: e310
+name: ANTSDR E310
+vendor: MicroPhase
+aliases:
+  - ant
+  - ANTSDR Rev.C
+status: development
+
+support:
+  reference_revisions:
+    - revision: E310 Rev.C
+      evidence: vendor-reference
+      sources: [microphase_hdl_e310, microphase_linux_e310]
+  firmware_validation: not-built
+  limitations:
+    - Only E310 Rev.C is in scope for initial hardware validation.
+    - Vivado, FSBL, kernel and DTB builds remain pending until their toolchains are available.
+    - E200 and E310V2/E316 are separate board targets and are not implied compatible.
+
+upstream:
+  plutosdr_fw:
+    repository: https://github.com/analogdevicesinc/plutosdr-fw.git
+    commit: 9e90bce43f849882cd43c20a08effca132790fb3
+  components:
+    hdl:
+      repository: https://github.com/analogdevicesinc/hdl.git
+      commit: 065c8f186ef87ff049d279ed5859ee8d97d91808
+    linux:
+      repository: https://github.com/analogdevicesinc/linux.git
+      commit: f3da30df60047dc5a0b8fa8c640be774e0f784d9
+    u_boot:
+      repository: https://github.com/analogdevicesinc/u-boot-xlnx.git
+      commit: 90401ce9ce029e5563f4dface63914d42badf5bc
+    buildroot:
+      repository: https://github.com/analogdevicesinc/buildroot.git
+      commit: e783aadccebad3413b3d60fcfe98a25eb395d839
+
+toolchain:
+  vivado:
+    name: AMD Vivado
+    version: "2023.2"
+    status: deferred
+    sources: [adi_plutosdr_makefile, microphase_hdl_project]
+  fsbl:
+    name: AMD XSCT/Vitis
+    version: "2023.2"
+    status: deferred
+    sources: [adi_fsbl_script]
+  linux:
+    name: GNU Arm cross toolchain
+    version: arm-linux-gnueabihf
+    status: deferred
+    sources: [adi_plutosdr_makefile]
+
+build:
+  hdl_project: e310
+  linux_dtb: zynq-antsdr-e310.dtb
+  linux_defconfig: zynq_antsdr_e310_defconfig
+  u_boot_defconfig: zynq_antsdr_e310_defconfig
+  default_profile: ad9361-compatible-unlocked-2r2t
+
+hardware:
+  soc:
+    family: Zynq-7000
+    device: XC7Z020
+    package: CLG400
+    speed_grade: -2
+    ps_mio_width: 54
+    sources: [microphase_hdl_project, microphase_hdl_ps7]
+
+  ddr:
+    size_bytes: 1073741824
+    memory_device: MT41J256M16RE-125
+    data_width_bits: 32
+    internal_vref: false
+    training: [write-level, read-gate, data-eye]
+    dqs_to_clk_delay_ns: [0.048, 0.050]
+    board_delay_ns: [0.241, 0.240]
+    sources: [microphase_hdl_ps7, microphase_linux_e310, microphase_uboot_e310]
+
+  clocks:
+    - name: ps-fclk0
+      frequency_hz: 100000000
+      direction: ps-to-pl
+      consumer: control-and-dma
+      sources: [microphase_hdl_ps7]
+    - name: ps-fclk1
+      frequency_hz: 200000000
+      direction: ps-to-pl
+      consumer: ad936x-delay-and-vcxo-control
+      sources: [microphase_hdl_ps7]
+    - name: ad936x-reference
+      frequency_hz: 40000000
+      direction: board-to-fpga-and-rf
+      fpga_pin: K17
+      io_standard: LVCMOS33
+      sources: [microphase_hdl_xdc, microphase_linux_e310]
+    - name: external-reference
+      frequency_hz: 10000000
+      direction: board-to-fpga
+      fpga_pin: T9
+      io_standard: LVCMOS18
+      sources: [microphase_hdl_xdc]
+    - name: pps
+      frequency_hz: 1
+      direction: board-to-fpga
+      fpga_pin: J18
+      io_standard: LVCMOS33
+      sources: [microphase_hdl_xdc]
+
+  gpios:
+    - name: front-panel-button
+      controller: zynq-gpio
+      line: 14
+      direction: input
+      active: low
+      sources: [microphase_linux_e310]
+    - name: status-led
+      controller: zynq-gpio
+      line: 15
+      direction: output
+      active: high
+      sources: [microphase_linux_e310]
+    - name: ethernet-phy-reset
+      controller: zynq-gpio
+      line: 46
+      direction: output
+      active: low
+      consumer: Marvell-88E1512
+      sources: [microphase_hdl_ps7, microphase_linux_e310, microphase_uboot_e310]
+    - name: usb-phy-reset
+      controller: zynq-gpio
+      line: 47
+      direction: output
+      active: high
+      sources: [microphase_hdl_ps7, microphase_linux_e310]
+    - name: ad936x-enable-agc
+      controller: zynq-gpio
+      line: 66
+      emio: 12
+      direction: bidirectional
+      active: high
+      fpga_pin: P16
+      sources: [microphase_hdl_top, microphase_hdl_xdc, microphase_linux_e310]
+    - name: ad936x-reset
+      controller: zynq-gpio
+      line: 67
+      emio: 13
+      direction: bidirectional
+      active: low
+      fpga_pin: N17
+      sources: [microphase_hdl_top, microphase_hdl_xdc, microphase_linux_e310]
+    - name: ad936x-enable
+      controller: zynq-gpio
+      line: 69
+      emio: 15
+      direction: output
+      active: high
+      fpga_pin: R18
+      sources: [microphase_hdl_top, microphase_hdl_xdc]
+    - name: ad936x-txnrx
+      controller: zynq-gpio
+      line: 70
+      emio: 16
+      direction: output
+      active: high
+      fpga_pin: P14
+      sources: [microphase_hdl_top, microphase_hdl_xdc]
+    - name: rx1-high-band
+      controller: zynq-gpio
+      line: 86
+      emio: 32
+      direction: output
+      active: high
+      fpga_pin: G14
+      sources: [microphase_hdl_top, microphase_hdl_xdc, microphase_linux_e310]
+    - name: rx1-low-band
+      controller: zynq-gpio
+      line: 87
+      emio: 33
+      direction: output
+      active: high
+      fpga_pin: C20
+      sources: [microphase_hdl_top, microphase_hdl_xdc, microphase_linux_e310]
+    - name: tx1-high-band
+      controller: zynq-gpio
+      line: 88
+      emio: 34
+      direction: output
+      active: high
+      fpga_pin: B19
+      sources: [microphase_hdl_top, microphase_hdl_xdc, microphase_linux_e310]
+    - name: tx1-low-band
+      controller: zynq-gpio
+      line: 89
+      emio: 35
+      direction: output
+      active: high
+      fpga_pin: B20
+      sources: [microphase_hdl_top, microphase_hdl_xdc, microphase_linux_e310]
+    - name: rx2-high-band
+      controller: zynq-gpio
+      line: 90
+      emio: 36
+      direction: output
+      active: high
+      fpga_pin: E17
+      sources: [microphase_hdl_top, microphase_hdl_xdc, microphase_linux_e310]
+    - name: rx2-low-band
+      controller: zynq-gpio
+      line: 91
+      emio: 37
+      direction: output
+      active: high
+      fpga_pin: A20
+      sources: [microphase_hdl_top, microphase_hdl_xdc, microphase_linux_e310]
+    - name: tx2-high-band
+      controller: zynq-gpio
+      line: 92
+      emio: 38
+      direction: output
+      active: high
+      fpga_pin: D18
+      sources: [microphase_hdl_top, microphase_hdl_xdc, microphase_linux_e310]
+    - name: tx2-low-band
+      controller: zynq-gpio
+      line: 93
+      emio: 39
+      direction: output
+      active: high
+      fpga_pin: D19
+      sources: [microphase_hdl_top, microphase_hdl_xdc, microphase_linux_e310]
+
+  rf:
+    physical_transceiver: AD9363
+    software_compatible: adi,ad9361
+    channels: 2r2t
+    interface: cmos-full-port-12-bit
+    reference_clock_hz: 40000000
+    default_rx_bandwidth_hz: 18000000
+    default_tx_bandwidth_hz: 18000000
+    digital_tuning:
+      mode: rx-and-tx
+      tx_feedback_clock_delay: 0
+      tx_data_delay: 9
+      port_swap: true
+      tx_parallel_swap: true
+      rx_parallel_swap: true
+    front_end:
+      split_frequency_hz: 3000000000
+      supported_range_hz: [0, 6000000000]
+      rx_low_gpio_values: [0, 1, null, null, 0, 1, null, null]
+      rx_high_gpio_values: [1, 0, null, null, 1, 0, null, null]
+      tx_low_gpio_values: [null, null, 0, 1, null, null, 0, 1]
+      tx_high_gpio_values: [null, null, 1, 0, null, null, 1, 0]
+    sources: [microphase_hdl_ad936x, microphase_linux_e310, adi_linux_ad9361_limits]
+
+  datapath:
+    ad936x_core_address: 0x79020000
+    tx_dds_address: 0x79024000
+    rx_dma:
+      address: 0x7c400000
+      interrupt: 57
+      source_width_bits: 32
+      destination_width_bits: 64
+      hp_port: S_AXI_HP1
+    tx_dma:
+      address: 0x7c420000
+      interrupt: 56
+      source_width_bits: 64
+      destination_width_bits: 32
+      hp_port: S_AXI_HP2
+    vcxo_control_address: 0x43c00000
+    sources: [microphase_hdl_ad936x, microphase_linux_e310]
+
+  boot:
+    primary_media: sd
+    recovery_media: qspi
+    serial:
+      controller: uart1
+      baud: 115200
+      mio: [12, 13]
+    sd:
+      controller: sdhci0
+      frequency_hz: 50000000
+    qspi:
+      size_bytes: 33554432
+      frequency_hz: 50000000
+      bus_width: 4
+      partitions:
+        - { name: qspi-fsbl-uboot, offset: 0x000000, size: 0x100000 }
+        - { name: qspi-uboot-env, offset: 0x100000, size: 0x020000 }
+        - { name: qspi-nvmfs, offset: 0x120000, size: 0x0e0000 }
+        - { name: qspi-linux, offset: 0x200000, size: 0x1e00000 }
+    fsbl_input: system_top.xsa
+    sources: [microphase_hdl_ps7, microphase_linux_e310, microphase_uboot_e310, adi_fsbl_script]
+
+compatibility:
+  hardware:
+    - revision: E310 Rev.C
+      status: reference
+      evidence: MicroPhase v0.39 target ant
+    - revision: E310 Rev.A/B
+      status: unsupported
+      evidence: no verified board ABI
+    - revision: E200
+      status: separate-target
+      evidence: different vendor target and board ABI
+    - revision: E310V2/E316
+      status: separate-target
+      evidence: different vendor target and board ABI
+  software:
+    - component: ADI plutosdr-fw
+      version: v0.39
+      status: pinned
+    - component: MicroPhase antsdr-fw-patch
+      version: v0.39
+      status: reference-only
+    - component: later ADI releases
+      version: unpinned
+      status: unsupported-until-rebased
+
+sources:
+  adi_plutosdr_makefile:
+    kind: upstream
+    repository: https://github.com/analogdevicesinc/plutosdr-fw.git
+    commit: 9e90bce43f849882cd43c20a08effca132790fb3
+    path: Makefile
+    lines: 1-30
+  adi_fsbl_script:
+    kind: upstream
+    repository: https://github.com/analogdevicesinc/plutosdr-fw.git
+    commit: 9e90bce43f849882cd43c20a08effca132790fb3
+    path: scripts/create_fsbl_project.tcl
+  adi_linux_ad9361_limits:
+    kind: upstream
+    repository: https://github.com/analogdevicesinc/linux.git
+    commit: f3da30df60047dc5a0b8fa8c640be774e0f784d9
+    path: drivers/iio/adc/ad9361_regs.h
+    lines: 2817-2824
+  microphase_hdl_e310:
+    kind: vendor-patch-result
+    repository: https://github.com/MicroPhase/antsdr-fw-patch.git
+    commit: 58b8018d596121c220f30e00749bafbe251744a6
+    path: patch/0001-add-three-ant-hdl-support-bump-to-v0.39.patch
+    target: projects/ant
+  microphase_hdl_project:
+    kind: vendor-patch-result
+    repository: https://github.com/MicroPhase/antsdr-fw-patch.git
+    commit: 58b8018d596121c220f30e00749bafbe251744a6
+    path: patch/0001-add-three-ant-hdl-support-bump-to-v0.39.patch
+    target: projects/ant/system_project.tcl
+    lines: 1-15
+  microphase_hdl_ps7:
+    kind: vendor-patch-result
+    repository: https://github.com/MicroPhase/antsdr-fw-patch.git
+    commit: 58b8018d596121c220f30e00749bafbe251744a6
+    path: patch/0001-add-three-ant-hdl-support-bump-to-v0.39.patch
+    target: projects/ant/system_bd.tcl
+    lines: 46-92
+  microphase_hdl_ad936x:
+    kind: vendor-patch-result
+    repository: https://github.com/MicroPhase/antsdr-fw-patch.git
+    commit: 58b8018d596121c220f30e00749bafbe251744a6
+    path: patch/0001-add-three-ant-hdl-support-bump-to-v0.39.patch
+    target: projects/ant/system_bd.tcl
+    lines: 173-376
+  microphase_hdl_top:
+    kind: vendor-patch-result
+    repository: https://github.com/MicroPhase/antsdr-fw-patch.git
+    commit: 58b8018d596121c220f30e00749bafbe251744a6
+    path: patch/0001-add-three-ant-hdl-support-bump-to-v0.39.patch
+    target: projects/ant/system_top.v
+    lines: 38-231
+  microphase_hdl_xdc:
+    kind: vendor-patch-result
+    repository: https://github.com/MicroPhase/antsdr-fw-patch.git
+    commit: 58b8018d596121c220f30e00749bafbe251744a6
+    path: patch/0001-add-three-ant-hdl-support-bump-to-v0.39.patch
+    target: projects/ant/system_constr.xdc
+    lines: 1-90
+  microphase_linux_e310:
+    kind: vendor-patch-result
+    repository: https://github.com/MicroPhase/antsdr-fw-patch.git
+    commit: 58b8018d596121c220f30e00749bafbe251744a6
+    path: patch/ant/0001-add-support-linux.patch
+    target: arch/arm/boot/dts/zynq-ant.dts,arch/arm/boot/dts/zynq-ant.dtsi
+    lines: 1-566
+  microphase_uboot_e310:
+    kind: vendor-patch-result
+    repository: https://github.com/MicroPhase/antsdr-fw-patch.git
+    commit: 58b8018d596121c220f30e00749bafbe251744a6
+    path: patch/ant/0001-add-support-uboot.patch
+    target: arch/arm/dts/zynq-ant-sdr.dts
+    lines: 1-96

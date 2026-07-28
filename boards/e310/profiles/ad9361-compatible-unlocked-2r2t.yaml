@@ -1,0 +1,25 @@
+schema_version: 1
+id: ad9361-compatible-unlocked-2r2t
+board: e310
+status: development
+
+transceiver:
+  physical_marking: AD9363
+  driver_compatible: adi,ad9361
+  rx_channels: 2
+  tx_channels: 2
+  rx_frequency_hz: { min: 70000000, max: 6000000000 }
+  tx_frequency_hz: { min: 46875001, max: 6000000000 }
+  bandwidth_hz: { min: 200000, max: 56000000 }
+  reference_clock_hz: 40000000
+
+datapath:
+  mode: 2r2t
+  interface: cmos-full-port
+  sample_width_bits: 12
+  dma_width_bits: { rx: 64, tx: 64 }
+
+sources:
+  - adi_linux_ad9361_limits
+  - microphase_hdl_ad936x
+  - microphase_linux_e310
