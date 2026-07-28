@@ -66,6 +66,12 @@ build:
   linux_defconfig: zynq_antsdr_e310_defconfig
   u_boot_defconfig: zynq_antsdr_e310_defconfig
   buildroot_defconfig: zynq_antsdr_e310_defconfig
+  firmware:
+    fit_image: antsdr-e310.itb
+    kernel_image: zImage
+    rootfs_image: rootfs.cpio.gz
+    boot_image: BOOT.BIN
+    qspi_partition: qspi-linux
   profile_selection:
     dimensions:
       rf_model: [ad9363, ad9361]

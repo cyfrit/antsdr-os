@@ -106,6 +106,13 @@ def validate_qspi(board: dict[str, Any]) -> None:
     if cursor > qspi["size_bytes"]:
         raise ContractError("QSPI partitions exceed declared flash size")
 
+    firmware_partition = board["build"]["firmware"]["qspi_partition"]
+    partition_names = {partition["name"] for partition in partitions}
+    if firmware_partition not in partition_names:
+        raise ContractError(
+            f"build.firmware.qspi_partition is not a declared QSPI partition: {firmware_partition}"
+        )
+
 
 def validate_ranges(profile: dict[str, Any]) -> None:
     for name in ("rx_frequency_hz", "tx_frequency_hz", "bandwidth_hz"):

@@ -58,6 +58,7 @@ def load_profiles(board_dir: Path) -> list[dict[str, Any]]:
 
 
 def render_its(board: dict[str, Any], profiles: list[dict[str, Any]]) -> str:
+    firmware = board["build"]["firmware"]
     bitstreams = {
         profile["artifacts"]["fpga_bitstream"]
         for profile in profiles
@@ -81,7 +82,7 @@ def render_its(board: dict[str, Any], profiles: list[dict[str, Any]]) -> str:
         "\timages {",
         "\t\tkernel {",
         '\t\t\tdescription = "Linux";',
-        '\t\t\tdata = /incbin/("zImage");',
+        f'\t\t\tdata = /incbin/({quoted(firmware["kernel_image"])});',
         '\t\t\ttype = "kernel";',
         '\t\t\tarch = "arm";',
         '\t\t\tos = "linux";',
@@ -93,7 +94,7 @@ def render_its(board: dict[str, Any], profiles: list[dict[str, Any]]) -> str:
         "",
         "\t\tramdisk {",
         '\t\t\tdescription = "Buildroot root filesystem";',
-        '\t\t\tdata = /incbin/("rootfs.cpio.gz");',
+        f'\t\t\tdata = /incbin/({quoted(firmware["rootfs_image"])});',
         '\t\t\ttype = "ramdisk";',
         '\t\t\tarch = "arm";',
         '\t\t\tos = "linux";',

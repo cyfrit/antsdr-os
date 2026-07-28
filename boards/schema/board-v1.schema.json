@@ -86,7 +86,7 @@
     "build": {
       "type": "object",
       "additionalProperties": false,
-        "required": ["hdl_project", "linux_dtbs", "linux_defconfig", "u_boot_defconfig", "buildroot_defconfig", "profile_selection"],
+        "required": ["hdl_project", "linux_dtbs", "linux_defconfig", "u_boot_defconfig", "buildroot_defconfig", "firmware", "profile_selection"],
         "properties": {
           "hdl_project": { "type": "string" },
           "linux_dtbs": {
@@ -98,6 +98,18 @@
           "linux_defconfig": { "type": "string" },
           "u_boot_defconfig": { "type": "string" },
           "buildroot_defconfig": { "type": "string" },
+          "firmware": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["fit_image", "kernel_image", "rootfs_image", "boot_image", "qspi_partition"],
+            "properties": {
+              "fit_image": { "type": "string", "pattern": "^[a-zA-Z0-9._-]+\\.itb$" },
+              "kernel_image": { "type": "string", "pattern": "^[a-zA-Z0-9._-]+$" },
+              "rootfs_image": { "type": "string", "pattern": "^[a-zA-Z0-9._-]+$" },
+              "boot_image": { "type": "string", "pattern": "^[a-zA-Z0-9._-]+$" },
+              "qspi_partition": { "type": "string", "pattern": "^[a-zA-Z0-9._-]+$" }
+            }
+          },
           "profile_selection": {
             "type": "object",
             "additionalProperties": false,
