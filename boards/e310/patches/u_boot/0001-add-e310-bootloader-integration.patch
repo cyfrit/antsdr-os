@@ -1,0 +1,21 @@
+From: Cyfrit <i@cli.tf>
+Subject: [PATCH] ARM: dts: add ANTSDR E310 bootloader integration
+SPDX-License-Identifier: GPL-2.0-or-later
+
+Keep the E310 implementation in the downstream overlay and add only the
+U-Boot device-tree build hook upstream.
+
+diff --git a/arch/arm/dts/Makefile b/arch/arm/dts/Makefile
+index 7b19efc9b8..e651d9d922 100644
+--- a/arch/arm/dts/Makefile
++++ b/arch/arm/dts/Makefile
+@@ -101,7 +101,8 @@ dtb-$(CONFIG_ARCH_ZYNQ) += zynq-zc702.dtb \
+ 	zynq-zc770-xm010.dtb \
+ 	zynq-zc770-xm011.dtb \
+ 	zynq-zc770-xm012.dtb \
+-	zynq-zc770-xm013.dtb
++	zynq-zc770-xm013.dtb \
++	zynq-antsdr-e310.dtb
+ dtb-$(CONFIG_ARCH_ZYNQMP) += \
+ 	zynqmp-ep108.dtb			\
+ 	zynqmp-zcu100.dtb			\

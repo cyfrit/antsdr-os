@@ -13,7 +13,6 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 BOARD = ROOT / "boards" / "e310"
 LINUX = BOARD / "hw" / "linux"
-DTS = LINUX / "dts" / "zynq-antsdr-e310.dts"
 DTSI = LINUX / "dts" / "zynq-antsdr-e310.dtsi"
 DEFCONFIG = LINUX / "configs" / "zynq_antsdr_e310_defconfig"
 UPSTREAM = ROOT / "upstream" / "adi-plutosdr-fw" / "linux"
@@ -66,11 +65,40 @@ class LinuxOverlayTest(unittest.TestCase):
     def test_device_tree_matches_board_contract(self) -> None:
         board = yaml.safe_load((BOARD / "board.yaml").read_text(encoding="utf-8"))
         dtsi = DTSI.read_text(encoding="utf-8")
+        dtbs = {
+            "ad9363-1r1t": (
+                LINUX / "dts" / "zynq-antsdr-e310-ad9363-1r1t.dts",
+                "adi,ad9363a",
+                "1r1t",
+            ),
+            "ad9363-2r2t": (
+                LINUX / "dts" / "zynq-antsdr-e310-ad9363-2r2t.dts",
+                "adi,ad9363a",
+                "2r2t",
+            ),
+            "ad9361-1r1t": (
+                LINUX / "dts" / "zynq-antsdr-e310-ad9361-1r1t.dts",
+                "adi,ad9361",
+                "1r1t",
+            ),
+            "ad9361-2r2t": (
+                LINUX / "dts" / "zynq-antsdr-e310-ad9361-2r2t.dts",
+                "adi,ad9361",
+                "2r2t",
+            ),
+        }
         gpio_lines = {entry["name"]: entry["line"] for entry in board["hardware"]["gpios"]}
 
-        self.assertIn('compatible = "adi,ad9361";', dtsi)
-        self.assertNotIn('compatible = "adi,ad9363a";', dtsi)
-        self.assertIn("adi,2rx-2tx-mode-enable;", dtsi)
+        dimensions = board["build"]["profile_selection"]["dimensions"]
+        self.assertEqual(dimensions["rf_model"], ["ad9363", "ad9361"])
+        self.assertEqual(dimensions["rf_topology"], ["1r1t", "2r2t"])
+        self.assertEqual(
+            set(board["build"]["linux_dtbs"]),
+            {path.with_suffix(".dtb").name for path, _, _ in dtbs.values()},
+        )
+        self.assertIn("ad936x_phy: ad936x-phy@0", dtsi)
+        self.assertNotIn('compatible = "adi,ad936', dtsi)
+        self.assertNotIn("adi,2rx-2tx-mode-enable;", dtsi)
         self.assertIn("adi,tx-lo-powerdown-managed-enable;", dtsi)
         self.assertIn(
             f'reset-gpios = <&gpio0 {gpio_lines["ethernet-phy-reset"]} GPIO_ACTIVE_LOW>;',
@@ -90,6 +118,28 @@ class LinuxOverlayTest(unittest.TestCase):
         ):
             self.assertIn(f"@{address:x}", dtsi)
 
+        for profile_path in sorted((BOARD / "profiles").glob("*.yaml")):
+            profile = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+            with self.subTest(profile=profile["id"]):
+                self.assertEqual(profile["transceiver"]["physical_marking"], "AD9363")
+                self.assertIn(profile["id"], dtbs)
+                dts_path, compatible, topology = dtbs[profile["id"]]
+                self.assertEqual(profile["artifacts"]["linux_dtb"], dts_path.with_suffix(".dtb").name)
+                self.assertEqual(profile["transceiver"]["driver_compatible"], compatible)
+                self.assertEqual(profile["selection"]["rf_topology"], topology)
+                self.assertEqual(profile["datapath"]["mode"], topology)
+                self.assertEqual(profile["artifacts"]["fpga_bitstream"], "system_top.bit")
+                dts = dts_path.read_text(encoding="utf-8")
+                self.assertIn(f'compatible = "{compatible}";', dts)
+                if topology == "2r2t":
+                    self.assertIn("adi,2rx-2tx-mode-enable;", dts)
+                    self.assertNotIn("adi,axi-ad9364-dds-6.00.a", dts)
+                else:
+                    self.assertNotIn("adi,2rx-2tx-mode-enable;", dts)
+                    self.assertIn("adi,1rx-1tx-mode-use-rx-num = <1>;", dts)
+                    self.assertIn("adi,1rx-1tx-mode-use-tx-num = <1>;", dts)
+                    self.assertIn('compatible = "adi,axi-ad9364-dds-6.00.a";', dts)
+
     def test_vcxo_driver_uses_managed_resources(self) -> None:
         driver = (LINUX / "drivers" / "antsdr-e310-vcxo.c").read_text(encoding="utf-8")
         self.assertIn("devm_platform_ioremap_resource(pdev, 0)", driver)
@@ -100,40 +150,42 @@ class LinuxOverlayTest(unittest.TestCase):
     def test_device_tree_compiles(self) -> None:
         self.assertTrue((UPSTREAM / "arch" / "arm" / "boot" / "dts" / "zynq.dtsi").is_file())
         with tempfile.TemporaryDirectory() as directory:
-            preprocessed = Path(directory) / "zynq-antsdr-e310.dts"
-            dtb = Path(directory) / "zynq-antsdr-e310.dtb"
-            preprocess = subprocess.run(
-                [
-                    "cpp",
-                    "-nostdinc",
-                    "-undef",
-                    "-D__DTS__",
-                    "-x",
-                    "assembler-with-cpp",
-                    "-I",
-                    str(LINUX / "dts"),
-                    "-I",
-                    str(UPSTREAM / "arch" / "arm" / "boot" / "dts"),
-                    "-I",
-                    str(UPSTREAM / "include"),
-                    str(DTS),
-                    str(preprocessed),
-                ],
-                cwd=ROOT,
-                check=False,
-                capture_output=True,
-                text=True,
-            )
-            self.assertEqual(preprocess.returncode, 0, preprocess.stderr)
-            compile_dtb = subprocess.run(
-                ["dtc", "-I", "dts", "-O", "dtb", "-o", str(dtb), str(preprocessed)],
-                cwd=ROOT,
-                check=False,
-                capture_output=True,
-                text=True,
-            )
-            self.assertEqual(compile_dtb.returncode, 0, compile_dtb.stderr)
-            self.assertGreater(dtb.stat().st_size, 0)
+            for source, _, _ in dtbs.values():
+                with self.subTest(source=source.name):
+                    preprocessed = Path(directory) / source.name
+                    dtb = Path(directory) / source.with_suffix(".dtb").name
+                    preprocess = subprocess.run(
+                        [
+                            "cpp",
+                            "-nostdinc",
+                            "-undef",
+                            "-D__DTS__",
+                            "-x",
+                            "assembler-with-cpp",
+                            "-I",
+                            str(LINUX / "dts"),
+                            "-I",
+                            str(UPSTREAM / "arch" / "arm" / "boot" / "dts"),
+                            "-I",
+                            str(UPSTREAM / "include"),
+                            str(source),
+                            str(preprocessed),
+                        ],
+                        cwd=ROOT,
+                        check=False,
+                        capture_output=True,
+                        text=True,
+                    )
+                    self.assertEqual(preprocess.returncode, 0, preprocess.stderr)
+                    compile_dtb = subprocess.run(
+                        ["dtc", "-I", "dts", "-O", "dtb", "-o", str(dtb), str(preprocessed)],
+                        cwd=ROOT,
+                        check=False,
+                        capture_output=True,
+                        text=True,
+                    )
+                    self.assertEqual(compile_dtb.returncode, 0, compile_dtb.stderr)
+                    self.assertGreater(dtb.stat().st_size, 0)
 
 
 if __name__ == "__main__":

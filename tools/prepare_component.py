@@ -19,6 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 COMPONENTS = {
     "hdl": ("fpga", "hdl"),
     "linux": ("linux", "linux"),
+    "u_boot": ("uboot", "u-boot-xlnx"),
 }
 
 

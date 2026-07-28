@@ -106,14 +106,14 @@
 			reg = <0x79020000 0x6000>;
 			dmas = <&rx_dma 0>;
 			dma-names = "rx";
-			spibus-connected = <&ad9361_phy>;
+			spibus-connected = <&ad936x_phy>;
 			adi,axi-decimation-core-available;
 		};
 
 		cf_ad9361_dac: cf-ad9361-dds-core-lpc@79024000 {
 			compatible = "adi,axi-ad9361-dds-6.00.a";
 			reg = <0x79024000 0x1000>;
-			clocks = <&ad9361_phy 13>;
+			clocks = <&ad936x_phy 13>;
 			clock-names = "sampl_clk";
 			dmas = <&tx_dma 0>;
 			dma-names = "tx";
@@ -124,7 +124,7 @@
 		axi_tdd: tdd@7c440000 {
 			compatible = "adi,axi-tdd-1.00";
 			reg = <0x7c440000 0x10000>;
-			clocks = <&clkc 15>, <&ad9361_phy 13>;
+			clocks = <&clkc 15>, <&ad936x_phy 13>;
 			clock-names = "s_axi_aclk", "intf_clk";
 			label = "e310-tdd";
 		};
@@ -228,8 +228,7 @@
 &spi0 {
 	status = "okay";
 
-	ad9361_phy: ad9361-phy@0 {
-		compatible = "adi,ad9361";
+	ad936x_phy: ad936x-phy@0 {
 		reg = <0>;
 		spi-cpha;
 		spi-max-frequency = <10000000>;
@@ -251,7 +250,6 @@
 		adi,swap-ports-enable;
 
 		adi,frequency-division-duplex-mode-enable;
-		adi,2rx-2tx-mode-enable;
 
 		adi,rx-rf-port-input-select = <0>;
 		adi,rx-rf-port-input-select-lock-enable;

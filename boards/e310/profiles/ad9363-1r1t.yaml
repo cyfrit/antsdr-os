@@ -1,0 +1,37 @@
+# SPDX-License-Identifier: MIT
+schema_version: 1
+id: ad9363-1r1t
+board: e310
+status: development
+
+selection:
+  rf_model: ad9363
+  rf_topology: 1r1t
+
+transceiver:
+  physical_marking: AD9363
+  selected_model: AD9363
+  driver_compatible: adi,ad9363a
+  rx_channels: 1
+  tx_channels: 1
+  rx_frequency_hz: { min: 325000000, max: 3800000000 }
+  tx_frequency_hz: { min: 325000000, max: 3800000000 }
+  bandwidth_hz: { min: 200000, max: 20000000 }
+  reference_clock_hz: 40000000
+
+datapath:
+  mode: 1r1t
+  interface: cmos-full-port
+  sample_width_bits: 12
+  dma_width_bits: { rx: 64, tx: 64 }
+
+artifacts:
+  linux_dtb: zynq-antsdr-e310-ad9363-1r1t.dtb
+  fpga_bitstream: system_top.bit
+  fit_configuration: config@e310-ad9363-1r1t
+
+sources:
+  - adi_linux_ad936x_limits
+  - adi_linux_ad936x_models
+  - microphase_hdl_ad936x
+  - microphase_linux_e310

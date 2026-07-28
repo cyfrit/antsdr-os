@@ -4,18 +4,24 @@
   "title": "ANTSDR board profile v1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "id", "board", "status", "transceiver", "datapath", "sources"],
+  "required": ["schema_version", "id", "board", "status", "selection", "transceiver", "datapath", "artifacts", "sources"],
   "properties": {
     "schema_version": { "const": 1 },
     "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
     "board": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
     "status": { "enum": ["development", "build-validated", "hardware-validated"] },
+    "selection": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" }
+    },
     "transceiver": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["physical_marking", "driver_compatible", "rx_channels", "tx_channels", "rx_frequency_hz", "tx_frequency_hz", "bandwidth_hz", "reference_clock_hz"],
+      "required": ["physical_marking", "selected_model", "driver_compatible", "rx_channels", "tx_channels", "rx_frequency_hz", "tx_frequency_hz", "bandwidth_hz", "reference_clock_hz"],
       "properties": {
         "physical_marking": { "type": "string" },
+        "selected_model": { "enum": ["AD9361", "AD9363"] },
         "driver_compatible": { "type": "string" },
         "rx_channels": { "type": "integer", "minimum": 1 },
         "tx_channels": { "type": "integer", "minimum": 1 },
@@ -30,7 +36,7 @@
       "additionalProperties": false,
       "required": ["mode", "interface", "sample_width_bits", "dma_width_bits"],
       "properties": {
-        "mode": { "const": "2r2t" },
+        "mode": { "enum": ["1r1t", "2r2t"] },
         "interface": { "const": "cmos-full-port" },
         "sample_width_bits": { "const": 12 },
         "dma_width_bits": {
@@ -41,6 +47,16 @@
             "tx": { "type": "integer" }
           }
         }
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["linux_dtb", "fpga_bitstream", "fit_configuration"],
+      "properties": {
+        "linux_dtb": { "type": "string", "pattern": "^[a-zA-Z0-9._-]+\\.dtb$" },
+        "fpga_bitstream": { "type": "string", "pattern": "^[a-zA-Z0-9._-]+\\.(bit|bin)$" },
+        "fit_configuration": { "type": "string", "pattern": "^config@[a-zA-Z0-9._-]+$" }
       }
     },
     "sources": {

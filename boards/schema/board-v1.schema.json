@@ -86,14 +86,35 @@
     "build": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["hdl_project", "linux_dtb", "linux_defconfig", "u_boot_defconfig", "default_profile"],
-      "properties": {
-        "hdl_project": { "type": "string" },
-        "linux_dtb": { "type": "string", "pattern": "^[a-zA-Z0-9._-]+\\.dtb$" },
-        "linux_defconfig": { "type": "string" },
-        "u_boot_defconfig": { "type": "string" },
-        "default_profile": { "type": "string" }
-      }
+        "required": ["hdl_project", "linux_dtbs", "linux_defconfig", "u_boot_defconfig", "profile_selection"],
+        "properties": {
+          "hdl_project": { "type": "string" },
+          "linux_dtbs": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": { "type": "string", "pattern": "^[a-zA-Z0-9._-]+\\.dtb$" }
+          },
+          "linux_defconfig": { "type": "string" },
+          "u_boot_defconfig": { "type": "string" },
+          "profile_selection": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["dimensions"],
+            "properties": {
+              "dimensions": {
+                "type": "object",
+                "minProperties": 1,
+                "additionalProperties": {
+                  "type": "array",
+                  "minItems": 1,
+                  "uniqueItems": true,
+                  "items": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" }
+                }
+              }
+            }
+          }
+        }
     },
     "hardware": {
       "type": "object",

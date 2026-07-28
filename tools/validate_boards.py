@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import argparse
+import itertools
 import json
 import sys
 from pathlib import Path
@@ -113,6 +114,70 @@ def validate_ranges(profile: dict[str, Any]) -> None:
             raise ContractError(f"profile transceiver.{name} has an invalid range")
 
 
+def validate_profile(board: dict[str, Any], path: Path) -> dict[str, Any]:
+    profile = load_yaml(path)
+    validate_schema(profile, load_json(PROFILE_SCHEMA), path)
+    if profile["board"] != board["id"]:
+        raise ContractError(f"{path}: profile board does not match {board['id']}")
+    if profile["id"] != path.stem:
+        raise ContractError(f"{path}: profile id does not match its filename")
+    validate_sources(board, profile)
+    validate_ranges(profile)
+    return profile
+
+
+def validate_profile_selection(
+    board: dict[str, Any],
+    profiles: dict[str, dict[str, Any]],
+) -> None:
+    dimensions = board["build"]["profile_selection"]["dimensions"]
+    dimension_names = set(dimensions)
+    expected = {
+        tuple(values)
+        for values in itertools.product(
+            *(dimensions[name] for name in dimensions)
+        )
+    }
+
+    selected: dict[tuple[str, ...], str] = {}
+    for profile_id, profile in profiles.items():
+        selection = profile["selection"]
+        if set(selection) != dimension_names:
+            raise ContractError(
+                f"{profile_id}: selection keys must match profile-selection dimensions"
+            )
+        for name, value in selection.items():
+            if value not in dimensions[name]:
+                raise ContractError(
+                    f"{profile_id}: invalid {name} selection {value!r}"
+                )
+        key = tuple(selection[name] for name in dimensions)
+        if key in selected:
+            raise ContractError(
+                f"duplicate profile selection: {profile_id} and {selected[key]}"
+            )
+        selected[key] = profile_id
+
+        topology = selection.get("rf_topology")
+        if topology and profile["datapath"]["mode"] != topology:
+            raise ContractError(
+                f"{profile_id}: datapath mode does not match rf_topology"
+            )
+
+    if set(selected) != expected:
+        missing = sorted("-".join(values) for values in expected - set(selected))
+        extra = sorted("-".join(values) for values in set(selected) - expected)
+        details = []
+        if missing:
+            details.append(f"missing: {', '.join(missing)}")
+        if extra:
+            details.append(f"unexpected: {', '.join(extra)}")
+        raise ContractError(
+            "profiles must cover each profile-selection combination exactly once"
+            + f" ({'; '.join(details)})"
+        )
+
+
 def validate_contract(path: Path) -> None:
     board = load_yaml(path)
     validate_schema(board, load_json(BOARD_SCHEMA), path)
@@ -122,20 +187,25 @@ def validate_contract(path: Path) -> None:
             f"{path}: board id {board['id']!r} does not match directory {path.parent.name!r}"
         )
 
-    profile_path = path.parent / "profiles" / f"{board['build']['default_profile']}.yaml"
-    if not profile_path.is_file():
-        raise ContractError(f"default profile does not exist: {profile_path}")
-    profile = load_yaml(profile_path)
-    validate_schema(profile, load_json(PROFILE_SCHEMA), profile_path)
-    if profile["board"] != board["id"]:
-        raise ContractError(f"{profile_path}: profile board does not match {board['id']}")
-    if profile["id"] != board["build"]["default_profile"]:
-        raise ContractError(f"{profile_path}: profile id does not match its filename")
+    profile_paths = sorted((path.parent / "profiles").glob("*.yaml"))
+    if not profile_paths:
+        raise ContractError(f"no profiles found in {path.parent / 'profiles'}")
+    profiles = {profile_path.stem: validate_profile(board, profile_path) for profile_path in profile_paths}
+    if len(profiles) != len(profile_paths):
+        raise ContractError(f"duplicate profile id in {path.parent / 'profiles'}")
 
-    validate_sources(board, profile)
+    validate_profile_selection(board, profiles)
+    profile_dtbs = {profile["artifacts"]["linux_dtb"] for profile in profiles.values()}
+    if profile_dtbs != set(board["build"]["linux_dtbs"]):
+        raise ContractError("linux_dtbs must match the DTB artifacts of all board profiles")
+    profile_fit_configs = {
+        profile["artifacts"]["fit_configuration"] for profile in profiles.values()
+    }
+    if len(profile_fit_configs) != len(profiles):
+        raise ContractError("FIT configuration names must be unique")
+
     validate_unique_hardware(board)
     validate_qspi(board)
-    validate_ranges(profile)
 
     if board["status"] == "hardware-validated" and board["support"]["firmware_validation"] != "hardware-tested":
         raise ContractError("hardware-validated status requires hardware-tested firmware evidence")

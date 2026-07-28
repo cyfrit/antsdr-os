@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * ANTSDR E310 Rev.C AD9361 1R1T profile using RX1 and TX1.
+ *
+ * Copyright (C) 2026 Cyfrit <i@cli.tf>
+ */
+
+/dts-v1/;
+#include "zynq-antsdr-e310.dtsi"
+#include "zynq-antsdr-e310-board.dtsi"
+
+&ad936x_phy {
+	compatible = "adi,ad9361";
+	adi,1rx-1tx-mode-use-rx-num = <1>;
+	adi,1rx-1tx-mode-use-tx-num = <1>;
+};
+
+&cf_ad9361_dac {
+	compatible = "adi,axi-ad9364-dds-6.00.a";
+};

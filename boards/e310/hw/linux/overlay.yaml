@@ -2,8 +2,16 @@
 schema_version: 1
 component: linux
 files:
-  - source: dts/zynq-antsdr-e310.dts
-    destination: arch/arm/boot/dts/zynq-antsdr-e310.dts
+  - source: dts/zynq-antsdr-e310-ad9361-1r1t.dts
+    destination: arch/arm/boot/dts/zynq-antsdr-e310-ad9361-1r1t.dts
+  - source: dts/zynq-antsdr-e310-ad9361-2r2t.dts
+    destination: arch/arm/boot/dts/zynq-antsdr-e310-ad9361-2r2t.dts
+  - source: dts/zynq-antsdr-e310-ad9363-1r1t.dts
+    destination: arch/arm/boot/dts/zynq-antsdr-e310-ad9363-1r1t.dts
+  - source: dts/zynq-antsdr-e310-ad9363-2r2t.dts
+    destination: arch/arm/boot/dts/zynq-antsdr-e310-ad9363-2r2t.dts
+  - source: dts/zynq-antsdr-e310-board.dtsi
+    destination: arch/arm/boot/dts/zynq-antsdr-e310-board.dtsi
   - source: dts/zynq-antsdr-e310.dtsi
     destination: arch/arm/boot/dts/zynq-antsdr-e310.dtsi
   - source: configs/zynq_antsdr_e310_defconfig

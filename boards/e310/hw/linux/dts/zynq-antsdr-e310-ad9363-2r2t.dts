@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * ANTSDR E310 Rev.C AD9363 2R2T profile.
+ *
+ * Copyright (C) 2021-2024 MicroPhase Inc.
+ * Copyright (C) 2026 Cyfrit <i@cli.tf>
+ */
+
+/dts-v1/;
+#include "zynq-antsdr-e310.dtsi"
+#include "zynq-antsdr-e310-board.dtsi"
+
+&ad936x_phy {
+	compatible = "adi,ad9363a";
+	adi,2rx-2tx-mode-enable;
+};

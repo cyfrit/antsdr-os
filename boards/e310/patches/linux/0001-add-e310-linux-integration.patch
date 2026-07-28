@@ -8,9 +8,12 @@ minimal build-system hooks to the ADI Linux tree.
 diff --git a/arch/arm/boot/dts/Makefile b/arch/arm/boot/dts/Makefile
 --- a/arch/arm/boot/dts/Makefile
 +++ b/arch/arm/boot/dts/Makefile
-@@ -1477,6 +1477,7 @@
+@@ -1477,6 +1477,10 @@
  dtb-$(CONFIG_ARCH_ZYNQ) += \
-+	zynq-antsdr-e310.dtb \
++	zynq-antsdr-e310-ad9361-1r1t.dtb \
++	zynq-antsdr-e310-ad9361-2r2t.dtb \
++	zynq-antsdr-e310-ad9363-1r1t.dtb \
++	zynq-antsdr-e310-ad9363-2r2t.dtb \
  	zynq-cc108.dtb \
  	zynq-coraz7s-adaq4003.dtb \
  	zynq-ebaz4205.dtb \

@@ -57,10 +57,17 @@ toolchain:
 
 build:
   hdl_project: e310
-  linux_dtb: zynq-antsdr-e310.dtb
+  linux_dtbs:
+    - zynq-antsdr-e310-ad9361-1r1t.dtb
+    - zynq-antsdr-e310-ad9361-2r2t.dtb
+    - zynq-antsdr-e310-ad9363-1r1t.dtb
+    - zynq-antsdr-e310-ad9363-2r2t.dtb
   linux_defconfig: zynq_antsdr_e310_defconfig
   u_boot_defconfig: zynq_antsdr_e310_defconfig
-  default_profile: ad9361-compatible-unlocked-2r2t
+  profile_selection:
+    dimensions:
+      rf_model: [ad9363, ad9361]
+      rf_topology: [1r1t, 2r2t]
 
 hardware:
   soc:
@@ -236,8 +243,13 @@ hardware:
 
   rf:
     physical_transceiver: AD9363
-    software_compatible: adi,ad9361
-    channels: 2r2t
+    driver_models:
+      - { model: AD9363, compatible: adi,ad9363a }
+      - { model: AD9361, compatible: adi,ad9361 }
+    channel_topologies:
+      - { id: 1r1t, rx_channels: 1, tx_channels: 1, rx_channel: 1, tx_channel: 1 }
+      - { id: 2r2t, rx_channels: 2, tx_channels: 2 }
+    fpga_datapath: 2r2t-capable
     interface: cmos-full-port-12-bit
     reference_clock_hz: 40000000
     default_rx_bandwidth_hz: 18000000
@@ -256,7 +268,7 @@ hardware:
       rx_high_gpio_values: [1, 0, null, null, 1, 0, null, null]
       tx_low_gpio_values: [null, null, 0, 1, null, null, 0, 1]
       tx_high_gpio_values: [null, null, 1, 0, null, null, 1, 0]
-    sources: [microphase_hdl_ad936x, microphase_linux_e310, adi_linux_ad9361_limits]
+    sources: [microphase_hdl_ad936x, microphase_linux_e310, adi_linux_ad936x_limits, adi_linux_ad936x_models]
 
   datapath:
     ad936x_core_address: 0x79020000
@@ -290,10 +302,19 @@ hardware:
       size_bytes: 33554432
       frequency_hz: 50000000
       bus_width: 4
+      extra_environment:
+        offset: 0x0ff000
+        size: 0x001000
+        format: crc32-uboot-environment
       partitions:
         - { name: qspi-fsbl-uboot, offset: 0x000000, size: 0x100000 }
         - { name: qspi-uboot-env, offset: 0x100000, size: 0x020000 }
         - { name: qspi-nvmfs, offset: 0x120000, size: 0x0e0000 }
+        - { name: qspi-linux, offset: 0x200000, size: 0x1e00000 }
+    usb_dfu_recovery:
+      vendor_id: 0x0456
+      product_id: 0xb674
+      alt_targets:
         - { name: qspi-linux, offset: 0x200000, size: 0x1e00000 }
     fsbl_input: system_top.xsa
     sources: [microphase_hdl_ps7, microphase_linux_e310, microphase_uboot_e310, adi_fsbl_script]
@@ -335,12 +356,18 @@ sources:
     repository: https://github.com/analogdevicesinc/plutosdr-fw.git
     commit: 9e90bce43f849882cd43c20a08effca132790fb3
     path: scripts/create_fsbl_project.tcl
-  adi_linux_ad9361_limits:
+  adi_linux_ad936x_limits:
     kind: upstream
     repository: https://github.com/analogdevicesinc/linux.git
     commit: f3da30df60047dc5a0b8fa8c640be774e0f784d9
     path: drivers/iio/adc/ad9361_regs.h
     lines: 2817-2824
+  adi_linux_ad936x_models:
+    kind: upstream
+    repository: https://github.com/analogdevicesinc/linux.git
+    commit: f3da30df60047dc5a0b8fa8c640be774e0f784d9
+    path: drivers/iio/adc/ad9361.c
+    lines: 9661-9668
   microphase_hdl_e310:
     kind: vendor-patch-result
     repository: https://github.com/MicroPhase/antsdr-fw-patch.git
