@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
 """Validate board manifests, profiles, source references, and hardware invariants."""
 
 from __future__ import annotations

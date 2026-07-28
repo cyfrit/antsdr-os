@@ -1,8 +1,16 @@
+<!-- SPDX-License-Identifier: MIT -->
+
 # FPGA source provenance
 
 The E310 project files are derived from the ADI HDL `pluto` project and retain
 their ADI license headers. They are overlaid on ADI HDL commit
 `065c8f186ef87ff049d279ed5859ee8d97d91808`.
+
+ADI's `ADIBSD` identifier is represented as `LicenseRef-ADI-BSD`. It is a
+source-available, non-OSI license because it restricts use to software running
+on or directly connected to an Analog Devices component. Its pinned text is in
+`LICENSES/LicenseRef-ADI-BSD.txt`; it must not be normalized to a standard BSD
+identifier.
 
 `e310_ref_pll.v` is based on the Ettus Research B205 reference PLL, with the
 manual DAC and reference-status extensions found in the MicroPhase E310

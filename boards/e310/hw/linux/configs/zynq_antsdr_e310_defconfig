@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 CONFIG_SYSVIPC=y
 CONFIG_USELIB=y
 CONFIG_HIGH_RES_TIMERS=y

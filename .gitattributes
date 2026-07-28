@@ -8,4 +8,5 @@
 *.v text eol=lf
 *.xdc text eol=lf
 *.yaml text eol=lf
+LICENSES/*.txt text eol=lf whitespace=-blank-at-eol,-space-before-tab
 Makefile text eol=lf

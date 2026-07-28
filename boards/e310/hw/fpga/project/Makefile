@@ -1,6 +1,6 @@
 ####################################################################################
 ## Copyright (C) 2018-2024 Analog Devices, Inc. All rights reserved.
-### SPDX short identifier: BSD-1-Clause
+### SPDX-License-Identifier: BSD-1-Clause
 ####################################################################################
 
 PROJECT_NAME := e310

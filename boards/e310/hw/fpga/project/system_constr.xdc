@@ -1,6 +1,6 @@
 ###############################################################################
 ## Copyright (C) 2014-2024 Analog Devices, Inc. All rights reserved.
-### SPDX short identifier: ADIBSD
+### SPDX-License-Identifier: LicenseRef-ADI-BSD
 ###############################################################################
 
 # VCXO discipline and external reference interface

@@ -1,6 +1,6 @@
 ###############################################################################
 ## Copyright (C) 2014-2024 Analog Devices, Inc. All rights reserved.
-### SPDX short identifier: ADIBSD
+### SPDX-License-Identifier: LicenseRef-ADI-BSD
 ###############################################################################
 
 source $ad_hdl_dir/projects/common/xilinx/adi_fir_filter_bd.tcl

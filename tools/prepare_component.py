@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
 """Materialize a board component in a clean worktree without touching upstream."""
 
 from __future__ import annotations

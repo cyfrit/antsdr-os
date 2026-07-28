@@ -1,0 +1,139 @@
+# SPDX-License-Identifier: MIT
+schema_version: 1
+spdx_license_list_version: "3.28.0"
+default_license: MIT
+
+licenses:
+  MIT:
+    name: MIT License
+    osi_approved: true
+    copyleft: false
+    text: LICENSES/MIT.txt
+    source: https://github.com/spdx/license-list-data/blob/v3.28.0/text/MIT.txt
+    sha256: b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5
+  BSD-1-Clause:
+    name: BSD 1-Clause License
+    osi_approved: true
+    copyleft: false
+    text: LICENSES/BSD-1-Clause.txt
+    source: https://github.com/spdx/license-list-data/blob/v3.28.0/text/BSD-1-Clause.txt
+    sha256: 244e17b6f02493de568a8ddfd7f4349996a6c332c0585d304ceaf5394becea52
+  BSD-2-Clause:
+    name: BSD 2-Clause Simplified License
+    osi_approved: true
+    copyleft: false
+    text: LICENSES/BSD-2-Clause.txt
+    source: https://github.com/spdx/license-list-data/blob/v3.28.0/text/BSD-2-Clause.txt
+    sha256: f32fb3b417a194167cfad068223fc975ba96c5960513a10f66a3c28720aec1df
+  GPL-2.0-only:
+    name: GNU General Public License v2.0 only
+    osi_approved: true
+    copyleft: strong
+    text: LICENSES/GPL-2.0-only.txt
+    source: https://github.com/spdx/license-list-data/blob/v3.28.0/text/GPL-2.0-only.txt
+    sha256: aaf135472f81c5b4a0dca9367e5bb5e9750032b5bebe5442b36e4c0a47430df3
+  GPL-2.0-or-later:
+    name: GNU General Public License v2.0 or later
+    osi_approved: true
+    copyleft: strong
+    text: LICENSES/GPL-2.0-or-later.txt
+    source: https://github.com/spdx/license-list-data/blob/v3.28.0/text/GPL-2.0-or-later.txt
+    sha256: aaf135472f81c5b4a0dca9367e5bb5e9750032b5bebe5442b36e4c0a47430df3
+  LGPL-3.0-or-later:
+    name: GNU Lesser General Public License v3.0 or later
+    osi_approved: true
+    copyleft: weak
+    text: LICENSES/LGPL-3.0-or-later.txt
+    source: https://github.com/spdx/license-list-data/blob/v3.28.0/text/LGPL-3.0-or-later.txt
+    sha256: 996af0513df21f7496288951c41428a03c174e9e4a9d63665c57d670f845ccb1
+  LicenseRef-ADI-BSD:
+    name: Analog Devices device-restricted BSD license
+    osi_approved: false
+    copyleft: false
+    text: LICENSES/LicenseRef-ADI-BSD.txt
+    source: upstream/adi-plutosdr-fw/hdl/LICENSE_ADIBSD
+    sha256: 8d211985424b956b93ca6e97754ab5a56847d86d26a134fcbeae993e467be513
+  NOASSERTION:
+    name: No repository-level assertion
+    osi_approved: false
+    copyleft: unknown
+
+legacy_identifiers:
+  ADIBSD: LicenseRef-ADI-BSD
+  BSD-1-Clause: BSD-1-Clause
+
+allowed_exceptions: []
+
+header_required:
+  - "**/*.c"
+  - "**/*.h"
+  - "**/*.dts"
+  - "**/*.dtsi"
+  - "**/*.py"
+  - "**/*.tcl"
+  - "**/*.v"
+  - "**/*.sv"
+  - "**/*.vhd"
+  - "**/*.xdc"
+  - "**/*.yaml"
+  - "**/*.yml"
+  - "**/*.patch"
+  - "**/*defconfig"
+  - "Makefile"
+  - "**/Makefile"
+
+rules:
+  - paths:
+      - LICENSE
+    expression: NOASSERTION
+    source: repository-license-notice
+    kind: license-notice
+    require_spdx: false
+  - paths:
+      - LICENSES/MIT.txt
+    expression: MIT
+    source: canonical-license-text
+    kind: license-text
+    require_spdx: false
+  - paths:
+      - LICENSES/BSD-1-Clause.txt
+    expression: BSD-1-Clause
+    source: canonical-license-text
+    kind: license-text
+    require_spdx: false
+  - paths:
+      - LICENSES/BSD-2-Clause.txt
+    expression: BSD-2-Clause
+    source: canonical-license-text
+    kind: license-text
+    require_spdx: false
+  - paths:
+      - LICENSES/GPL-2.0-only.txt
+    expression: GPL-2.0-only
+    source: canonical-license-text
+    kind: license-text
+    require_spdx: false
+  - paths:
+      - LICENSES/GPL-2.0-or-later.txt
+    expression: GPL-2.0-or-later
+    source: canonical-license-text
+    kind: license-text
+    require_spdx: false
+  - paths:
+      - LICENSES/LGPL-3.0-or-later.txt
+    expression: LGPL-3.0-or-later
+    source: canonical-license-text
+    kind: license-text
+    require_spdx: false
+  - paths:
+      - LICENSES/LicenseRef-ADI-BSD.txt
+    expression: LicenseRef-ADI-BSD
+    source: upstream-license-text
+    kind: license-text
+    require_spdx: false
+  - paths:
+      - upstream/adi-plutosdr-fw
+    expression: NOASSERTION
+    source: pinned-multi-license-submodule
+    kind: submodule
+    require_spdx: false

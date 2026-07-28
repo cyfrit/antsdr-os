@@ -10,3 +10,6 @@ License unless another SPDX identifier or license notice is present.
 
 See the `LICENSES/` directory and the SPDX identifiers in individual files for
 third-party license terms and notices.
+
+The auditable repository policy is defined in `license-policy.yaml`. Run
+`python tools/license_audit.py check` after adding or changing source files.
