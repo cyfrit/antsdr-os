@@ -1,0 +1,25 @@
+schema_version: 1
+component: hdl
+files:
+  - source: project/Makefile
+    destination: projects/e310/Makefile
+  - source: project/system_bd.tcl
+    destination: projects/e310/system_bd.tcl
+  - source: project/system_constr.xdc
+    destination: projects/e310/system_constr.xdc
+  - source: project/system_project.tcl
+    destination: projects/e310/system_project.tcl
+  - source: project/system_top.v
+    destination: projects/e310/system_top.v
+  - source: library/axi_e310_vcxo_ctrl/Makefile
+    destination: library/axi_e310_vcxo_ctrl/Makefile
+  - source: library/axi_e310_vcxo_ctrl/axi_e310_vcxo_ctrl.v
+    destination: library/axi_e310_vcxo_ctrl/axi_e310_vcxo_ctrl.v
+  - source: library/axi_e310_vcxo_ctrl/axi_e310_vcxo_ctrl_ip.tcl
+    destination: library/axi_e310_vcxo_ctrl/axi_e310_vcxo_ctrl_ip.tcl
+  - source: library/axi_e310_vcxo_ctrl/axi_e310_vcxo_ctrl_regmap.v
+    destination: library/axi_e310_vcxo_ctrl/axi_e310_vcxo_ctrl_regmap.v
+  - source: library/axi_e310_vcxo_ctrl/e310_ref_pll.v
+    destination: library/axi_e310_vcxo_ctrl/e310_ref_pll.v
+  - source: library/axi_e310_vcxo_ctrl/ltc2630_spi.v
+    destination: library/axi_e310_vcxo_ctrl/ltc2630_spi.v
