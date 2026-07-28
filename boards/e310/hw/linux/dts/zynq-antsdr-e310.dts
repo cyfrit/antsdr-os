@@ -1,0 +1,33 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * MicroPhase ANTSDR E310 Rev.C default 2R2T profile
+ *
+ * Copyright (C) 2021-2024 MicroPhase Inc.
+ * Copyright (C) 2026 ANTSDR Firmware contributors
+ */
+
+/dts-v1/;
+#include "zynq-antsdr-e310.dtsi"
+#include <dt-bindings/input/input.h>
+
+/ {
+	leds {
+		compatible = "gpio-leds";
+
+		status_led: status {
+			label = "e310:green:status";
+			gpios = <&gpio0 15 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		button {
+			label = "E310 Button";
+			linux,code = <BTN_MISC>;
+			gpios = <&gpio0 14 GPIO_ACTIVE_LOW>;
+		};
+	};
+};

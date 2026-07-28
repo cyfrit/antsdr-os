@@ -1,0 +1,35 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/frequency/microphase,antsdr-e310-vcxo.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: MicroPhase ANTSDR E310 FPGA VCXO control
+
+maintainers:
+  - Cyfrit <i@cli.tf>
+
+description: |
+  Register interface for the FPGA block that disciplines the E310 40 MHz VCXO
+  against a 10 MHz or PPS reference and drives the onboard LTC2630 DAC.
+
+properties:
+  compatible:
+    const: microphase,antsdr-e310-vcxo
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    vcxo-control@43c00000 {
+        compatible = "microphase,antsdr-e310-vcxo";
+        reg = <0x43c00000 0x1000>;
+    };
+...

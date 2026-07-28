@@ -1,0 +1,13 @@
+schema_version: 1
+component: linux
+files:
+  - source: dts/zynq-antsdr-e310.dts
+    destination: arch/arm/boot/dts/zynq-antsdr-e310.dts
+  - source: dts/zynq-antsdr-e310.dtsi
+    destination: arch/arm/boot/dts/zynq-antsdr-e310.dtsi
+  - source: configs/zynq_antsdr_e310_defconfig
+    destination: arch/arm/configs/zynq_antsdr_e310_defconfig
+  - source: drivers/antsdr-e310-vcxo.c
+    destination: drivers/iio/frequency/antsdr-e310-vcxo.c
+  - source: bindings/microphase,antsdr-e310-vcxo.yaml
+    destination: Documentation/devicetree/bindings/iio/frequency/microphase,antsdr-e310-vcxo.yaml

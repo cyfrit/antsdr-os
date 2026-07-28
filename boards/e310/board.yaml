@@ -15,7 +15,8 @@ support:
   firmware_validation: not-built
   limitations:
     - Only E310 Rev.C is in scope for initial hardware validation.
-    - Vivado, FSBL, kernel and DTB builds remain pending until their toolchains are available.
+    - The E310 device tree is compile-checked against the pinned ADI Linux tree but has not been boot-tested.
+    - Vivado, FSBL and full kernel builds remain pending until their toolchains are available.
     - E200 and E310V2/E316 are separate board targets and are not implied compatible.
 
 upstream:

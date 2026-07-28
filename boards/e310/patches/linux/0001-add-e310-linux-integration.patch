@@ -1,0 +1,45 @@
+From: ANTSDR Firmware contributors
+Subject: [PATCH] ARM: add ANTSDR E310 Linux integration
+
+Keep the board implementation in the downstream overlay and only add the
+minimal build-system hooks to the ADI Linux tree.
+
+diff --git a/arch/arm/boot/dts/Makefile b/arch/arm/boot/dts/Makefile
+--- a/arch/arm/boot/dts/Makefile
++++ b/arch/arm/boot/dts/Makefile
+@@ -1477,6 +1477,7 @@
+ dtb-$(CONFIG_ARCH_ZYNQ) += \
++	zynq-antsdr-e310.dtb \
+ 	zynq-cc108.dtb \
+ 	zynq-coraz7s-adaq4003.dtb \
+ 	zynq-ebaz4205.dtb \
+ 	zynq-microzed.dtb \
+ 	zynq-parallella.dtb \
+diff --git a/drivers/iio/frequency/Kconfig b/drivers/iio/frequency/Kconfig
+--- a/drivers/iio/frequency/Kconfig
++++ b/drivers/iio/frequency/Kconfig
+@@ -64,6 +64,14 @@ config AD9517
+ 	  To compile this driver as a module, choose M here: the
+ 	  module will be called ad9517.
+ 
++config ANTSDR_E310_VCXO_CTRL
++	tristate "ANTSDR E310 VCXO control"
++	depends on OF && HAS_IOMEM
++	help
++	  Enable the register interface for the ANTSDR E310 FPGA VCXO
++	  discipline block. The driver exposes the manual DAC value,
++	  active DAC value, reference selection and lock status through IIO.
++
+ config HMC7044
+ 	tristate "Analog Devices HMC7044, HMC7043 Clock Jitter Attenuator with JESD204B"
+ 	depends on SPI
+diff --git a/drivers/iio/frequency/Makefile b/drivers/iio/frequency/Makefile
+--- a/drivers/iio/frequency/Makefile
++++ b/drivers/iio/frequency/Makefile
+@@ -21,5 +21,6 @@ obj-$(CONFIG_ADF5355) += adf5355.o
+ obj-$(CONFIG_ADL5960) += adl5960.o
+ obj-$(CONFIG_ADMFM2000) += admfm2000.o
++obj-$(CONFIG_ANTSDR_E310_VCXO_CTRL) += antsdr-e310-vcxo.o
+ 
+ cf_axi_dds_drv-y := cf_axi_dds.o cf_axi_dds_buffer_stream.o
+ obj-$(CONFIG_CF_AXI_DDS) += cf_axi_dds_drv.o
