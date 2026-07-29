@@ -17,6 +17,7 @@ jobs:
   build:
     name: Build release source
     uses: ./.github/workflows/build-e310.yml
+    secrets: inherit
     with:
       build_label: release
       uenv_mode: compat

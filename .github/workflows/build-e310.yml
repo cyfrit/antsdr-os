@@ -23,9 +23,15 @@ on:
       artifact_name:
         description: Name of the uploaded build artifact
         value: ${{ jobs.build.outputs.artifact_name }}
-  push:
-    tags:
-      - 'e310-revc-os-*'
+    secrets:
+      AMD_WEB_INSTALLER_URL:
+        required: true
+      AMD_WEB_INSTALLER_SIGNATURE_URL:
+        required: true
+      AMD_USERNAME:
+        required: true
+      AMD_PASSWORD:
+        required: true
   workflow_dispatch:
     inputs:
       version:
@@ -59,8 +65,8 @@ concurrency:
 jobs:
   build:
     name: Build E310 Rev.C
-    runs-on: ubuntu-24.04
-    timeout-minutes: 180
+    runs-on: ubuntu-22.04
+    timeout-minutes: 360
     outputs:
       artifact_name: ${{ steps.metadata.outputs.artifact_name }}
     env:
@@ -68,6 +74,17 @@ jobs:
       LANG: C
       LC_ALL: C
     steps:
+      - name: Expand build filesystem
+        uses: easimon/maximize-build-space@c28619d8999a147d5e09c1199f84ff6af6ad5794
+        with:
+          root-reserve-mb: 4096
+          temp-reserve-mb: 1024
+          swap-size-mb: 4096
+          remove-dotnet: true
+          remove-android: true
+          remove-haskell: true
+          remove-codeql: true
+          remove-docker-images: true
       - name: Check out pinned source tree
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -80,16 +97,18 @@ jobs:
           python-version: '3.12'
       - name: Install metadata dependencies
         run: python -m pip install --disable-pip-version-check -r requirements-dev.txt
-      - name: Check toolchain contract
+      - name: Install AMD FPGA toolchain
         shell: bash
+        env:
+          AMD_WEB_INSTALLER_URL: ${{ secrets.AMD_WEB_INSTALLER_URL }}
+          AMD_WEB_INSTALLER_SIGNATURE_URL: ${{ secrets.AMD_WEB_INSTALLER_SIGNATURE_URL }}
+          AMD_USERNAME: ${{ secrets.AMD_USERNAME }}
+          AMD_PASSWORD: ${{ secrets.AMD_PASSWORD }}
         run: |
           set -euo pipefail
-          test -r /opt/Xilinx/Vivado/2023.2/settings64.sh
-          source /opt/Xilinx/Vivado/2023.2/settings64.sh
-          command -v vivado
-          command -v xsct
-          command -v bootgen
-          vivado -version | grep -F '2023.2'
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y expect libncurses5 libtinfo5
+          bash ci/vivado/install-vivado.sh
       - name: Resolve version and source identity
         id: metadata
         shell: bash
@@ -129,10 +148,9 @@ jobs:
           UENV_MODE: ${{ inputs.uenv_mode || 'compat' }}
         run: |
           set -euo pipefail
-          source /opt/Xilinx/Vivado/2023.2/settings64.sh
-          workspace="$RUNNER_TEMP/antsdr-e310-build"
+          source "$VIVADO_SETTINGS"
+          workspace="$ANTSDR_BUILD_ROOT/e310"
           export ADI_HDL_DIR="$workspace/src/hdl"
-          export VIVADO_SETTINGS=/opt/Xilinx/Vivado/2023.2/settings64.sh
           export ANTSDR_OS_VERSION="$ANTSDR_VERSION"
           python tools/e310_build.py all \
             --workspace "$workspace" \
