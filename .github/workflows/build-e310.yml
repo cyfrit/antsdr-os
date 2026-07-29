@@ -109,7 +109,8 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install --no-install-recommends -y awscli expect libncurses5 libtinfo5
+          sudo apt-get install --no-install-recommends -y expect libncurses6 libtinfo6
+          command -v aws
           bash ci/vivado/install-vivado.sh
       - name: Report toolchain capacity
         shell: bash
