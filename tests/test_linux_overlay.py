@@ -108,6 +108,10 @@ class LinuxOverlayTest(unittest.TestCase):
             f'reset-gpios = <&gpio0 {gpio_lines["ad936x-reset"]} GPIO_ACTIVE_HIGH>;',
             dtsi,
         )
+        self.assertIn(
+            f'xlnx,phy-reset-gpio = <&gpio0 {gpio_lines["usb-phy-reset"]} GPIO_ACTIVE_LOW>;',
+            dtsi,
+        )
 
         datapath = board["hardware"]["datapath"]
         for address in (
@@ -144,6 +148,7 @@ class LinuxOverlayTest(unittest.TestCase):
         driver = (LINUX / "drivers" / "antsdr-e310-vcxo.c").read_text(encoding="utf-8")
         self.assertIn("devm_platform_ioremap_resource(pdev, 0)", driver)
         self.assertIn("devm_iio_device_register(&pdev->dev, indio_dev)", driver)
+        self.assertIn("E310_VCXO_CORE_VERSION", driver)
         self.assertNotIn("0x43c00000", driver.lower())
 
     @unittest.skipUnless(shutil.which("cpp") and shutil.which("dtc"), "cpp and dtc are required")

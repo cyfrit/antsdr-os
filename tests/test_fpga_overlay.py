@@ -73,6 +73,10 @@ class FpgaOverlayTest(unittest.TestCase):
         board = yaml.safe_load((ROOT / "boards" / "e310" / "board.yaml").read_text(encoding="utf-8"))
         block_design = (PROJECT / "system_bd.tcl").read_text(encoding="utf-8")
         project = (PROJECT / "system_project.tcl").read_text(encoding="utf-8")
+        self.assertIn(
+            "set_property is_enabled false [get_files *system_sys_ps7_0.xdc]",
+            project,
+        )
 
         soc = board["hardware"]["soc"]
         self.assertIn(
@@ -106,6 +110,29 @@ class FpgaOverlayTest(unittest.TestCase):
                 self.assertEqual(len(re.findall(r"\bmodule\b", text)), len(re.findall(r"\bendmodule\b", text)))
                 self.assertIsNone(re.search(r"\bpl_gpio[0-9]*\b", text))
                 self.assertIsNone(re.search(r"\bclk_out\b", text))
+
+    def test_ltc2630_tracks_the_value_actually_transmitted(self) -> None:
+        source = (
+            FPGA / "library" / "axi_e310_vcxo_ctrl" / "ltc2630_spi.v"
+        ).read_text(encoding="utf-8")
+        self.assertIn("transfer_value <= value;", source)
+        self.assertIn("last_value <= transfer_value;", source)
+        self.assertNotIn("last_value <= value;", source)
+
+    def test_vcxo_control_bus_crosses_clock_domains_atomically(self) -> None:
+        controller = (
+            FPGA / "library" / "axi_e310_vcxo_ctrl" / "axi_e310_vcxo_ctrl.v"
+        ).read_text(encoding="utf-8")
+        regmap = (
+            FPGA
+            / "library"
+            / "axi_e310_vcxo_ctrl"
+            / "axi_e310_vcxo_ctrl_regmap.v"
+        ).read_text(encoding="utf-8")
+        self.assertIn("control_update <= !control_update;", regmap)
+        self.assertIn("control_update_sync[2] != control_update_seen", controller)
+        self.assertIn("} <= control_bus_sync;", controller)
+        self.assertNotIn("manual_dac_sync", controller)
 
 
 if __name__ == "__main__":

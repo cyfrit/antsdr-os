@@ -37,7 +37,7 @@ class UbootOverlayTest(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
 
-    def test_defconfig_enables_verified_boot_and_storage(self) -> None:
+    def test_defconfig_enables_fit_and_storage_support(self) -> None:
         config = DEFCONFIG.read_text(encoding="utf-8")
         required = {
             'CONFIG_SYS_CONFIG_NAME="zynq_antsdr_e310"',
@@ -118,6 +118,11 @@ class UbootOverlayTest(unittest.TestCase):
         self.assertNotIn('"rf_topology=2r2t\\0"', header)
         self.assertIn("qspi_fit_offset=0x00200000", header)
         self.assertIn("qspi_fit_max_size=0x01e00000", header)
+        self.assertIn("rootfstype=ramfs", header)
+        self.assertIn("clk_ignore_unused", header)
+        self.assertIn('"fdt_high=0x20000000\\0"', header)
+        self.assertIn('"initrd_high=0x20000000\\0"', header)
+        self.assertNotIn("maxcpus=1", header)
 
         self.assertIn('"bootenv=uEnv.txt\\0"', header)
         self.assertIn('"uenv_image=uEnv.txt\\0"', header)
@@ -143,6 +148,25 @@ class UbootOverlayTest(unittest.TestCase):
         self.assertNotRegex(header, r"\\bfdt\\s+(?:set|rm)\\b")
         self.assertNotRegex(header, r"\\b(?:http|wget|tftp)\\b")
         self.assertNotIn("md5", header.lower())
+
+    def test_boot_memory_regions_are_disjoint(self) -> None:
+        board = yaml.safe_load((BOARD / "board.yaml").read_text(encoding="utf-8"))
+        header = HEADER.read_text(encoding="utf-8")
+
+        def environment_hex(name: str) -> int:
+            match = re.search(rf'"{name}=(0x[0-9a-fA-F]+)\\0"', header)
+            self.assertIsNotNone(match, name)
+            return int(match.group(1), 16)
+
+        fit_start = environment_hex("fit_load_address")
+        fit_end = fit_start + environment_hex("qspi_fit_max_size")
+        legacy_initrd = environment_hex("ramdisk_load_address")
+        fpga_start = 0x0F000000
+        memory_end = board["hardware"]["ddr"]["size_bytes"]
+
+        self.assertLessEqual(fit_end, legacy_initrd)
+        self.assertLess(legacy_initrd, fpga_start)
+        self.assertLess(fpga_start, memory_end)
 
     def test_locked_uenv_importer_has_a_narrow_variable_allowlist(self) -> None:
         command = UENV_COMMAND.read_text(encoding="utf-8")

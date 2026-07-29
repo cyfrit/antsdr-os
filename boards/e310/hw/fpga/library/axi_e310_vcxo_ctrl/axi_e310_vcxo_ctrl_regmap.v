@@ -18,6 +18,7 @@ module axi_e310_vcxo_ctrl_regmap (
   output reg        manual_mode,
   output reg [15:0] manual_dac,
   output reg [ 1:0] reference_select,
+  output reg        control_update,
   input      [15:0] active_dac,
   input      [ 2:0] reference_status
 );
@@ -37,13 +38,23 @@ module axi_e310_vcxo_ctrl_regmap (
       manual_mode <= 1'b0;
       manual_dac <= 16'd0;
       reference_select <= 2'b00;
+      control_update <= 1'b0;
     end else begin
       up_wack <= up_wreq;
       if (up_wreq) begin
         case (up_waddr[3:0])
-          REG_CONTROL: manual_mode <= up_wdata[0];
-          REG_MANUAL: manual_dac <= up_wdata[15:0];
-          REG_REFERENCE: reference_select <= up_wdata[1:0];
+          REG_CONTROL: begin
+            manual_mode <= up_wdata[0];
+            control_update <= !control_update;
+          end
+          REG_MANUAL: begin
+            manual_dac <= up_wdata[15:0];
+            control_update <= !control_update;
+          end
+          REG_REFERENCE: begin
+            reference_select <= up_wdata[1:0];
+            control_update <= !control_update;
+          end
           default: begin
             manual_mode <= manual_mode;
             manual_dac <= manual_dac;

@@ -20,6 +20,9 @@
 #define E310_VCXO_ACTIVE_DAC	0x08
 #define E310_VCXO_REFERENCE	0x0c
 #define E310_VCXO_STATUS		0x10
+#define E310_VCXO_VERSION		0x14
+
+#define E310_VCXO_CORE_VERSION		0x00010000
 
 #define E310_VCXO_CONTROL_MANUAL	BIT(0)
 #define E310_VCXO_STATUS_LOCKED	BIT(0)
@@ -203,6 +206,7 @@ static int e310_vcxo_probe(struct platform_device *pdev)
 {
 	struct e310_vcxo_state *state;
 	struct iio_dev *indio_dev;
+	u32 version;
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*state));
 	if (!indio_dev)
@@ -212,6 +216,12 @@ static int e310_vcxo_probe(struct platform_device *pdev)
 	state->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(state->base))
 		return PTR_ERR(state->base);
+
+	version = readl(state->base + E310_VCXO_VERSION);
+	if (version != E310_VCXO_CORE_VERSION)
+		return dev_err_probe(&pdev->dev, -ENODEV,
+				     "unsupported VCXO core version %#x\n", version);
+
 
 	indio_dev->name = "e310-vcxo-control";
 	indio_dev->dev.parent = &pdev->dev;

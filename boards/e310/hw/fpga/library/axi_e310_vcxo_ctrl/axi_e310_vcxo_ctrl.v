@@ -50,6 +50,7 @@ module axi_e310_vcxo_ctrl #(
   wire            manual_mode_axi;
   wire    [15:0]  manual_dac_axi;
   wire    [ 1:0]  reference_select_axi;
+  wire            control_update_axi;
   reg     [15:0]  active_dac_axi;
   reg     [ 2:0]  reference_status_axi;
 
@@ -60,15 +61,16 @@ module axi_e310_vcxo_ctrl #(
   wire            clk_40m;
   wire            clock_pll_locked;
 
-  (* ASYNC_REG = "TRUE" *) reg [1:0] manual_mode_sync;
-  (* ASYNC_REG = "TRUE" *) reg [31:0] manual_dac_sync;
-  (* ASYNC_REG = "TRUE" *) reg [3:0] reference_select_sync;
+  (* ASYNC_REG = "TRUE" *) reg [18:0] control_bus_meta;
+  (* ASYNC_REG = "TRUE" *) reg [18:0] control_bus_sync;
+  (* ASYNC_REG = "TRUE" *) reg [ 2:0] control_update_sync;
+  reg             control_update_seen;
+  reg             manual_mode;
+  reg     [15:0]  manual_dac;
+  reg     [ 1:0]  reference_select;
   (* ASYNC_REG = "TRUE" *) reg [31:0] active_dac_sync;
   (* ASYNC_REG = "TRUE" *) reg [5:0] reference_status_sync;
 
-  wire            manual_mode = manual_mode_sync[1];
-  wire    [15:0]  manual_dac = manual_dac_sync[31:16];
-  wire    [ 1:0]  reference_select = reference_select_sync[3:2];
   wire            selected_reference =
     reference_select == 2'd0 ? ref_10m_in :
     reference_select == 2'd1 ? pps_in : 1'b0;
@@ -120,15 +122,33 @@ module axi_e310_vcxo_ctrl #(
   BUFG i_clk_200m_bufg (.I (clk_200m_raw), .O (clk_200m));
   BUFG i_clk_40m_bufg (.I (clk_40m_raw), .O (clk_40m));
 
-  always @(posedge clk_200m or negedge clock_pll_locked) begin
-    if (!clock_pll_locked) begin
-      manual_mode_sync <= 2'd0;
-      manual_dac_sync <= 32'd0;
-      reference_select_sync <= 4'd0;
+  always @(posedge clk_200m or negedge clock_pll_locked or negedge s_axi_aresetn) begin
+    if (!clock_pll_locked || !s_axi_aresetn) begin
+      control_bus_meta <= 19'd0;
+      control_bus_sync <= 19'd0;
+      control_update_sync <= 3'd0;
+      control_update_seen <= 1'b0;
+      manual_mode <= 1'b0;
+      manual_dac <= 16'd0;
+      reference_select <= 2'd0;
     end else begin
-      manual_mode_sync <= {manual_mode_sync[0], manual_mode_axi};
-      manual_dac_sync <= {manual_dac_sync[15:0], manual_dac_axi};
-      reference_select_sync <= {reference_select_sync[1:0], reference_select_axi};
+      // The control bus is held stable in the AXI domain. Delay its update
+      // toggle by an extra stage, then capture all fields as one snapshot.
+      control_bus_meta <= {
+        reference_select_axi,
+        manual_dac_axi,
+        manual_mode_axi
+      };
+      control_bus_sync <= control_bus_meta;
+      control_update_sync <= {control_update_sync[1:0], control_update_axi};
+      if (control_update_sync[2] != control_update_seen) begin
+        {
+          reference_select,
+          manual_dac,
+          manual_mode
+        } <= control_bus_sync;
+        control_update_seen <= control_update_sync[2];
+      end
     end
   end
 
@@ -183,6 +203,7 @@ module axi_e310_vcxo_ctrl #(
     .manual_mode (manual_mode_axi),
     .manual_dac (manual_dac_axi),
     .reference_select (reference_select_axi),
+    .control_update (control_update_axi),
     .active_dac (active_dac_axi),
     .reference_status (reference_status_axi)
   );

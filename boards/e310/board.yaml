@@ -150,7 +150,10 @@ hardware:
       controller: zynq-gpio
       line: 47
       direction: output
-      active: high
+      active: low
+      linux_binding:
+        property: xlnx,phy-reset-gpio
+        access: legacy-raw-gpio
       sources: [microphase_hdl_ps7, microphase_linux_e310]
     - name: ad936x-enable-agc
       controller: zynq-gpio
@@ -167,6 +170,10 @@ hardware:
       direction: bidirectional
       active: low
       fpga_pin: N17
+      linux_binding:
+        property: reset-gpios
+        flag: GPIO_ACTIVE_HIGH
+        access: driver-uses-physical-low-then-high
       sources: [microphase_hdl_top, microphase_hdl_xdc, microphase_linux_e310]
     - name: ad936x-enable
       controller: zynq-gpio
@@ -294,11 +301,17 @@ hardware:
       destination_width_bits: 32
       hp_port: S_AXI_HP2
     vcxo_control_address: 0x43c00000
-    sources: [microphase_hdl_ad936x, microphase_linux_e310]
+    vcxo_control:
+      dac: LTC2630
+      manual_dac_boot_value: 0
+      automatic_holdover_dac_value: 42580
+      register_abi_version: 0x00010000
+      sources: [microphase_hdl_vcxo, microphase_linux_e310]
+    sources: [microphase_hdl_ad936x, microphase_hdl_vcxo, microphase_linux_e310]
 
   boot:
-    primary_media: sd
-    recovery_media: qspi
+    media: [sd, qspi]
+    selection: zynq-boot-mode-pins
     serial:
       controller: uart1
       baud: 115200
@@ -413,6 +426,12 @@ sources:
     path: patch/0001-add-three-ant-hdl-support-bump-to-v0.39.patch
     target: projects/ant/system_bd.tcl
     lines: 173-376
+  microphase_hdl_vcxo:
+    kind: vendor-patch-result
+    repository: https://github.com/MicroPhase/antsdr-fw-patch.git
+    commit: 58b8018d596121c220f30e00749bafbe251744a6
+    path: patch/0001-add-three-ant-hdl-support-bump-to-v0.39.patch
+    target: library/axi_vcxo_ctrl,projects/ant/system_bd.tcl
   microphase_hdl_top:
     kind: vendor-patch-result
     repository: https://github.com/MicroPhase/antsdr-fw-patch.git

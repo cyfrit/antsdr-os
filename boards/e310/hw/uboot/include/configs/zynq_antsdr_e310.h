@@ -30,6 +30,9 @@
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	"fit_image=antsdr-e310.itb\0" \
 	"fit_load_address=0x02080000\0" \
+	"bootargs=console=ttyPS0,115200 root=/dev/ram0 rw rootfstype=ramfs earlyprintk clk_ignore_unused\0" \
+	"fdt_high=0x20000000\0" \
+	"initrd_high=0x20000000\0" \
 	"kernel_image=uImage\0" \
 	"kernel_load_address=0x00008000\0" \
 	"ramdisk_image=uramdisk.image.gz\0" \

@@ -168,7 +168,8 @@
 
 &usb0 {
 	status = "okay";
-	xlnx,phy-reset-gpio = <&gpio0 47 GPIO_ACTIVE_HIGH>;
+	/* The pinned ChipIdea driver drives this legacy resetb GPIO low, then high. */
+	xlnx,phy-reset-gpio = <&gpio0 47 GPIO_ACTIVE_LOW>;
 	dr_mode = "otg";
 	usb-phy = <&usb_phy0>;
 };
@@ -341,7 +342,7 @@
 		adi,aux-dac2-tx-delay-us = <0>;
 
 		en_agc-gpios = <&gpio0 66 GPIO_ACTIVE_HIGH>;
-		/* The ADI driver toggles this line low then high during reset. */
+		/* ADI's driver uses logical 0/1 as the physical RESETB levels. */
 		reset-gpios = <&gpio0 67 GPIO_ACTIVE_HIGH>;
 		adi,band-ctl-0-gpio = <&gpio0 86 GPIO_ACTIVE_HIGH>;
 		adi,band-ctl-1-gpio = <&gpio0 87 GPIO_ACTIVE_HIGH>;
