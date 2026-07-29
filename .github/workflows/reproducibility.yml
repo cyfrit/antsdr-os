@@ -9,7 +9,6 @@ on:
       version:
         description: ANTSDR OS version to rebuild
         required: true
-        default: '1.1'
         type: string
 
 permissions:
@@ -24,14 +23,14 @@ jobs:
     name: Independent build A
     uses: ./.github/workflows/build-e310.yml
     with:
-      version: ${{ inputs.version || '1.1' }}
+      version: ${{ inputs.version }}
       build_label: reproducibility-a
       uenv_mode: compat
   second:
     name: Independent build B
     uses: ./.github/workflows/build-e310.yml
     with:
-      version: ${{ inputs.version || '1.1' }}
+      version: ${{ inputs.version }}
       build_label: reproducibility-b
       uenv_mode: compat
   compare:

@@ -7,7 +7,6 @@ on:
       version:
         required: false
         type: string
-        default: '1.1'
       source_date_epoch:
         required: false
         type: string
@@ -32,7 +31,6 @@ on:
       version:
         description: ANTSDR OS major.point version
         required: true
-        default: '1.1'
         type: string
       source_date_epoch:
         description: Reproducible Unix timestamp; blank uses the commit timestamp
@@ -61,7 +59,7 @@ concurrency:
 jobs:
   build:
     name: Build E310 Rev.C
-    runs-on: [self-hosted, linux, x64, vivado-2023.2, isolated]
+    runs-on: ubuntu-24.04
     timeout-minutes: 180
     outputs:
       artifact_name: ${{ steps.metadata.outputs.artifact_name }}
@@ -96,16 +94,19 @@ jobs:
         id: metadata
         shell: bash
         env:
-          INPUT_VERSION: ${{ inputs.version || '1.1' }}
+          INPUT_VERSION: ${{ inputs.version }}
           INPUT_EPOCH: ${{ inputs.source_date_epoch || '' }}
           BUILD_LABEL: ${{ inputs.build_label || 'push' }}
         run: |
           set -euo pipefail
           version="$INPUT_VERSION"
-          if [ "$GITHUB_EVENT_NAME" = push ]; then
+          if [[ "$GITHUB_REF_NAME" == e310-revc-os-* ]]; then
             python tools/release_metadata.py check --tag "$GITHUB_REF_NAME"
             version="${GITHUB_REF_NAME##*-os-}"
+          elif [ -z "$version" ]; then
+            version="$(python tools/release_metadata.py show --board e310 --format github | sed -n 's/^os_version=//p')"
           fi
+          test -n "$version"
           epoch="$INPUT_EPOCH"
           if [ -z "$epoch" ]; then
             epoch="$(git show -s --format=%ct "$GITHUB_SHA")"

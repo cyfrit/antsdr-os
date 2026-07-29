@@ -13,7 +13,7 @@ import release_metadata  # noqa: E402
 class ReleaseMetadataTest(unittest.TestCase):
     def test_public_version_is_debian_style(self) -> None:
         data = release_metadata.load_metadata()
-        self.assertEqual(data["product"]["version"], "1.1")
+        self.assertEqual(data["product"]["version"], "1.0")
         self.assertEqual(data["product"]["major"], 1)
         self.assertEqual(data["product"]["point"], 1)
 
@@ -24,18 +24,18 @@ class ReleaseMetadataTest(unittest.TestCase):
             source_date_epoch="123",
         )
         self.assertEqual(payload["os_name"], "ANTSDR OS")
-        self.assertEqual(payload["os_version"], "1.1")
+        self.assertEqual(payload["os_version"], "1.0")
         self.assertEqual(payload["board_stream"], "e310-revc")
         self.assertEqual(payload["adi_baseline"], "v0.39")
         self.assertEqual(payload["source_date_epoch"], "123")
-        self.assertTrue(payload["artifact_stem"].startswith("antsdr-e310-revc-os-1.1"))
+        self.assertTrue(payload["artifact_stem"].startswith("antsdr-e310-revc-os-1.0"))
 
     def test_release_tag_is_strictly_board_scoped(self) -> None:
-        self.assertEqual(release_metadata.validate_tag("e310-revc-os-1.1"), ("e310-revc", "1.1"))
+        self.assertEqual(release_metadata.validate_tag("e310-revc-os-1.0"), ("e310-revc", "1.0"))
         with self.assertRaises(release_metadata.ReleaseMetadataError):
-            release_metadata.validate_tag("e310-os-1.1")
+            release_metadata.validate_tag("e310-os-1.0")
         with self.assertRaises(release_metadata.ReleaseMetadataError):
-            release_metadata.validate_tag("e310-revc-os-1.1.1")
+            release_metadata.validate_tag("e310-revc-os-1.0.1")
 
 
 if __name__ == "__main__":

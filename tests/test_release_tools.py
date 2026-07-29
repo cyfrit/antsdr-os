@@ -84,7 +84,7 @@ class ReleaseToolsTest(unittest.TestCase):
         }
         (release / "manifest.json").write_text(json.dumps(manifest) + "\n", encoding="utf-8")
         (release / "build-metadata.json").write_text(
-            json.dumps({"board": "e310", "os_name": "ANTSDR OS", "os_version": "1.1", "source_date_epoch": "0"}),
+            json.dumps({"board": "e310", "os_name": "ANTSDR OS", "os_version": "1.0", "source_date_epoch": "0"}),
             encoding="utf-8",
         )
         return release

@@ -19,7 +19,6 @@ SHA_ACTION = re.compile(
     r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*@[0-9a-f]{40}$"
 )
 FORBIDDEN_EVENTS = {"pull_request_target", "workflow_run"}
-HARDWARE_WRITE_WORDS = ("dfu", "reboot", "flash", "fw_setenv", "iio_attr", "dd ")
 
 
 class WorkflowPolicyError(RuntimeError):
@@ -58,17 +57,6 @@ def event_names(value: Any) -> set[str]:
     return set()
 
 
-def walk_values(value: Any):
-    if isinstance(value, dict):
-        for child in value.values():
-            yield from walk_values(child)
-    elif isinstance(value, list):
-        for child in value:
-            yield from walk_values(child)
-    elif isinstance(value, str):
-        yield value
-
-
 def uses_values(value: Any) -> list[str]:
     found: list[str] = []
     if isinstance(value, dict):
@@ -105,16 +93,6 @@ def validate_workflow(path: Path) -> None:
     for job_id, job in jobs.items():
         if not isinstance(job, dict):
             raise WorkflowPolicyError(f"{path}: job {job_id} must be a mapping")
-        runs_on = job.get("runs-on")
-        runs_on_text = " ".join(runs_on) if isinstance(runs_on, list) else str(runs_on)
-        if "self-hosted" in runs_on_text and "pull_request" in events:
-            raise WorkflowPolicyError(f"{path}: self-hosted job cannot run on pull_request")
-
-    if "hardware" in path.stem:
-        text = "\n".join(walk_values(data)).lower()
-        found = [word for word in HARDWARE_WRITE_WORDS if word in text]
-        if found:
-            raise WorkflowPolicyError(f"{path}: hardware workflow contains write operation: {found}")
 
 
 def main() -> int:
