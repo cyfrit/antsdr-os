@@ -173,7 +173,7 @@ installer_heartbeat() {
 installer_heartbeat &
 heartbeat_pid=$!
 installer_status=0
-timeout --signal=TERM --kill-after=2m 90m \
+timeout --signal=TERM --kill-after=2m 45m \
   "$client/xsetup" --agree XilinxEULA,3rdPartyEULA --batch Install --config "$config" || \
   installer_status=$?
 kill "$heartbeat_pid" 2>/dev/null || true
