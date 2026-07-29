@@ -71,7 +71,7 @@ concurrency:
 jobs:
   build:
     name: Build E310 Rev.C
-    runs-on: ubicloud-standard-8
+    runs-on: ubicloud-standard-4-ubuntu-2204
     timeout-minutes: 360
     outputs:
       artifact_name: ${{ steps.metadata.outputs.artifact_name }}
@@ -109,7 +109,7 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install --no-install-recommends -y expect libncurses6 libtinfo6
+          sudo apt-get install --no-install-recommends -y expect libncurses5 libtinfo5
           command -v aws
           bash ci/vivado/install-vivado.sh
       - name: Report toolchain capacity
