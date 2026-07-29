@@ -8,6 +8,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PIPELINE = ROOT / "tools" / "e310_build.py"
+sys.path.insert(0, str(ROOT / "tools"))
+import e310_build  # noqa: E402
 
 
 class BuildPipelineTest(unittest.TestCase):
@@ -42,6 +44,14 @@ class BuildPipelineTest(unittest.TestCase):
         )
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("outside this repository", result.stderr)
+
+    def test_buildroot_toolchain_is_used_when_available(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            host_bin = workspace / "out" / "buildroot" / "host" / "bin"
+            host_bin.mkdir(parents=True)
+            environment = e310_build.build_environment(workspace)
+            self.assertEqual(environment["PATH"].split(e310_build.os.pathsep)[0], str(host_bin))
 
 
 if __name__ == "__main__":

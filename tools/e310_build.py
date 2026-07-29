@@ -167,6 +167,14 @@ def require_sources(workspace: Path, components: Iterable[str]) -> None:
         raise BuildError("workspace is not prepared; missing: " + ", ".join(missing))
 
 
+def build_environment(workspace: Path) -> dict[str, str]:
+    environment = os.environ.copy()
+    host_bin = output_dir(workspace, "buildroot") / "host" / "bin"
+    if host_bin.is_dir():
+        environment["PATH"] = str(host_bin) + os.pathsep + environment.get("PATH", "")
+    return environment
+
+
 def run_commands(commands: list[tuple[str, list[str]]], workspace: Path, action: str) -> None:
     required = {
         "rootfs": ("buildroot",),
@@ -181,7 +189,7 @@ def run_commands(commands: list[tuple[str, list[str]]], workspace: Path, action:
         require_sources(workspace, required)
     for label, command in commands:
         print(f"==> {label}")
-        subprocess.run(command, check=True, cwd=workspace, env=os.environ.copy())
+        subprocess.run(command, check=True, cwd=workspace, env=build_environment(workspace))
 
 
 def parser() -> argparse.ArgumentParser:
