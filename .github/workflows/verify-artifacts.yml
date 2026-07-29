@@ -1,0 +1,85 @@
+# SPDX-License-Identifier: MIT
+name: ANTSDR OS artifact verification
+
+on:
+  workflow_call:
+    inputs:
+      artifact_name:
+        required: true
+        type: string
+    outputs:
+      verified_artifact_name:
+        description: Name of the verified artifact bundle
+        value: ${{ jobs.verify.outputs.verified_artifact_name }}
+  workflow_dispatch:
+    inputs:
+      artifact_name:
+        description: Build artifact to verify
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: antsdr-os-verify-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Verify E310 release artifacts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    outputs:
+      verified_artifact_name: ${{ steps.bundle.outputs.verified_artifact_name }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: '3.12'
+      - name: Install validation dependencies
+        run: python -m pip install --disable-pip-version-check -r requirements-dev.txt
+      - name: Download build output
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: ${{ runner.temp }}/input
+      - name: Verify manifest and generate release inventory
+        shell: bash
+        env:
+          ARTIFACT_NAME: ${{ inputs.artifact_name }}
+        run: |
+          set -euo pipefail
+          release="$RUNNER_TEMP/input/release"
+          test -d "$release"
+          python tools/verify_release.py --release "$release" --board e310
+          python tools/generate_sbom.py --release "$release" --output "$release/sbom.spdx.json"
+          python tools/write_checksums.py --root "$release"
+          mkdir -p "$RUNNER_TEMP/verified"
+          cp -a "$release/." "$RUNNER_TEMP/verified/"
+          epoch=0
+          if [ -f "$release/build-metadata.json" ]; then
+            epoch="$(python -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8")) .get("source_date_epoch", 0))' "$release/build-metadata.json")"
+          fi
+          archive="$RUNNER_TEMP/${ARTIFACT_NAME}.tar.gz"
+          tar --sort=name --mtime="@$epoch" --owner=0 --group=0 --numeric-owner \
+            -C "$RUNNER_TEMP/verified" -czf "$archive" .
+          cp "$archive" "$RUNNER_TEMP/verified/"
+      - name: Bundle verified artifacts
+        id: bundle
+        shell: bash
+        env:
+          ARTIFACT_NAME: ${{ inputs.artifact_name }}
+        run: echo "verified_artifact_name=verified-${ARTIFACT_NAME}" >> "$GITHUB_OUTPUT"
+      - name: Upload verified release bundle
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: verified-${{ inputs.artifact_name }}
+          path: ${{ runner.temp }}/verified
+          if-no-files-found: error
+          retention-days: 90

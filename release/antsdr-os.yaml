@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: MIT
+schema_version: 1
+
+# ANTSDR OS uses a Debian-style public release number.  The OS generation is
+# the compatibility boundary; board and upstream coordinates are recorded
+# separately in generated build metadata.
+product:
+  name: ANTSDR OS
+  major: 1
+  point: 1
+  version: "1.1"
+  abi: 1
+  channel: stable
+
+supported_boards:
+  - id: e310
+    hardware_revision: revc
+    stream: e310-revc
+
+compatibility:
+  boot_abi: 1
+  qspi_layout: 1
+  uenv_abi: 1
+  profile_schema: 1
+
+upstream:
+  adi_release: v0.39
+
+artifacts:
+  name_template: antsdr-{board}-{hardware_revision}-os-{version}-adi-{adi_release}
+  tag_template: "{stream}-os-{version}"

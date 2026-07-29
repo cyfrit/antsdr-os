@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: MIT
+name: ANTSDR OS E310 read-only hardware smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      host:
+        description: USB network address of the attached E310
+        required: true
+        default: 10.31.0.1
+        type: string
+      ssh_check:
+        description: Run read-only SSH service checks
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: antsdr-os-hardware-e310
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    name: E310 Rev.C read-only smoke
+    runs-on: [self-hosted, e310-revc, isolated]
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Run read-only connectivity and service checks
+        env:
+          E310_HOST: ${{ inputs.host || '10.31.0.1' }}
+          SSH_CHECK: ${{ inputs.ssh_check || true }}
+        run: |
+          set -euo pipefail
+          args=(--execute --host "$E310_HOST")
+          if [ "$SSH_CHECK" = true ]; then
+            args+=(--ssh-check)
+          fi
+          python tools/e310_smoke_test.py "${args[@]}"

@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: MIT
+name: ANTSDR OS code scanning
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '43 4 * * 2'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: antsdr-os-codeql-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: CodeQL
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [python, c-cpp]
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@0fa1882f994fbd81a47ab0804f93354f5ea40147 # v3.28.17
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+      - name: Analyze source
+        uses: github/codeql-action/analyze@0fa1882f994fbd81a47ab0804f93354f5ea40147 # v3.28.17
+        with:
+          category: /language:${{ matrix.language }}

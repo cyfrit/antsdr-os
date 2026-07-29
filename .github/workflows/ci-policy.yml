@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: MIT
+name: ANTSDR OS policy CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: antsdr-os-policy-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  policy:
+    name: Actions and license policy
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - name: Install validation dependencies
+        run: python -m pip install --disable-pip-version-check -r requirements-dev.txt
+      - name: Validate every workflow policy
+        run: python tools/validate_workflows.py
+      - name: Audit SPDX and license inventory
+        run: python tools/license_audit.py check
+      - name: Check patch and source hygiene
+        shell: bash
+        run: |
+          set -euo pipefail
+          ! git grep -n -E '(^|[[:space:]])(wget|curl)[[:space:]].*http://' -- boards tools tests .github release
+          ! git grep -n -E '(^|[^A-Za-z])(md5|md5sum)([^A-Za-z]|$)' -- boards tools tests .github release
+          ! git grep -n 'antsdr-firmware' -- . ':!local-docs'
+      - name: Review dependency changes
+        if: github.event_name == 'pull_request'
+        uses: actions/dependency-review-action@ce3cf9537a52e8119d91fd484ab5b8a807627bf8 # v4.6.0
