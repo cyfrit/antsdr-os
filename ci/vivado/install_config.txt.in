@@ -8,9 +8,9 @@ Product=Vivado
 # workspace so the installer and FPGA build share the same filesystem.
 Destination=@DESTINATION@
 
-# E310 requires only the Zynq-7000 device database and the embedded command
-# line tools that provide XSCT and bootgen.
-Modules=Virtex UltraScale+ HBM:0,Kintex UltraScale:0,Vitis Networking P4:0,Artix UltraScale+:0,Spartan-7:0,Artix-7:0,Virtex UltraScale+:0,Vitis Model Composer(Toolbox for MATLAB and Simulink. Includes the functionality of System Generator for DSP):0,DocNav:0,Zynq UltraScale+ MPSoC:0,Zynq-7000:1,Virtex UltraScale+ 58G:0,Power Design Manager (PDM):0,Vitis Embedded Development:1,Kintex-7:0,Install Devices for Kria SOMs and Starter Kits:0,Kintex UltraScale+:0
+# E310 requires the Zynq-7000 device database and the embedded command-line
+# tools that provide XSCT and bootgen.
+Modules=Zynq-7000:1,Vitis Embedded Development:1
 
 InstallOptions=Acquire or Manage a License Key:0,Enable WebTalk for Vivado to send usage statistics to Xilinx (Always enabled for WebPACK license):0
 CreateProgramGroupShortcuts=0
