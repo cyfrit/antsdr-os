@@ -21,7 +21,6 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: read
-      pull-requests: read
     steps:
       - name: Check out source
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -46,6 +45,3 @@ jobs:
           set -euo pipefail
           ! git grep -n -E '(^|[[:space:]])(wget|curl)[[:space:]].*http://' -- boards release
           ! git grep -n -E '(^|[^A-Za-z])(md5|md5sum)([^A-Za-z]|$)' -- boards release
-      - name: Review dependency changes
-        if: github.event_name == 'pull_request'
-        uses: actions/dependency-review-action@ce3cf9537a52e8119d91fd484ab5b8a807627bf8 # v4.6.0

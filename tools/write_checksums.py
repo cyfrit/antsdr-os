@@ -18,20 +18,26 @@ def checksum(path: Path) -> str:
     return digest.hexdigest()
 
 
+def write_checksums(root: Path) -> Path:
+    root = root.resolve()
+    files = [
+        path
+        for path in root.rglob("*")
+        if path.is_file() and path.name != "SHA256SUMS"
+    ]
+    lines = [f"{checksum(path)}  {path.relative_to(root).as_posix()}" for path in sorted(files)]
+    output = root / "SHA256SUMS"
+    output.write_text("\n".join(lines) + "\n", encoding="ascii")
+    return output
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", required=True, type=Path)
     args = parser.parse_args()
     root = args.root.resolve()
     try:
-        files = [
-            path
-            for path in root.rglob("*")
-            if path.is_file() and path.name != "SHA256SUMS"
-        ]
-        lines = [f"{checksum(path)}  {path.relative_to(root).as_posix()}" for path in sorted(files)]
-        (root / "SHA256SUMS").write_text("\n".join(lines) + "\n", encoding="ascii")
-        print(root / "SHA256SUMS")
+        print(write_checksums(root))
         return 0
     except OSError as error:
         print(error, file=sys.stderr)
