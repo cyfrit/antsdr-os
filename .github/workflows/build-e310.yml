@@ -71,7 +71,7 @@ concurrency:
 jobs:
   build:
     name: Build E310 Rev.C
-    runs-on: ubuntu-22.04
+    runs-on: ubicloud-standard-8
     timeout-minutes: 360
     outputs:
       artifact_name: ${{ steps.metadata.outputs.artifact_name }}
