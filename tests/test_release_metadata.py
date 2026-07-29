@@ -15,7 +15,7 @@ class ReleaseMetadataTest(unittest.TestCase):
         data = release_metadata.load_metadata()
         self.assertEqual(data["product"]["version"], "1.0")
         self.assertEqual(data["product"]["major"], 1)
-        self.assertEqual(data["product"]["point"], 1)
+        self.assertEqual(data["product"]["point"], 0)
 
     def test_build_metadata_separates_board_and_upstream_coordinates(self) -> None:
         payload = release_metadata.build_metadata(
