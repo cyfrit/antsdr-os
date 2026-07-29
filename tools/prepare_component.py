@@ -14,8 +14,9 @@ from typing import Any
 
 import yaml
 
+from board_data import BoardDataError, REPOSITORY_ROOT, board_directory, load_board, load_yaml
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = REPOSITORY_ROOT
 COMPONENTS = {
     "hdl": ("fpga", "hdl"),
     "linux": ("linux", "linux"),
@@ -42,14 +43,6 @@ def run(command: list[str], cwd: Path, capture: bool = False) -> str:
     return result.stdout.strip() if capture else ""
 
 
-def load_yaml(path: Path) -> dict[str, Any]:
-    with path.open("r", encoding="utf-8") as stream:
-        data = yaml.safe_load(stream)
-    if not isinstance(data, dict):
-        raise PrepareError(f"{path}: expected a YAML mapping")
-    return data
-
-
 def safe_relative(value: str, label: str) -> Path:
     posix = PurePosixPath(value)
     if posix.is_absolute() or ".." in posix.parts or not posix.parts:
@@ -59,10 +52,8 @@ def safe_relative(value: str, label: str) -> Path:
 
 def load_overlay(board_id: str, component: str) -> tuple[dict[str, Any], Path, Path, str]:
     hardware_name, upstream_name = COMPONENTS[component]
-    board_dir = ROOT / "boards" / board_id
-    board = load_yaml(board_dir / "board.yaml")
-    if board.get("id") != board_id:
-        raise PrepareError(f"board id mismatch in {board_dir / 'board.yaml'}")
+    board_dir = board_directory(board_id)
+    board = load_board(board_id, validate=False)
 
     overlay_path = board_dir / "hw" / hardware_name / "overlay.yaml"
     overlay = load_yaml(overlay_path)
@@ -177,7 +168,7 @@ def main() -> int:
         else:
             _, destination = apply_component(args.board, args.component, output)
             print(destination)
-    except (PrepareError, OSError, KeyError, yaml.YAMLError) as error:
+    except (BoardDataError, PrepareError, OSError, KeyError, yaml.YAMLError) as error:
         print(error, file=sys.stderr)
         return 1
     return 0

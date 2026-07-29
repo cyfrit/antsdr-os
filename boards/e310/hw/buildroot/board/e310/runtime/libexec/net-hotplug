@@ -1,5 +1,6 @@
 #!/bin/sh
 # SPDX-License-Identifier: MIT
+# Handle mdev network-interface add/remove events.
 
 set -eu
 

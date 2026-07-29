@@ -1,7 +1,10 @@
 #!/bin/sh
 # SPDX-License-Identifier: MIT
+# Synchronize the host-visible FAT configuration image at USB eject boundaries.
 
 set -eu
+
+. /usr/lib/antsdr/runtime.sh
 
 IMAGE=/opt/antsdr/config.vfat
 MOUNT_DIR=/run/antsdr/config-volume
@@ -10,21 +13,13 @@ PID_FILE=/run/antsdr/config-volume.pid
 LUN=/sys/kernel/config/usb_gadget/antsdr/functions/mass_storage.0/lun.0/file
 CONFIG=/usr/sbin/antsdr-config
 
-mounted() {
-    grep -qs " $MOUNT_DIR " /proc/mounts
-}
-
 mount_volume() {
     mkdir -p "$MOUNT_DIR"
-    mounted || mount -t vfat -o loop,rw "$IMAGE" "$MOUNT_DIR"
+    antsdr_is_mounted "$MOUNT_DIR" || mount -t vfat -o loop,rw "$IMAGE" "$MOUNT_DIR"
 }
 
 unmount_volume() {
-    mounted && umount "$MOUNT_DIR"
-}
-
-checksum() {
-    sha256sum "$1" | awk '{print $1}'
+    antsdr_is_mounted "$MOUNT_DIR" && umount "$MOUNT_DIR"
 }
 
 attach_volume() {
@@ -36,7 +31,7 @@ prepare_volume() {
     mount_volume
     $CONFIG export "$MOUNT_DIR/config.txt"
     cp /www/index.html "$MOUNT_DIR/index.html"
-    printf '%s\n' "$(checksum "$MOUNT_DIR/config.txt")" > "$STATE_FILE"
+    printf '%s\n' "$(antsdr_sha256_file "$MOUNT_DIR/config.txt")" > "$STATE_FILE"
     sync
     unmount_volume
     attach_volume
@@ -45,7 +40,7 @@ prepare_volume() {
 process_eject() {
     sleep 1
     mount_volume || return 1
-    current=$(checksum "$MOUNT_DIR/config.txt")
+    current=$(antsdr_sha256_file "$MOUNT_DIR/config.txt")
     previous=$(cat "$STATE_FILE" 2>/dev/null || true)
     if [ "$current" != "$previous" ]; then
         if $CONFIG import "$MOUNT_DIR/config.txt"; then
@@ -61,7 +56,7 @@ process_eject() {
                 printf 'Configuration saved. Reboot to apply it.\r\n' > "$MOUNT_DIR/CONFIG_APPLIED.TXT"
             fi
             $CONFIG export "$MOUNT_DIR/config.txt"
-            current=$(checksum "$MOUNT_DIR/config.txt")
+            current=$(antsdr_sha256_file "$MOUNT_DIR/config.txt")
             [ "$diagnostic_failed" = 0 ] && rm -f "$MOUNT_DIR/CONFIG_ERROR.TXT"
         else
             printf 'Configuration was not saved: an accepted setting is invalid.\r\n' > "$MOUNT_DIR/CONFIG_ERROR.TXT"

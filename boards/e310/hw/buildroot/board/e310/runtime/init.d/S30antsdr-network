@@ -1,5 +1,6 @@
 #!/bin/sh
 # SPDX-License-Identifier: MIT
+# Materialize validated persistent settings as standard ifupdown services.
 
 set -eu
 

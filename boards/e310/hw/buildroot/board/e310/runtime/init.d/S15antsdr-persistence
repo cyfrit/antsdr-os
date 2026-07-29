@@ -1,18 +1,17 @@
 #!/bin/sh
 # SPDX-License-Identifier: MIT
+# Restore persistent credentials and RF oscillator calibration before services.
 
 set -eu
+
+. /usr/lib/antsdr/runtime.sh
 
 PERSIST_DEVICE=/dev/mtdblock2
 PERSIST_DIR=/mnt/antsdr-persist
 
-mounted() {
-    grep -qs " $PERSIST_DIR " /proc/mounts
-}
-
 mount_persist() {
     mkdir -p "$PERSIST_DIR"
-    if ! mounted; then
+    if ! antsdr_is_mounted "$PERSIST_DIR"; then
         mount -t jffs2 -o rw,noatime "$PERSIST_DEVICE" "$PERSIST_DIR"
     fi
 }
@@ -49,13 +48,9 @@ restore_keys() {
 restore_xo_correction() {
     value=$(/usr/sbin/antsdr-config get xo_correction)
     [ -n "$value" ] || return 0
-    for candidate in /sys/bus/iio/devices/iio:device*; do
-        [ -r "$candidate/name" ] || continue
-        if [ "$(cat "$candidate/name")" = ad9361-phy ] && [ -w "$candidate/xo_correction" ]; then
-            printf '%s\n' "$value" > "$candidate/xo_correction"
-            return 0
-        fi
-    done
+    candidate=$(antsdr_find_iio_device ad9361-phy) || return 0
+    [ -w "$candidate/xo_correction" ] || return 0
+    printf '%s\n' "$value" > "$candidate/xo_correction"
 }
 
 case "${1:-}" in

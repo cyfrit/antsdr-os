@@ -21,15 +21,14 @@ install -m 0644 "$BOARD_DIR/fw_env.config" "$TARGET_DIR/etc/fw_env.config"
 install -m 0644 "$BOARD_DIR/mdev.conf" "$TARGET_DIR/etc/mdev.conf"
 install -m 0644 "$BOARD_DIR/index.html" "$TARGET_DIR/www/index.html"
 
-install -m 0755 "$RUNTIME_DIR/antsdr-config" "$TARGET_DIR/usr/sbin/antsdr-config"
-install -m 0755 "$RUNTIME_DIR/antsdr-diagnostic" "$TARGET_DIR/usr/sbin/antsdr-diagnostic"
-install -m 0755 "$RUNTIME_DIR/antsdr-persist" "$TARGET_DIR/usr/sbin/antsdr-persist"
-install -m 0755 "$RUNTIME_DIR/antsdr-udc-suspend" "$TARGET_DIR/usr/sbin/antsdr-udc-suspend"
-install -m 0755 "$RUNTIME_DIR/net-hotplug" "$TARGET_DIR/usr/lib/antsdr/net-hotplug"
-install -m 0755 "$RUNTIME_DIR/S15antsdr-persistence" "$TARGET_DIR/etc/init.d/S15antsdr-persistence"
-install -m 0755 "$RUNTIME_DIR/S20antsdr-gadget" "$TARGET_DIR/etc/init.d/S20antsdr-gadget"
-install -m 0755 "$RUNTIME_DIR/S30antsdr-network" "$TARGET_DIR/etc/init.d/S30antsdr-network"
-install -m 0755 "$RUNTIME_DIR/S40antsdr-config-volume" "$TARGET_DIR/etc/init.d/S40antsdr-config-volume"
+for program in antsdr-config antsdr-diagnostic antsdr-persist antsdr-udc-suspend; do
+    install -m 0755 "$RUNTIME_DIR/sbin/$program" "$TARGET_DIR/usr/sbin/$program"
+done
+for service in S15antsdr-persistence S20antsdr-gadget S30antsdr-network S40antsdr-config-volume; do
+    install -m 0755 "$RUNTIME_DIR/init.d/$service" "$TARGET_DIR/etc/init.d/$service"
+done
+install -m 0755 "$RUNTIME_DIR/libexec/net-hotplug" "$TARGET_DIR/usr/lib/antsdr/net-hotplug"
+install -m 0644 "$RUNTIME_DIR/lib/antsdr-runtime.sh" "$TARGET_DIR/usr/lib/antsdr/runtime.sh"
 
 # FunctionFS is owned by S20antsdr-gadget, so do not start a second IIOD.
 rm -f "$TARGET_DIR/etc/init.d/S99iiod"

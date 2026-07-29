@@ -14,8 +14,11 @@ from typing import Iterable
 
 import yaml
 
+from board_data import BoardDataError, REPOSITORY_ROOT, external_path, load_board as load_board_data
+from validate_boards import ContractError
 
-ROOT = Path(__file__).resolve().parents[1]
+
+ROOT = REPOSITORY_ROOT
 PREPARE = ROOT / "tools" / "prepare_component.py"
 ASSEMBLE = ROOT / "tools" / "assemble_e310.py"
 COMPONENTS = ("hdl", "linux", "u_boot", "buildroot")
@@ -26,18 +29,11 @@ class BuildError(RuntimeError):
 
 
 def load_board() -> dict[str, object]:
-    with (ROOT / "boards" / "e310" / "board.yaml").open(encoding="utf-8") as stream:
-        board = yaml.safe_load(stream)
-    if not isinstance(board, dict) or board.get("id") != "e310":
-        raise BuildError("invalid E310 board contract")
-    return board
+    return load_board_data("e310")
 
 
 def external_workspace(path: Path) -> Path:
-    workspace = path.expanduser().resolve()
-    if workspace == ROOT or workspace.is_relative_to(ROOT):
-        raise BuildError("--workspace must be outside this repository")
-    return workspace
+    return external_path(path, "--workspace")
 
 
 def source_dir(workspace: Path, component: str) -> Path:
@@ -226,7 +222,14 @@ def main() -> int:
         elif args.action != "plan":
             print("dry run only; pass --execute to modify the external workspace")
         return 0
-    except (BuildError, OSError, subprocess.CalledProcessError, yaml.YAMLError) as error:
+    except (
+        BoardDataError,
+        BuildError,
+        ContractError,
+        OSError,
+        subprocess.CalledProcessError,
+        yaml.YAMLError,
+    ) as error:
         print(error, file=sys.stderr)
         return 1
 

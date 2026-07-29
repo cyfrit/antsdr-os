@@ -12,22 +12,21 @@ from typing import Any
 
 import yaml
 
+from board_data import (
+    BoardDataError,
+    REPOSITORY_ROOT,
+    board_directory,
+    load_board,
+    load_profiles,
+)
 from validate_boards import ContractError, validate_contract
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = REPOSITORY_ROOT
 
 
 class FitError(RuntimeError):
     pass
-
-
-def load_yaml(path: Path) -> dict[str, Any]:
-    with path.open("r", encoding="utf-8") as stream:
-        data = yaml.safe_load(stream)
-    if not isinstance(data, dict):
-        raise FitError(f"{path}: expected a YAML mapping")
-    return data
 
 
 def fit_image_name(prefix: str, value: str) -> str:
@@ -45,16 +44,6 @@ def profile_description(profile: dict[str, Any]) -> str:
     transceiver = profile["transceiver"]["selected_model"]
     topology = profile["datapath"]["mode"].upper()
     return f"ANTSDR E310 {transceiver} {topology}"
-
-
-def load_profiles(board_dir: Path) -> list[dict[str, Any]]:
-    profiles = [
-        load_yaml(path)
-        for path in sorted((board_dir / "profiles").glob("*.yaml"))
-    ]
-    if not profiles:
-        raise FitError(f"no profiles found in {board_dir / 'profiles'}")
-    return profiles
 
 
 def render_its(board: dict[str, Any], profiles: list[dict[str, Any]]) -> str:
@@ -160,20 +149,18 @@ def main() -> int:
     if args.check == (args.output is not None):
         parser.error("provide exactly one of --check or --output")
 
-    board_dir = ROOT / "boards" / args.board
+    board_dir = board_directory(args.board)
     try:
         validate_contract(board_dir / "board.yaml")
-        board = load_yaml(board_dir / "board.yaml")
-        if board["id"] != args.board:
-            raise FitError(f"{board_dir}: board id mismatch")
-        its = render_its(board, load_profiles(board_dir))
+        board = load_board(args.board, validate=False)
+        its = render_its(board, load_profiles(args.board))
         if args.output:
             args.output.parent.mkdir(parents=True, exist_ok=True)
             args.output.write_text(its, encoding="utf-8")
             print(args.output)
         else:
             print(f"checked FIT source for {args.board}")
-    except (ContractError, FitError, OSError, KeyError, yaml.YAMLError) as error:
+    except (BoardDataError, ContractError, FitError, OSError, KeyError, yaml.YAMLError) as error:
         print(error, file=sys.stderr)
         return 1
     return 0

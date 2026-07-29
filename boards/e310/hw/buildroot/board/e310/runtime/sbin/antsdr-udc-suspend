@@ -1,21 +1,13 @@
 #!/bin/sh
 # SPDX-License-Identifier: MIT
-# Preserve the optional AD936x ENSM suspend policy without polling debugfs.
+# Apply the optional USB suspend workaround without owning gadget lifecycle.
 
 set -eu
 
+. /usr/lib/antsdr/runtime.sh
+
 udc=${1:?UDC name is required}
-iio_dir=""
-
-for candidate in /sys/bus/iio/devices/iio:device*; do
-    [ -r "$candidate/name" ] || continue
-    if [ "$(cat "$candidate/name")" = ad9361-phy ]; then
-        iio_dir=$candidate
-        break
-    fi
-done
-
-[ -n "$iio_dir" ] || exit 0
+iio_dir=$(antsdr_find_iio_device ad9361-phy) || exit 0
 previous=$(cat "$iio_dir/ensm_mode")
 
 while :; do

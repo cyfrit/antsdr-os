@@ -17,11 +17,18 @@ from typing import Callable, Iterable
 
 import yaml
 
-from generate_fit import load_profiles, render_its
-from validate_boards import ContractError, validate_contract
+from board_data import (
+    BoardDataError,
+    REPOSITORY_ROOT,
+    external_path,
+    load_board as load_board_data,
+    load_profiles,
+)
+from generate_fit import render_its
+from validate_boards import ContractError
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = REPOSITORY_ROOT
 MkimageRunner = Callable[[list[str], Path], None]
 
 
@@ -41,13 +48,7 @@ class AssemblyInputs:
 
 
 def load_board() -> tuple[dict[str, object], list[dict[str, object]]]:
-    board_path = ROOT / "boards" / "e310" / "board.yaml"
-    validate_contract(board_path)
-    with board_path.open(encoding="utf-8") as stream:
-        board = yaml.safe_load(stream)
-    if not isinstance(board, dict) or board.get("id") != "e310":
-        raise AssemblyError("invalid E310 board contract")
-    return board, load_profiles(board_path.parent)
+    return load_board_data("e310"), load_profiles("e310")
 
 
 def sha256(path: Path) -> str:
@@ -102,9 +103,10 @@ def manifest_files(root: Path) -> dict[str, dict[str, int | str]]:
 
 
 def ensure_external_output(output: Path) -> Path:
-    resolved = output.expanduser().resolve()
-    if resolved == ROOT or resolved.is_relative_to(ROOT):
-        raise AssemblyError("--output must be outside this repository")
+    try:
+        resolved = external_path(output, "--output")
+    except BoardDataError as error:
+        raise AssemblyError(str(error)) from error
     if resolved.exists():
         raise AssemblyError(f"output already exists: {resolved}")
     return resolved
@@ -240,7 +242,14 @@ def main() -> int:
         )
         print(output)
         return 0
-    except (AssemblyError, ContractError, OSError, subprocess.CalledProcessError, yaml.YAMLError) as error:
+    except (
+        AssemblyError,
+        BoardDataError,
+        ContractError,
+        OSError,
+        subprocess.CalledProcessError,
+        yaml.YAMLError,
+    ) as error:
         print(error, file=sys.stderr)
         return 1
 

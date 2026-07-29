@@ -1,6 +1,6 @@
 #!/bin/sh
 # SPDX-License-Identifier: MIT
-# Emit a bounded, non-secret diagnostic report to standard output.
+# Emit a bounded support report without credentials, logs, or raw environment.
 
 set -eu
 

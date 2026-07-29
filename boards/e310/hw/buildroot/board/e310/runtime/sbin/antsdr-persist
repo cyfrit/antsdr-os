@@ -1,19 +1,17 @@
 #!/bin/sh
 # SPDX-License-Identifier: MIT
-# Explicit credential persistence for the dedicated E310 JFFS2 partition.
+# Persist only explicitly supported credentials and host keys to JFFS2.
 
 set -eu
+
+. /usr/lib/antsdr/runtime.sh
 
 PERSIST_DEVICE=/dev/mtdblock2
 PERSIST_DIR=/mnt/antsdr-persist
 
-mounted() {
-    grep -qs " $PERSIST_DIR " /proc/mounts
-}
-
 mount_persist() {
     mkdir -p "$PERSIST_DIR"
-    if ! mounted; then
+    if ! antsdr_is_mounted "$PERSIST_DIR"; then
         mount -t jffs2 -o rw,noatime "$PERSIST_DEVICE" "$PERSIST_DIR"
     fi
 }

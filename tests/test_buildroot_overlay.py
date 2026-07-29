@@ -61,7 +61,8 @@ class BuildrootOverlayTest(unittest.TestCase):
 
     @unittest.skipUnless(POSIX_SHELL, "a POSIX shell is required")
     def test_runtime_scripts_are_posix_shell_syntax(self) -> None:
-        scripts = sorted(RUNTIME.iterdir()) + [BUILDROOT / "board" / "e310" / "post-build.sh"]
+        scripts = sorted(path for path in RUNTIME.rglob("*") if path.is_file())
+        scripts.append(BUILDROOT / "board" / "e310" / "post-build.sh")
         for script in scripts:
             result = subprocess.run(
                 [str(POSIX_SHELL), "-n", str(script)],
@@ -133,7 +134,7 @@ class BuildrootOverlayTest(unittest.TestCase):
                 "PATH": str(commands) + os.pathsep + os.environ["PATH"],
                 "TEST_ENV": str(environment),
             }
-            script = RUNTIME / "antsdr-config"
+            script = RUNTIME / "sbin" / "antsdr-config"
             result = subprocess.run(
                 [str(POSIX_SHELL), str(script), "import", str(config)],
                 cwd=ROOT,
@@ -228,9 +229,9 @@ class BuildrootOverlayTest(unittest.TestCase):
             self.assertEqual(environment.read_text(encoding="utf-8"), "")
 
     def test_diagnostic_report_is_bounded_and_redacted(self) -> None:
-        report = (RUNTIME / "antsdr-diagnostic").read_text(encoding="utf-8")
-        volume = (RUNTIME / "S40antsdr-config-volume").read_text(encoding="utf-8")
-        config = (RUNTIME / "antsdr-config").read_text(encoding="utf-8")
+        report = (RUNTIME / "sbin" / "antsdr-diagnostic").read_text(encoding="utf-8")
+        volume = (RUNTIME / "init.d" / "S40antsdr-config-volume").read_text(encoding="utf-8")
+        config = (RUNTIME / "sbin" / "antsdr-config").read_text(encoding="utf-8")
 
         self.assertIn("/usr/sbin/antsdr-config diagnostic", report)
         self.assertIn("diagnostic_report.txt", volume)
@@ -240,7 +241,9 @@ class BuildrootOverlayTest(unittest.TestCase):
 
     def test_runtime_excludes_unsafe_vendor_update_paths(self) -> None:
         runtime = "\n".join(
-            path.read_text(encoding="utf-8") for path in RUNTIME.iterdir()
+            path.read_text(encoding="utf-8")
+            for path in RUNTIME.rglob("*")
+            if path.is_file()
         ).lower()
         self.assertNotIn("md5", runtime)
         self.assertNotIn("update_from_github", runtime)

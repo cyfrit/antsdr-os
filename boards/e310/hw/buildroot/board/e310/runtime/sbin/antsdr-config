@@ -1,6 +1,6 @@
 #!/bin/sh
 # SPDX-License-Identifier: MIT
-# Manage the small, explicitly supported U-Boot runtime environment surface.
+# Validate, import, and export the intentionally small persistent setting ABI.
 
 set -eu
 

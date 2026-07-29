@@ -1,19 +1,17 @@
 #!/bin/sh
 # SPDX-License-Identifier: MIT
+# Own the complete Pluto-compatible USB composite gadget and FunctionFS IIOD.
 
 set -eu
 
 . /etc/antsdr/board.conf
+. /usr/lib/antsdr/runtime.sh
 
 CONFIGFS=/sys/kernel/config
 GADGET=$CONFIGFS/usb_gadget/antsdr
 IIO_FFS=/dev/iio_ffs
 IIOD_PID=/run/antsdr/iiod.pid
 SUSPEND_PID=/run/antsdr/udc-suspend.pid
-
-mounted() {
-    grep -qs " $1 " /proc/mounts
-}
 
 find_udc() {
     for candidate in /sys/class/udc/*; do
@@ -63,13 +61,11 @@ write_libiio_context() {
     model=$(tr -d '\000' < /sys/firmware/devicetree/base/model 2>/dev/null || printf '%s' "$BOARD_MODEL")
     rf_model=unknown
     xo_correction=
-    for candidate in /sys/bus/iio/devices/iio:device*; do
-        [ -r "$candidate/name" ] || continue
-        [ "$(cat "$candidate/name")" = ad9361-phy ] || continue
+    candidate=$(antsdr_find_iio_device ad9361-phy || true)
+    if [ -n "$candidate" ]; then
         rf_model=$(tr '\000' '\n' < "$candidate/of_node/compatible" 2>/dev/null | sed -n 's/^adi,//p' | head -n 1)
         xo_correction=$(cat "$candidate/xo_correction" 2>/dev/null || true)
-        break
-    done
+    fi
     firmware_version=$(sed -n 's/^firmware=//p' /etc/antsdr/release 2>/dev/null | head -n 1)
     : "${firmware_version:=development}"
     {
@@ -84,7 +80,7 @@ write_libiio_context() {
 
 start() {
     mkdir -p /run/antsdr "$IIO_FFS"
-    if ! mounted /sys/kernel/config; then
+    if ! antsdr_is_mounted /sys/kernel/config; then
         mount -t configfs none /sys/kernel/config
     fi
 
@@ -128,7 +124,7 @@ start() {
     ln -s "$GADGET/functions/acm.usb0" "$GADGET/configs/c.1/"
     ln -s "$GADGET/functions/ffs.iio_ffs" "$GADGET/configs/c.1/ffs.iio_ffs"
 
-    if ! mounted "$IIO_FFS"; then
+    if ! antsdr_is_mounted "$IIO_FFS"; then
         mount -t functionfs iio_ffs "$IIO_FFS"
     fi
     write_libiio_context
