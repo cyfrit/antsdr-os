@@ -29,6 +29,7 @@ class BuildPipelineTest(unittest.TestCase):
             self.assertIn("build U-Boot and mkimage", result.stdout)
             self.assertIn("build FPGA project", result.stdout)
             self.assertIn("create FSBL and BOOT.BIN", result.stdout)
+            self.assertIn("assemble SD and QSPI delivery artifacts", result.stdout)
             self.assertIn("UIMAGE_LOADADDR=0x00008000", result.stdout)
 
     def test_pipeline_refuses_a_workspace_inside_the_repository(self) -> None:

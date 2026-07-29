@@ -17,6 +17,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 PREPARE = ROOT / "tools" / "prepare_component.py"
+ASSEMBLE = ROOT / "tools" / "assemble_e310.py"
 COMPONENTS = ("hdl", "linux", "u_boot", "buildroot")
 
 
@@ -65,6 +66,7 @@ def artifact_paths(workspace: Path, board: dict[str, object]) -> dict[str, Path]
         "xsa": source_dir(workspace, "hdl") / "projects" / hdl_project / f"{hdl_project}.sdk" / "system_top.xsa",
         "bitstream": source_dir(workspace, "hdl") / "projects" / hdl_project / f"{hdl_project}.runs" / "impl_1" / "system_top.bit",
         "boot_bin": workspace / "out" / "boot" / str(firmware["boot_image"]),
+        "mkimage": output_dir(workspace, "u_boot") / "tools" / "mkimage",
     }
 
 
@@ -130,6 +132,32 @@ def plan_commands(args: argparse.Namespace, board: dict[str, object]) -> list[tu
                 [args.xsct, str(source_dir(workspace, "hdl") / "projects" / "scripts" / "adi_make_boot_bin.tcl"), str(artifacts["xsa"]), str(artifacts["u_boot_elf"]), str(artifacts["boot_bin"].parent)],
             )
         )
+    if action in ("assemble", "all"):
+        artifacts = artifact_paths(workspace, board)
+        release = args.release or workspace / "release"
+        commands.append(
+            (
+                "assemble SD and QSPI delivery artifacts",
+                [
+                    sys.executable,
+                    str(ASSEMBLE),
+                    "--kernel",
+                    str(artifacts["kernel"]),
+                    "--rootfs",
+                    str(artifacts["rootfs"]),
+                    "--bitstream",
+                    str(artifacts["bitstream"]),
+                    "--dtb-dir",
+                    str(artifacts["dtb_dir"]),
+                    "--boot-bin",
+                    str(artifacts["boot_bin"]),
+                    "--mkimage",
+                    str(artifacts["mkimage"]),
+                    "--output",
+                    str(release),
+                ],
+            )
+        )
     return commands
 
 
@@ -146,6 +174,7 @@ def run_commands(commands: list[tuple[str, list[str]]], workspace: Path, action:
         "u_boot": ("u_boot",),
         "hdl": ("hdl",),
         "boot_bin": ("hdl", "u_boot"),
+        "assemble": (),
         "all": COMPONENTS,
     }.get(action, ())
     if action != "all":
@@ -158,13 +187,14 @@ def run_commands(commands: list[tuple[str, list[str]]], workspace: Path, action:
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(description=__doc__)
     subparsers = result.add_subparsers(dest="action", required=True)
-    for name in ("plan", "prepare", "rootfs", "linux", "u_boot", "hdl", "boot_bin", "all"):
+    for name in ("plan", "prepare", "rootfs", "linux", "u_boot", "hdl", "boot_bin", "assemble", "all"):
         command = subparsers.add_parser(name)
         command.add_argument("--workspace", required=True, type=Path)
         command.add_argument("--jobs", type=int, default=1)
         command.add_argument("--make", default="make")
         command.add_argument("--cross-compile", default="arm-linux-gnueabihf-")
         command.add_argument("--xsct", default="xsct")
+        command.add_argument("--release", type=Path)
         if name == "prepare":
             command.add_argument("--components", choices=COMPONENTS, nargs="+", default=list(COMPONENTS))
         if name != "plan":
