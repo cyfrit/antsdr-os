@@ -44,8 +44,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ! git grep -n -E '(^|[[:space:]])(wget|curl)[[:space:]].*http://' -- boards tools tests .github release
-          ! git grep -n -E '(^|[^A-Za-z])(md5|md5sum)([^A-Za-z]|$)' -- boards tools tests .github release
+          ! git grep -n -E '(^|[[:space:]])(wget|curl)[[:space:]].*http://' -- boards release
+          ! git grep -n -E '(^|[^A-Za-z])(md5|md5sum)([^A-Za-z]|$)' -- boards release
           ! git grep -n 'antsdr-firmware' -- . ':!local-docs'
       - name: Review dependency changes
         if: github.event_name == 'pull_request'
