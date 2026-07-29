@@ -38,10 +38,12 @@ class ReleaseToolsTest(unittest.TestCase):
             qspi.mkdir(parents=True)
             boot = qspi / "boot.dfu"
             boot.write_bytes(b"boot")
-            boot.truncate(0x100000)
+            with boot.open("r+b") as stream:
+                stream.truncate(0x100000)
             environment = qspi / "extra-env.bin"
             environment.write_bytes(b"env")
-            environment.truncate(0x1000)
+            with environment.open("r+b") as stream:
+                stream.truncate(0x1000)
             (qspi / "firmware.dfu").write_bytes(b"firmware")
             (qspi / "uboot-extra-env.dfu").write_bytes(b"env")
             profile_records.append(

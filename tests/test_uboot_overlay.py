@@ -219,7 +219,20 @@ class UbootOverlayTest(unittest.TestCase):
             )
             self.assertEqual(preprocess.returncode, 0, preprocess.stderr)
             compile_dtb = subprocess.run(
-                ["dtc", "-I", "dts", "-O", "dtb", "-o", str(dtb), str(preprocessed)],
+                [
+                    "dtc",
+                    "-i",
+                    str(UBOOT / "dts"),
+                    "-i",
+                    str(UPSTREAM / "arch" / "arm" / "dts"),
+                    "-I",
+                    "dts",
+                    "-O",
+                    "dtb",
+                    "-o",
+                    str(dtb),
+                    str(preprocessed),
+                ],
                 cwd=ROOT,
                 check=False,
                 capture_output=True,

@@ -16,6 +16,28 @@ LINUX = BOARD / "hw" / "linux"
 DTSI = LINUX / "dts" / "zynq-antsdr-e310.dtsi"
 DEFCONFIG = LINUX / "configs" / "zynq_antsdr_e310_defconfig"
 UPSTREAM = ROOT / "upstream" / "adi-plutosdr-fw" / "linux"
+DTBS = {
+    "ad9363-1r1t": (
+        LINUX / "dts" / "zynq-antsdr-e310-ad9363-1r1t.dts",
+        "adi,ad9363a",
+        "1r1t",
+    ),
+    "ad9363-2r2t": (
+        LINUX / "dts" / "zynq-antsdr-e310-ad9363-2r2t.dts",
+        "adi,ad9363a",
+        "2r2t",
+    ),
+    "ad9361-1r1t": (
+        LINUX / "dts" / "zynq-antsdr-e310-ad9361-1r1t.dts",
+        "adi,ad9361",
+        "1r1t",
+    ),
+    "ad9361-2r2t": (
+        LINUX / "dts" / "zynq-antsdr-e310-ad9361-2r2t.dts",
+        "adi,ad9361",
+        "2r2t",
+    ),
+}
 
 
 class LinuxOverlayTest(unittest.TestCase):
@@ -156,7 +178,7 @@ class LinuxOverlayTest(unittest.TestCase):
     def test_device_tree_compiles(self) -> None:
         self.assertTrue((UPSTREAM / "arch" / "arm" / "boot" / "dts" / "zynq.dtsi").is_file())
         with tempfile.TemporaryDirectory() as directory:
-            for source, _, _ in dtbs.values():
+            for source, _, _ in DTBS.values():
                 with self.subTest(source=source.name):
                     preprocessed = Path(directory) / source.name
                     dtb = Path(directory) / source.with_suffix(".dtb").name
@@ -184,7 +206,20 @@ class LinuxOverlayTest(unittest.TestCase):
                     )
                     self.assertEqual(preprocess.returncode, 0, preprocess.stderr)
                     compile_dtb = subprocess.run(
-                        ["dtc", "-I", "dts", "-O", "dtb", "-o", str(dtb), str(preprocessed)],
+                        [
+                            "dtc",
+                            "-i",
+                            str(LINUX / "dts"),
+                            "-i",
+                            str(UPSTREAM / "arch" / "arm" / "boot" / "dts"),
+                            "-I",
+                            "dts",
+                            "-O",
+                            "dtb",
+                            "-o",
+                            str(dtb),
+                            str(preprocessed),
+                        ],
                         cwd=ROOT,
                         check=False,
                         capture_output=True,
