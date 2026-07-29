@@ -24,9 +24,15 @@ on:
         description: Name of the uploaded build artifact
         value: ${{ jobs.build.outputs.artifact_name }}
     secrets:
-      AMD_WEB_INSTALLER_URL:
+      R2_S3_API_URL:
         required: true
-      AMD_WEB_INSTALLER_SIGNATURE_URL:
+      R2_BUCKET:
+        required: true
+      R2_INSTALLER_KEY:
+        required: true
+      R2_ACCESS_KEY_ID:
+        required: true
+      R2_SECRET_ACCESS_KEY:
         required: true
       AMD_USERNAME:
         required: true
@@ -100,14 +106,17 @@ jobs:
       - name: Install AMD FPGA toolchain
         shell: bash
         env:
-          AMD_WEB_INSTALLER_URL: ${{ secrets.AMD_WEB_INSTALLER_URL }}
-          AMD_WEB_INSTALLER_SIGNATURE_URL: ${{ secrets.AMD_WEB_INSTALLER_SIGNATURE_URL }}
+          R2_S3_API_URL: ${{ secrets.R2_S3_API_URL }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_INSTALLER_KEY: ${{ secrets.R2_INSTALLER_KEY }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           AMD_USERNAME: ${{ secrets.AMD_USERNAME }}
           AMD_PASSWORD: ${{ secrets.AMD_PASSWORD }}
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install --no-install-recommends -y expect libncurses5 libtinfo5
+          sudo apt-get install --no-install-recommends -y awscli expect libncurses5 libtinfo5
           bash ci/vivado/install-vivado.sh
       - name: Resolve version and source identity
         id: metadata

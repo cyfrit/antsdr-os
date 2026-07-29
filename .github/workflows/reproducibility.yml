@@ -22,6 +22,7 @@ jobs:
   first:
     name: Independent build A
     uses: ./.github/workflows/build-e310.yml
+    secrets: inherit
     with:
       version: ${{ inputs.version }}
       build_label: reproducibility-a
@@ -29,6 +30,7 @@ jobs:
   second:
     name: Independent build B
     uses: ./.github/workflows/build-e310.yml
+    secrets: inherit
     with:
       version: ${{ inputs.version }}
       build_label: reproducibility-b
