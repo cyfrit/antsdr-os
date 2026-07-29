@@ -45,6 +45,7 @@ class AssemblyInputs:
     boot_bin: Path
     output: Path
     mkimage: Path
+    mkenvimage: Path
 
 
 def load_board() -> tuple[dict[str, object], list[dict[str, object]]]:
@@ -124,6 +125,7 @@ def build_release(inputs: AssemblyInputs, runner: MkimageRunner = default_runner
     bitstream = require_file(inputs.bitstream, "FPGA bitstream")
     boot_bin = require_file(inputs.boot_bin, "BOOT.BIN")
     mkimage = require_file(inputs.mkimage, "mkimage")
+    mkenvimage = require_file(inputs.mkenvimage, "mkenvimage")
     dtb_dir = inputs.dtb_dir.expanduser().resolve()
     if not dtb_dir.is_dir():
         raise AssemblyError(f"missing DTB directory: {dtb_dir}")
@@ -164,6 +166,8 @@ def build_release(inputs: AssemblyInputs, runner: MkimageRunner = default_runner
         qspi_dir = staging / "qspi"
         qspi_dir.mkdir()
         shutil.copy2(fit, qspi_dir / str(firmware["fit_image"]))
+        qspi = board["hardware"]["boot"]["qspi"]
+        extra_environment = qspi["extra_environment"]
 
         profile_manifest: list[dict[str, object]] = []
         for profile in profiles:
@@ -176,12 +180,38 @@ def build_release(inputs: AssemblyInputs, runner: MkimageRunner = default_runner
                 f"rf_model={selection['rf_model']}\nrf_topology={selection['rf_topology']}\n",
                 encoding="ascii",
             )
+            qspi_profile_dir = qspi_dir / "profiles" / profile["id"]
+            qspi_profile_dir.mkdir(parents=True)
+            environment_source = qspi_profile_dir / "extra-env.txt"
+            environment_source.write_text(
+                f"rf_model={selection['rf_model']}\nrf_topology={selection['rf_topology']}\n",
+                encoding="ascii",
+            )
+            environment_image = qspi_profile_dir / "extra-env.bin"
+            runner(
+                [
+                    str(mkenvimage),
+                    "-s",
+                    hex(extra_environment["size"]),
+                    "-o",
+                    str(environment_image),
+                    str(environment_source),
+                ],
+                qspi_profile_dir,
+            )
+            require_file(environment_image, "generated QSPI profile environment")
+            if environment_image.stat().st_size != extra_environment["size"]:
+                raise AssemblyError(
+                    f"QSPI profile environment has invalid size: "
+                    f"{environment_image.stat().st_size} != {extra_environment['size']}"
+                )
             profile_manifest.append(
                 {
                     "id": profile["id"],
                     "selection": selection,
                     "sd_directory": profile_dir.relative_to(staging).as_posix(),
                     "fit_configuration": profile["artifacts"]["fit_configuration"],
+                    "qspi_environment": environment_image.relative_to(staging).as_posix(),
                 }
             )
 
@@ -199,6 +229,8 @@ def build_release(inputs: AssemblyInputs, runner: MkimageRunner = default_runner
                 "offset": partition["offset"],
                 "max_size_bytes": partition["size"],
                 "artifact": (qspi_dir / str(firmware["fit_image"])).relative_to(staging).as_posix(),
+                "profile_environment_offset": extra_environment["offset"],
+                "profile_environment_size_bytes": extra_environment["size"],
             },
             "profiles": profile_manifest,
             "files": manifest_files(staging),
@@ -222,6 +254,7 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--dtb-dir", required=True, type=Path)
     result.add_argument("--boot-bin", required=True, type=Path)
     result.add_argument("--mkimage", required=True, type=Path)
+    result.add_argument("--mkenvimage", required=True, type=Path)
     result.add_argument("--output", required=True, type=Path)
     return result
 
@@ -238,6 +271,7 @@ def main() -> int:
                 boot_bin=args.boot_bin,
                 output=args.output,
                 mkimage=args.mkimage,
+                mkenvimage=args.mkenvimage,
             )
         )
         print(output)

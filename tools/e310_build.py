@@ -63,6 +63,7 @@ def artifact_paths(workspace: Path, board: dict[str, object]) -> dict[str, Path]
         "bitstream": source_dir(workspace, "hdl") / "projects" / hdl_project / f"{hdl_project}.runs" / "impl_1" / "system_top.bit",
         "boot_bin": workspace / "out" / "boot" / str(firmware["boot_image"]),
         "mkimage": output_dir(workspace, "u_boot") / "tools" / "mkimage",
+        "mkenvimage": output_dir(workspace, "u_boot") / "tools" / "mkenvimage",
     }
 
 
@@ -149,6 +150,8 @@ def plan_commands(args: argparse.Namespace, board: dict[str, object]) -> list[tu
                     str(artifacts["boot_bin"]),
                     "--mkimage",
                     str(artifacts["mkimage"]),
+                    "--mkenvimage",
+                    str(artifacts["mkenvimage"]),
                     "--output",
                     str(release),
                 ],

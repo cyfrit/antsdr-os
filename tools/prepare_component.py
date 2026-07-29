@@ -14,7 +14,14 @@ from typing import Any
 
 import yaml
 
-from board_data import BoardDataError, REPOSITORY_ROOT, board_directory, load_board, load_yaml
+from board_data import (
+    BoardDataError,
+    REPOSITORY_ROOT,
+    board_directory,
+    external_path,
+    load_board,
+    load_yaml,
+)
 
 ROOT = REPOSITORY_ROOT
 COMPONENTS = {
@@ -105,6 +112,7 @@ def apply_component(
     component: str,
     destination: Path,
 ) -> tuple[Path, Path]:
+    destination = external_path(destination, "component output")
     overlay, overlay_root, upstream, expected_commit = load_overlay(board_id, component)
     validate_overlay(overlay, overlay_root, upstream)
     verify_upstream(upstream, expected_commit)
@@ -130,9 +138,7 @@ def apply_component(
 
 
 def check_component(board_id: str, component: str) -> None:
-    build_root = ROOT / "build"
-    build_root.mkdir(exist_ok=True)
-    temporary = Path(tempfile.mkdtemp(prefix=f"check-{board_id}-{component}-", dir=build_root))
+    temporary = Path(tempfile.mkdtemp(prefix=f"antsdr-check-{board_id}-{component}-"))
     temporary.rmdir()
     upstream: Path | None = None
     try:
@@ -159,13 +165,16 @@ def main() -> int:
 
     if args.check and args.output:
         parser.error("--check and --output are mutually exclusive")
-    output = (args.output or ROOT / "build" / args.board / args.component).resolve()
+    if not args.check and args.output is None:
+        parser.error("--output is required unless --check is used")
+    output = args.output.resolve() if args.output else None
 
     try:
         if args.check:
             check_component(args.board, args.component)
             print(f"checked {args.board}/{args.component}")
         else:
+            assert output is not None
             _, destination = apply_component(args.board, args.component, output)
             print(destination)
     except (BoardDataError, PrepareError, OSError, KeyError, yaml.YAMLError) as error:

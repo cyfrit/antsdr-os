@@ -28,44 +28,59 @@ attach_volume() {
 
 prepare_volume() {
     printf '\n' > "$LUN" 2>/dev/null || true
-    mount_volume
-    $CONFIG export "$MOUNT_DIR/config.txt"
-    cp /www/index.html "$MOUNT_DIR/index.html"
-    printf '%s\n' "$(antsdr_sha256_file "$MOUNT_DIR/config.txt")" > "$STATE_FILE"
-    sync
-    unmount_volume
-    attach_volume
+    result=0
+    if mount_volume; then
+        $CONFIG export "$MOUNT_DIR/config.txt" || result=$?
+        cp /www/index.html "$MOUNT_DIR/index.html" || result=$?
+        if [ "$result" -eq 0 ]; then
+            printf '%s\n' "$(antsdr_sha256_file "$MOUNT_DIR/config.txt")" > "$STATE_FILE" || result=$?
+        fi
+        sync
+        unmount_volume || result=$?
+    else
+        result=$?
+    fi
+    attach_volume || result=$?
+    return "$result"
 }
 
 process_eject() {
     sleep 1
-    mount_volume || return 1
-    current=$(antsdr_sha256_file "$MOUNT_DIR/config.txt")
-    previous=$(cat "$STATE_FILE" 2>/dev/null || true)
-    if [ "$current" != "$previous" ]; then
-        if $CONFIG import "$MOUNT_DIR/config.txt"; then
-            diagnostic_failed=0
-            if [ "$($CONFIG action "$MOUNT_DIR/config.txt" diagnostic_report)" = 1 ]; then
-                if /usr/sbin/antsdr-diagnostic > "$MOUNT_DIR/diagnostic_report.txt"; then
-                    printf 'Configuration saved. Diagnostic report generated. Reboot to apply settings.\r\n' > "$MOUNT_DIR/CONFIG_APPLIED.TXT"
+    result=0
+    if mount_volume; then
+        if current=$(antsdr_sha256_file "$MOUNT_DIR/config.txt"); then
+            previous=$(cat "$STATE_FILE" 2>/dev/null || true)
+            if [ "$current" != "$previous" ]; then
+                if $CONFIG import "$MOUNT_DIR/config.txt"; then
+                    diagnostic_failed=0
+                    if [ "$($CONFIG action "$MOUNT_DIR/config.txt" diagnostic_report)" = 1 ]; then
+                        if /usr/sbin/antsdr-diagnostic > "$MOUNT_DIR/diagnostic_report.txt"; then
+                            printf 'Configuration saved. Diagnostic report generated. Reboot to apply settings.\r\n' > "$MOUNT_DIR/CONFIG_APPLIED.TXT"
+                        else
+                            diagnostic_failed=1
+                            printf 'Configuration saved, but diagnostic report generation failed.\r\n' > "$MOUNT_DIR/CONFIG_ERROR.TXT"
+                        fi
+                    else
+                        printf 'Configuration saved. Reboot to apply it.\r\n' > "$MOUNT_DIR/CONFIG_APPLIED.TXT"
+                    fi
+                    $CONFIG export "$MOUNT_DIR/config.txt"
+                    current=$(antsdr_sha256_file "$MOUNT_DIR/config.txt")
+                    [ "$diagnostic_failed" = 0 ] && rm -f "$MOUNT_DIR/CONFIG_ERROR.TXT"
                 else
-                    diagnostic_failed=1
-                    printf 'Configuration saved, but diagnostic report generation failed.\r\n' > "$MOUNT_DIR/CONFIG_ERROR.TXT"
+                    printf 'Configuration was not saved: an accepted setting is invalid.\r\n' > "$MOUNT_DIR/CONFIG_ERROR.TXT"
                 fi
-            else
-                printf 'Configuration saved. Reboot to apply it.\r\n' > "$MOUNT_DIR/CONFIG_APPLIED.TXT"
             fi
-            $CONFIG export "$MOUNT_DIR/config.txt"
-            current=$(antsdr_sha256_file "$MOUNT_DIR/config.txt")
-            [ "$diagnostic_failed" = 0 ] && rm -f "$MOUNT_DIR/CONFIG_ERROR.TXT"
+            printf '%s\n' "$current" > "$STATE_FILE"
         else
-            printf 'Configuration was not saved: an accepted setting is invalid.\r\n' > "$MOUNT_DIR/CONFIG_ERROR.TXT"
+            result=$?
         fi
+        sync
+        unmount_volume || result=$?
+    else
+        result=$?
     fi
-    printf '%s\n' "$current" > "$STATE_FILE"
-    sync
-    unmount_volume
-    attach_volume
+    attach_volume || result=$?
+    return "$result"
 }
 
 watch() {
@@ -84,7 +99,7 @@ start() {
         return 1
     }
     prepare_volume
-    start-stop-daemon -S -b -q -m -p "$PID_FILE" -x "$0" -- watch
+    start-stop-daemon -S -b -q -o -m -p "$PID_FILE" -x "$0" -- watch
 }
 
 stop() {

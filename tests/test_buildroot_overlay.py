@@ -151,6 +151,7 @@ class BuildrootOverlayTest(unittest.TestCase):
             self.assertEqual(persisted["ipaddr"], "10.31.0.1")
             self.assertEqual(persisted["ipaddr_eth"], "192.168.10.2")
             self.assertEqual(persisted["network_mode"], "static")
+            self.assertEqual(persisted["ipaddr_wlan"], "")
             self.assertNotIn("dfu", persisted)
             self.assertNotIn("rf_model", persisted)
             self.assertNotIn("diagnostic_report", persisted)
@@ -182,6 +183,36 @@ class BuildrootOverlayTest(unittest.TestCase):
             before = environment.read_text(encoding="utf-8")
             config.write_text(
                 "[USB_ETHERNET]\nusb_ethernet_mode = rndis; reboot\n",
+                encoding="utf-8",
+            )
+            result = subprocess.run(
+                [str(POSIX_SHELL), str(script), "import", str(config)],
+                cwd=ROOT,
+                env=runtime_env,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(environment.read_text(encoding="utf-8"), before)
+
+            config.write_text(
+                "[USB_ETHERNET]\nnetmask = 255.0.255.0\n",
+                encoding="utf-8",
+            )
+            result = subprocess.run(
+                [str(POSIX_SHELL), str(script), "import", str(config)],
+                cwd=ROOT,
+                env=runtime_env,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(environment.read_text(encoding="utf-8"), before)
+
+            config.write_text(
+                "[WLAN]\npwd_wlan = short\n",
                 encoding="utf-8",
             )
             result = subprocess.run(
@@ -238,6 +269,21 @@ class BuildrootOverlayTest(unittest.TestCase):
         self.assertIn("diagnostic_report", config)
         for forbidden in ("fw_printenv", "pwd_wlan", "shadow", "authorized_keys", "dropbear", "/var/log", "dmesg"):
             self.assertNotIn(forbidden, report)
+
+    def test_runtime_services_have_owned_and_idempotent_lifecycle(self) -> None:
+        gadget = (RUNTIME / "init.d" / "S20antsdr-gadget").read_text(encoding="utf-8")
+        network = (RUNTIME / "init.d" / "S30antsdr-network").read_text(encoding="utf-8")
+        suspend = (RUNTIME / "sbin" / "antsdr-udc-suspend").read_text(encoding="utf-8")
+
+        for function in ("rndis.0", "ncm.usb0", "ecm.usb0"):
+            self.assertIn(function, gadget)
+        self.assertIn('start-stop-daemon -K -q -p "$IIOD_PID" -x /usr/sbin/iiod', gadget)
+        self.assertNotIn("killall", network)
+        self.assertIn('HTTPD_PID=/run/antsdr/httpd.pid', network)
+        self.assertIn('UDHCPD_PID=/run/antsdr/udhcpd.pid', network)
+        self.assertIn('WPA_PID=/run/antsdr/wpa_supplicant.pid', network)
+        self.assertIn("wpa_passphrase", network)
+        self.assertIn("trap restore_mode EXIT", suspend)
 
     def test_runtime_excludes_unsafe_vendor_update_paths(self) -> None:
         runtime = "\n".join(

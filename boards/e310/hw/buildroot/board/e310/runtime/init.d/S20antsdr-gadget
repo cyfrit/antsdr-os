@@ -78,6 +78,25 @@ write_libiio_context() {
     } > /etc/libiio.ini
 }
 
+remove_gadget() {
+    [ -d "$GADGET" ] || return 0
+    printf '\n' > "$GADGET/UDC" 2>/dev/null || true
+    if [ -w "$GADGET/functions/mass_storage.0/lun.0/file" ]; then
+        printf '\n' > "$GADGET/functions/mass_storage.0/lun.0/file" 2>/dev/null || true
+    fi
+    if antsdr_is_mounted "$IIO_FFS"; then
+        umount "$IIO_FFS" 2>/dev/null || true
+    fi
+    for link in "$GADGET"/configs/c.1/*; do
+        [ -L "$link" ] && rm -f "$link"
+    done
+    rmdir "$GADGET/configs/c.1/strings/0x409" "$GADGET/configs/c.1" 2>/dev/null || true
+    for function in ffs.iio_ffs acm.usb0 rndis.0 ncm.usb0 ecm.usb0 mass_storage.0; do
+        rmdir "$GADGET/functions/$function" 2>/dev/null || true
+    done
+    rmdir "$GADGET/strings/0x409" "$GADGET" 2>/dev/null || true
+}
+
 start() {
     mkdir -p /run/antsdr "$IIO_FFS"
     if ! antsdr_is_mounted /sys/kernel/config; then
@@ -86,9 +105,12 @@ start() {
 
     if [ -d "$GADGET" ]; then
         if [ -n "$(cat "$GADGET/UDC" 2>/dev/null || true)" ]; then
-            return 0
+            if antsdr_pid_matches "$IIOD_PID" /usr/sbin/iiod; then
+                return 0
+            fi
+            logger -t antsdr-gadget "rebuilding gadget after iiod exited"
         fi
-        rmdir "$GADGET" 2>/dev/null || true
+        stop
     fi
 
     serial=$(read_serial)
@@ -128,33 +150,29 @@ start() {
         mount -t functionfs iio_ffs "$IIO_FFS"
     fi
     write_libiio_context
-    start-stop-daemon -S -b -q -m -p "$IIOD_PID" -x /usr/sbin/iiod -- \
+    start-stop-daemon -S -b -q -o -m -p "$IIOD_PID" -x /usr/sbin/iiod -- \
         -D -n "$IIOD_ENDPOINTS" -F "$IIO_FFS"
     sleep 1
+    if ! antsdr_pid_matches "$IIOD_PID" /usr/sbin/iiod; then
+        echo "iiod failed to start" >&2
+        stop
+        return 1
+    fi
     printf '%s\n' "$udc" > "$GADGET/UDC"
 
     if [ "$(/usr/sbin/antsdr-config get udc_handle_suspend)" = 1; then
-        start-stop-daemon -S -b -q -m -p "$SUSPEND_PID" -x /usr/sbin/antsdr-udc-suspend -- "$udc"
+        start-stop-daemon -S -b -q -o -m -p "$SUSPEND_PID" -x /usr/sbin/antsdr-udc-suspend -- "$udc"
     fi
 }
 
 stop() {
-    start-stop-daemon -K -q -p "$SUSPEND_PID" 2>/dev/null || true
-    start-stop-daemon -K -q -p "$IIOD_PID" 2>/dev/null || true
-    [ -d "$GADGET" ] || return 0
-    ethernet_function=$(read_usb_mode)
-    printf '\n' > "$GADGET/UDC" 2>/dev/null || true
-    rm -f "$GADGET/configs/c.1/$ethernet_function" \
-        "$GADGET/configs/c.1/mass_storage.0" \
-        "$GADGET/configs/c.1/acm.usb0" \
-        "$GADGET/configs/c.1/ffs.iio_ffs"
-    rmdir "$GADGET/configs/c.1/strings/0x409" "$GADGET/configs/c.1" 2>/dev/null || true
-    rmdir "$GADGET/functions/ffs.iio_ffs" \
-        "$GADGET/functions/acm.usb0" \
-        "$GADGET/functions/$ethernet_function" \
-        "$GADGET/functions/mass_storage.0" 2>/dev/null || true
-    rmdir "$GADGET/strings/0x409" "$GADGET" 2>/dev/null || true
-    umount "$IIO_FFS" 2>/dev/null || true
+    if [ -d "$GADGET" ]; then
+        printf '\n' > "$GADGET/UDC" 2>/dev/null || true
+    fi
+    start-stop-daemon -K -q -p "$SUSPEND_PID" -x /usr/sbin/antsdr-udc-suspend 2>/dev/null || true
+    start-stop-daemon -K -q -p "$IIOD_PID" -x /usr/sbin/iiod 2>/dev/null || true
+    rm -f "$SUSPEND_PID" "$IIOD_PID"
+    remove_gadget
 }
 
 case "${1:-}" in

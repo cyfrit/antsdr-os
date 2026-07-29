@@ -18,8 +18,7 @@ RUN_DIR=$(root_path /run/antsdr)
 mkdir -p "$RUN_DIR"
 
 read_env() {
-    value=$(fw_printenv -n "$1" 2>/dev/null || true)
-    if [ -n "$value" ]; then
+    if value=$(fw_printenv -n "$1" 2>/dev/null); then
         printf '%s\n' "$value"
     else
         printf '%s\n' "$2"
@@ -69,6 +68,22 @@ valid_ipv4() {
     '
 }
 
+valid_netmask() {
+    printf '%s\n' "$1" | awk -F. '
+        NF != 4 { exit 1 }
+        {
+            zero_tail = 0
+            for (field = 1; field <= 4; field++) {
+                if (zero_tail && $field != 0) exit 1
+                if (!zero_tail && $field != 255) {
+                    if ($field !~ /^(0|128|192|224|240|248|252|254)$/) exit 1
+                    zero_tail = 1
+                }
+            }
+        }
+    '
+}
+
 valid_optional_ipv4() {
     [ -z "$1" ] || valid_ipv4 "$1"
 }
@@ -84,17 +99,25 @@ validate_values() {
     valid_hostname "$USB_HOSTNAME" || return 1
     valid_ipv4 "$USB_IPADDR" || return 1
     valid_ipv4 "$USB_IPADDR_HOST" || return 1
-    valid_ipv4 "$USB_NETMASK" || return 1
+    valid_netmask "$USB_NETMASK" || return 1
     case "$USB_ETHERNET_MODE" in rndis|ncm|ecm) ;; *) return 1 ;; esac
     case "$NETWORK_MODE" in dhcp|static) ;; *) return 1 ;; esac
     valid_optional_ipv4 "$NETWORK_IPADDR" || return 1
-    valid_ipv4 "$NETWORK_NETMASK" || return 1
+    valid_netmask "$NETWORK_NETMASK" || return 1
     valid_optional_ipv4 "$NETWORK_GATEWAY" || return 1
     if [ "$NETWORK_MODE" = static ] && [ -z "$NETWORK_IPADDR" ]; then
         return 1
     fi
     valid_text "$WLAN_SSID" 32 || return 1
     valid_text "$WLAN_PASSWORD" 64 || return 1
+    if [ -n "$WLAN_PASSWORD" ]; then
+        length=${#WLAN_PASSWORD}
+        if [ "$length" -eq 64 ]; then
+            case "$WLAN_PASSWORD" in *[!0-9A-Fa-f]*) return 1 ;; esac
+        elif [ "$length" -lt 8 ] || [ "$length" -gt 63 ]; then
+            return 1
+        fi
+    fi
     valid_optional_ipv4 "$WLAN_IPADDR" || return 1
     case "$UDC_HANDLE_SUSPEND" in 0|1) ;; *) return 1 ;; esac
     case "$XO_CORRECTION" in *[!0-9]*) return 1 ;; esac
@@ -192,8 +215,8 @@ import_config() {
         return 1
     }
 
-    environment=$(mktemp "$RUN_DIR/environment.XXXXXX")
     umask 077
+    environment=$(mktemp "$RUN_DIR/environment.XXXXXX")
     {
         printf 'hostname %s\n' "$USB_HOSTNAME"
         printf 'ipaddr %s\n' "$USB_IPADDR"

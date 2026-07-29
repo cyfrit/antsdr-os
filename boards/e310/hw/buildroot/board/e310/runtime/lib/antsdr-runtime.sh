@@ -21,3 +21,12 @@ antsdr_find_iio_device() {
 antsdr_sha256_file() {
     sha256sum "$1" | awk '{print $1}'
 }
+
+antsdr_pid_matches() {
+    pid_file=$1
+    executable=$2
+    [ -r "$pid_file" ] || return 1
+    pid=$(cat "$pid_file")
+    [ -n "$pid" ] || return 1
+    [ "$(readlink "/proc/$pid/exe" 2>/dev/null || true)" = "$executable" ]
+}

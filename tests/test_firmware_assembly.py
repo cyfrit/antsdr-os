@@ -22,7 +22,8 @@ class FirmwareAssemblyTest(unittest.TestCase):
             bitstream = inputs / "system_top.bit"
             boot_bin = inputs / "BOOT.BIN"
             mkimage = inputs / "mkimage"
-            for path in (kernel, rootfs, bitstream, boot_bin, mkimage):
+            mkenvimage = inputs / "mkenvimage"
+            for path in (kernel, rootfs, bitstream, boot_bin, mkimage, mkenvimage):
                 path.write_bytes(path.name.encode("ascii"))
 
             dtb_dir = inputs / "dtbs"
@@ -36,8 +37,13 @@ class FirmwareAssemblyTest(unittest.TestCase):
 
             def runner(command: list[str], cwd: Path) -> None:
                 commands.append((command, cwd))
-                self.assertEqual(command[1:3], ["-f", "antsdr-e310.its"])
-                Path(command[3]).write_bytes(b"FIT")
+                if Path(command[0]) == mkimage:
+                    self.assertEqual(command[1:3], ["-f", "antsdr-e310.its"])
+                    Path(command[3]).write_bytes(b"FIT")
+                else:
+                    self.assertEqual(Path(command[0]), mkenvimage)
+                    self.assertEqual(command[1:3], ["-s", "0x1000"])
+                    Path(command[4]).write_bytes(bytes(0x1000))
 
             assembled = assemble_e310.build_release(
                 assemble_e310.AssemblyInputs(
@@ -48,17 +54,20 @@ class FirmwareAssemblyTest(unittest.TestCase):
                     boot_bin=boot_bin,
                     output=output,
                     mkimage=mkimage,
+                    mkenvimage=mkenvimage,
                 ),
                 runner=runner,
             )
             self.assertEqual(assembled, output)
-            self.assertEqual(len(commands), 1)
+            self.assertEqual(len(commands), 5)
             self.assertTrue((output / "qspi" / "antsdr-e310.itb").is_file())
 
             manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
             self.assertEqual(manifest["board"], "e310")
             self.assertFalse(manifest["fit"]["signed"])
             self.assertEqual(manifest["qspi"]["partition"], "qspi-linux")
+            self.assertEqual(manifest["qspi"]["profile_environment_offset"], 0x0FF000)
+            self.assertEqual(manifest["qspi"]["profile_environment_size_bytes"], 0x1000)
             self.assertEqual(len(manifest["profiles"]), 4)
             self.assertIn("qspi/antsdr-e310.itb", manifest["files"])
 
@@ -70,6 +79,17 @@ class FirmwareAssemblyTest(unittest.TestCase):
                     (directory / "uEnv.txt").read_text(encoding="ascii"),
                     f"rf_model={profile['selection']['rf_model']}\n"
                     f"rf_topology={profile['selection']['rf_topology']}\n",
+                )
+                qspi_profile = output / "qspi" / "profiles" / profile["id"]
+                self.assertEqual((qspi_profile / "extra-env.bin").stat().st_size, 0x1000)
+                self.assertEqual(
+                    (qspi_profile / "extra-env.txt").read_text(encoding="ascii"),
+                    f"rf_model={profile['selection']['rf_model']}\n"
+                    f"rf_topology={profile['selection']['rf_topology']}\n",
+                )
+                self.assertEqual(
+                    next(item for item in manifest["profiles"] if item["id"] == profile["id"])["qspi_environment"],
+                    f"qspi/profiles/{profile['id']}/extra-env.bin",
                 )
 
     def test_output_inside_repository_is_rejected(self) -> None:

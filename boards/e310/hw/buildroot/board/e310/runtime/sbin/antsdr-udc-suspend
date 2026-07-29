@@ -9,18 +9,31 @@ set -eu
 udc=${1:?UDC name is required}
 iio_dir=$(antsdr_find_iio_device ad9361-phy) || exit 0
 previous=$(cat "$iio_dir/ensm_mode")
+suspended=0
+
+restore_mode() {
+    if [ "$suspended" = 1 ]; then
+        printf '%s\n' "$previous" > "$iio_dir/ensm_mode" 2>/dev/null || true
+        suspended=0
+    fi
+}
+trap restore_mode EXIT
+trap 'exit 0' HUP INT TERM
 
 while :; do
     state=$(cat "/sys/class/udc/$udc/state" 2>/dev/null || echo unknown)
     case "$state" in
         suspended)
-            previous=$(cat "$iio_dir/ensm_mode")
-            printf 'sleep\n' > "$iio_dir/ensm_mode"
+            if [ "$suspended" = 0 ]; then
+                previous=$(cat "$iio_dir/ensm_mode")
+                printf 'sleep\n' > "$iio_dir/ensm_mode"
+                suspended=1
+            fi
             ;;
         *)
-            current=$(cat "$iio_dir/ensm_mode")
-            if [ "$current" != "$previous" ]; then
+            if [ "$suspended" = 1 ]; then
                 printf '%s\n' "$previous" > "$iio_dir/ensm_mode"
+                suspended=0
             fi
             ;;
     esac
