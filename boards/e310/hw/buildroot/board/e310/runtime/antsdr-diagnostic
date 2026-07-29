@@ -1,0 +1,44 @@
+#!/bin/sh
+# SPDX-License-Identifier: MIT
+# Emit a bounded, non-secret diagnostic report to standard output.
+
+set -eu
+
+section() {
+    printf '\n[%s]\n' "$1"
+}
+
+section report
+printf 'format_version=1\n'
+date -u '+generated_utc=%Y-%m-%dT%H:%M:%SZ'
+
+section release
+cat /etc/antsdr/release 2>/dev/null || true
+
+section platform
+tr -d '\000' < /sys/firmware/devicetree/base/model 2>/dev/null || true
+uname -a
+
+section memory
+grep -E '^(MemTotal|MemAvailable|SwapTotal|SwapFree):' /proc/meminfo
+
+section iio
+for device in /sys/bus/iio/devices/iio:device*; do
+    [ -r "$device/name" ] || continue
+    printf '%s=' "$(basename "$device")"
+    cat "$device/name"
+done
+
+section network
+ip -o -4 addr show 2>/dev/null || true
+ip route show 2>/dev/null || true
+
+section configuration
+/usr/sbin/antsdr-config diagnostic
+
+section storage
+cat /proc/mtd 2>/dev/null || true
+mount | sed -n 's/ \(on\|type\) .*//p'
+
+section services
+pidof iiod 2>/dev/null || true

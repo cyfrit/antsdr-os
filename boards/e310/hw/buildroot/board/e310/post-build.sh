@@ -22,6 +22,7 @@ install -m 0644 "$BOARD_DIR/mdev.conf" "$TARGET_DIR/etc/mdev.conf"
 install -m 0644 "$BOARD_DIR/index.html" "$TARGET_DIR/www/index.html"
 
 install -m 0755 "$RUNTIME_DIR/antsdr-config" "$TARGET_DIR/usr/sbin/antsdr-config"
+install -m 0755 "$RUNTIME_DIR/antsdr-diagnostic" "$TARGET_DIR/usr/sbin/antsdr-diagnostic"
 install -m 0755 "$RUNTIME_DIR/antsdr-persist" "$TARGET_DIR/usr/sbin/antsdr-persist"
 install -m 0755 "$RUNTIME_DIR/antsdr-udc-suspend" "$TARGET_DIR/usr/sbin/antsdr-udc-suspend"
 install -m 0755 "$RUNTIME_DIR/net-hotplug" "$TARGET_DIR/usr/lib/antsdr/net-hotplug"

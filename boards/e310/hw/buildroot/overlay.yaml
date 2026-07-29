@@ -26,6 +26,8 @@ files:
     destination: board/e310/index.html
   - source: board/e310/runtime/antsdr-config
     destination: board/e310/runtime/antsdr-config
+  - source: board/e310/runtime/antsdr-diagnostic
+    destination: board/e310/runtime/antsdr-diagnostic
   - source: board/e310/runtime/antsdr-persist
     destination: board/e310/runtime/antsdr-persist
   - source: board/e310/runtime/antsdr-udc-suspend

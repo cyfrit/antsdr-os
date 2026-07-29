@@ -23,3 +23,6 @@ ipaddr_wlan =
 [SYSTEM]
 xo_correction =
 udc_handle_suspend = 0
+
+[ACTIONS]
+diagnostic_report = 0

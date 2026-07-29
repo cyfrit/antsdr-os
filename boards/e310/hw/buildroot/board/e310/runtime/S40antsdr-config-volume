@@ -49,10 +49,20 @@ process_eject() {
     previous=$(cat "$STATE_FILE" 2>/dev/null || true)
     if [ "$current" != "$previous" ]; then
         if $CONFIG import "$MOUNT_DIR/config.txt"; then
-            printf 'Configuration saved. Reboot to apply it.\r\n' > "$MOUNT_DIR/CONFIG_APPLIED.TXT"
+            diagnostic_failed=0
+            if [ "$($CONFIG action "$MOUNT_DIR/config.txt" diagnostic_report)" = 1 ]; then
+                if /usr/sbin/antsdr-diagnostic > "$MOUNT_DIR/diagnostic_report.txt"; then
+                    printf 'Configuration saved. Diagnostic report generated. Reboot to apply settings.\r\n' > "$MOUNT_DIR/CONFIG_APPLIED.TXT"
+                else
+                    diagnostic_failed=1
+                    printf 'Configuration saved, but diagnostic report generation failed.\r\n' > "$MOUNT_DIR/CONFIG_ERROR.TXT"
+                fi
+            else
+                printf 'Configuration saved. Reboot to apply it.\r\n' > "$MOUNT_DIR/CONFIG_APPLIED.TXT"
+            fi
             $CONFIG export "$MOUNT_DIR/config.txt"
             current=$(checksum "$MOUNT_DIR/config.txt")
-            rm -f "$MOUNT_DIR/CONFIG_ERROR.TXT"
+            [ "$diagnostic_failed" = 0 ] && rm -f "$MOUNT_DIR/CONFIG_ERROR.TXT"
         else
             printf 'Configuration was not saved: an accepted setting is invalid.\r\n' > "$MOUNT_DIR/CONFIG_ERROR.TXT"
         fi

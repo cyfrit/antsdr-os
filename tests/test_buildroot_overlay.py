@@ -124,6 +124,7 @@ class BuildrootOverlayTest(unittest.TestCase):
                 "xo_correction = 40000000\n"
                 "udc_handle_suspend = 0\n"
                 "[ACTIONS]\n"
+                "diagnostic_report = 1\n"
                 "dfu = 1\n",
                 encoding="utf-8",
             )
@@ -151,6 +152,31 @@ class BuildrootOverlayTest(unittest.TestCase):
             self.assertEqual(persisted["network_mode"], "static")
             self.assertNotIn("dfu", persisted)
             self.assertNotIn("rf_model", persisted)
+            self.assertNotIn("diagnostic_report", persisted)
+
+            result = subprocess.run(
+                [str(POSIX_SHELL), str(script), "action", str(config), "diagnostic_report"],
+                cwd=ROOT,
+                env=runtime_env,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout, "1\n")
+
+            result = subprocess.run(
+                [str(POSIX_SHELL), str(script), "diagnostic"],
+                cwd=ROOT,
+                env=runtime_env,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertNotIn("[WLAN]", result.stdout)
+            self.assertNotIn("pwd_wlan", result.stdout)
+            self.assertNotIn("secret passphrase", result.stdout)
 
             before = environment.read_text(encoding="utf-8")
             config.write_text(
@@ -166,6 +192,22 @@ class BuildrootOverlayTest(unittest.TestCase):
                 text=True,
             )
             self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(environment.read_text(encoding="utf-8"), before)
+
+            config.write_text(
+                "[ACTIONS]\ndiagnostic_report = 2\n",
+                encoding="utf-8",
+            )
+            result = subprocess.run(
+                [str(POSIX_SHELL), str(script), "import", str(config)],
+                cwd=ROOT,
+                env=runtime_env,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("diagnostic_report must be 0 or 1", result.stderr)
             self.assertEqual(environment.read_text(encoding="utf-8"), before)
 
             environment.write_text("", encoding="utf-8")
@@ -184,6 +226,17 @@ class BuildrootOverlayTest(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("unrecognized U-Boot environment", result.stderr)
             self.assertEqual(environment.read_text(encoding="utf-8"), "")
+
+    def test_diagnostic_report_is_bounded_and_redacted(self) -> None:
+        report = (RUNTIME / "antsdr-diagnostic").read_text(encoding="utf-8")
+        volume = (RUNTIME / "S40antsdr-config-volume").read_text(encoding="utf-8")
+        config = (RUNTIME / "antsdr-config").read_text(encoding="utf-8")
+
+        self.assertIn("/usr/sbin/antsdr-config diagnostic", report)
+        self.assertIn("diagnostic_report.txt", volume)
+        self.assertIn("diagnostic_report", config)
+        for forbidden in ("fw_printenv", "pwd_wlan", "shadow", "authorized_keys", "dropbear", "/var/log", "dmesg"):
+            self.assertNotIn(forbidden, report)
 
     def test_runtime_excludes_unsafe_vendor_update_paths(self) -> None:
         runtime = "\n".join(
