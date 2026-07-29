@@ -72,6 +72,7 @@ build:
     rootfs_image: rootfs.cpio.gz
     boot_image: BOOT.BIN
     qspi_partition: qspi-linux
+    qspi_boot_partition: qspi-fsbl-uboot
   profile_selection:
     dimensions:
       rf_model: [ad9363, ad9361]
@@ -410,6 +411,9 @@ hardware:
       vendor_id: 0x0456
       product_id: 0xb674
       alt_targets:
+        - { name: qspi-fsbl-uboot, offset: 0x000000, size: 0x00100000 }
+        - { name: qspi-extra-env, offset: 0x0ff000, size: 0x00001000 }
+        - { name: qspi-uboot-env, offset: 0x100000, size: 0x00020000 }
         - { name: qspi-linux, offset: 0x200000, size: 0x1e00000 }
     uenv:
       path: /uEnv.txt

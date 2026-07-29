@@ -9,6 +9,7 @@ set -eu
 IMAGE=/opt/antsdr/config.vfat
 MOUNT_DIR=/run/antsdr/config-volume
 STATE_FILE=/run/antsdr/config-volume.sha256
+UPDATE_STATE_FILE=/mnt/antsdr-persist/etc/firmware-update.sha256
 PID_FILE=/run/antsdr/config-volume.pid
 LUN=/sys/kernel/config/usb_gadget/antsdr/functions/mass_storage.0/lun.0/file
 CONFIG=/usr/sbin/antsdr-config
@@ -73,6 +74,22 @@ process_eject() {
             printf '%s\n' "$current" > "$STATE_FILE"
         else
             result=$?
+        fi
+        if [ -f "$MOUNT_DIR/firmware-update.conf" ]; then
+            update_digest=$(antsdr_sha256_file "$MOUNT_DIR/firmware-update.conf")
+            previous_update=$(cat "$UPDATE_STATE_FILE" 2>/dev/null || true)
+            if [ "$update_digest" != "$previous_update" ]; then
+                if /usr/sbin/antsdr-update "$MOUNT_DIR/firmware-update.conf" "$MOUNT_DIR" > "$MOUNT_DIR/FIRMWARE_UPDATE.TXT"; then
+                    mkdir -p "$(dirname "$UPDATE_STATE_FILE")" 2>/dev/null || true
+                    printf '%s\n' "$update_digest" > "$UPDATE_STATE_FILE" 2>/dev/null || true
+                    rm -f "$MOUNT_DIR/FIRMWARE_UPDATE.ERROR"
+                    rm -f "$MOUNT_DIR/firmware-update.conf"
+                else
+                    rm -f "$MOUNT_DIR/FIRMWARE_UPDATE.TXT"
+                    printf 'Firmware update failed. See the serial console.\r\n' > "$MOUNT_DIR/FIRMWARE_UPDATE.ERROR"
+                    result=1
+                fi
+            fi
         fi
         sync
         unmount_volume || result=$?

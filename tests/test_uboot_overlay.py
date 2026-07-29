@@ -139,19 +139,30 @@ class UbootOverlayTest(unittest.TestCase):
         self.assertIn('"preboot=if test \\"${modeboot}\\" = sdboot; then "', header)
         self.assertIn("qspi_extraenv_offset=0x000ff000", header)
         self.assertIn("env import -c ${qspi_extraenv_load_address}", header)
-        self.assertIn(
-            '"dfu_alt_info=qspi-linux raw 0x00200000 0x01e00000\\0"',
-            header,
-        )
+        self.assertIn('"dfu_alt_info=boot.dfu raw 0x00000000 0x00100000\\\\;"', header)
+        self.assertIn('"firmware.dfu raw 0x00200000 0x01e00000\\\\;"', header)
+        self.assertIn('"qspi_provision=if mmc dev 0; then "', header)
         self.assertIn('"dfu_recovery=if sf probe 0:0 50000000 0; then "', header)
-        self.assertNotIn("qspi-fsbl-uboot raw", header)
-        self.assertNotIn("qspi-uboot-env raw", header)
+        self.assertIn("qspi_extraenv_payload=uboot-extra-env.dfu", header)
         self.assertNotIn("loaddfu=", header)
-        self.assertNotIn("sf update", header)
+        self.assertIn("sf update", header)
         self.assertNotIn("env save", header)
         self.assertNotRegex(header, r"\\bfdt\\s+(?:set|rm)\\b")
         self.assertNotRegex(header, r"\\b(?:http|wget|tftp)\\b")
         self.assertNotIn("md5", header.lower())
+
+        self.assertIn(r'\"${qspi_exact_size}\" = 1', header)
+        self.assertIn('setenv qspi_exact_size 1', header)
+        self.assertIn('setenv qspi_exact_size 0', header)
+
+    def test_usb_boot_transport_is_enabled(self) -> None:
+        dts = DTS.read_text(encoding="utf-8")
+        self.assertIn("usb_phy0: phy0", dts)
+        self.assertIn('compatible = "usb-nop-xceiv";', dts)
+        self.assertIn("&usb0 {", dts)
+        self.assertIn("status = \"okay\";", dts[dts.index("&usb0 {"):])
+        self.assertIn("dr_mode = \"host\";", dts[dts.index("&usb0 {"):])
+        self.assertIn("usb-phy = <&usb_phy0>;", dts[dts.index("&usb0 {"):])
 
     def test_boot_memory_regions_are_disjoint(self) -> None:
         board = yaml.safe_load((BOARD / "board.yaml").read_text(encoding="utf-8"))

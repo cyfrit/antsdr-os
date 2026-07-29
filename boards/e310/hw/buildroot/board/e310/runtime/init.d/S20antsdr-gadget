@@ -12,6 +12,8 @@ GADGET=$CONFIGFS/usb_gadget/antsdr
 IIO_FFS=/dev/iio_ffs
 IIOD_PID=/run/antsdr/iiod.pid
 SUSPEND_PID=/run/antsdr/udc-suspend.pid
+PERSIST_DIR=/mnt/antsdr-persist
+SERIAL_FILE=$PERSIST_DIR/etc/usb-serial
 
 find_udc() {
     for candidate in /sys/class/udc/*; do
@@ -36,17 +38,49 @@ read_serial() {
         /sys/devices/soc0/serial_number; do
         [ -r "$candidate" ] || continue
         value=$(tr -cd 'A-Fa-f0-9' < "$candidate")
-        [ -n "$value" ] && {
+        if valid_serial "$value"; then
             printf '%s\n' "$value"
             return
-        }
+        fi
     done
     value=$(dmesg 2>/dev/null | sed -n 's/.*SPI-NOR-UniqueID[[:space:]]*//p' | head -n 1 | tr -cd 'A-Fa-f0-9')
-    [ -n "$value" ] && {
+    if valid_serial "$value"; then
         printf '%s\n' "$value"
         return
-    }
-    printf '%s\n' 000000000000
+    fi
+    if [ -r "$SERIAL_FILE" ]; then
+        value=$(tr -cd 'A-Fa-f0-9' < "$SERIAL_FILE")
+        if valid_serial "$value"; then
+            printf '%s\n' "$value"
+            return
+        fi
+    fi
+
+    if [ -r /dev/urandom ]; then
+        value=$(od -An -N16 -tx1 /dev/urandom | tr -cd 'A-Fa-f0-9' | cut -c1-32)
+    else
+        value=$(printf '%s' "$(date +%s).$$" | sha256sum | cut -c1-32)
+    fi
+    persist_serial "$value"
+    printf '%s\n' "$value"
+}
+
+valid_serial() {
+    case "$1" in
+        ""|*[!A-Fa-f0-9]*) return 1 ;;
+    esac
+    [ "${#1}" -ge 12 ]
+}
+
+persist_serial() {
+    [ -b /dev/mtdblock2 ] || return 0
+    if ! antsdr_is_mounted "$PERSIST_DIR"; then
+        mount -t jffs2 -o rw,noatime /dev/mtdblock2 "$PERSIST_DIR" 2>/dev/null || return 0
+    fi
+    umask 077
+    mkdir -p "$(dirname "$SERIAL_FILE")"
+    printf '%s\n' "$1" > "$SERIAL_FILE" 2>/dev/null || true
+    sync
 }
 
 mac_from_serial() {

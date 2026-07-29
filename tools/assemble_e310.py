@@ -67,19 +67,34 @@ def require_file(path: Path, label: str) -> Path:
     return resolved
 
 
-def qspi_partition(board: dict[str, object]) -> dict[str, object]:
+def find_qspi_partition(board: dict[str, object], name: str) -> dict[str, object]:
     build = board["build"]
     hardware = board["hardware"]
     assert isinstance(build, dict) and isinstance(hardware, dict)
-    firmware = build["firmware"]
     boot = hardware["boot"]
-    assert isinstance(firmware, dict) and isinstance(boot, dict)
+    assert isinstance(boot, dict)
     qspi = boot["qspi"]
     assert isinstance(qspi, dict)
     for partition in qspi["partitions"]:
-        if partition["name"] == firmware["qspi_partition"]:
+        if partition["name"] == name:
             return partition
-    raise AssemblyError("firmware QSPI partition is absent from board contract")
+    raise AssemblyError(f"QSPI partition is absent from board contract: {name}")
+
+
+def qspi_partition(board: dict[str, object]) -> dict[str, object]:
+    build = board["build"]
+    assert isinstance(build, dict)
+    firmware = build["firmware"]
+    assert isinstance(firmware, dict)
+    return find_qspi_partition(board, str(firmware["qspi_partition"]))
+
+
+def qspi_boot_partition(board: dict[str, object]) -> dict[str, object]:
+    build = board["build"]
+    assert isinstance(build, dict)
+    firmware = build["firmware"]
+    assert isinstance(firmware, dict)
+    return find_qspi_partition(board, str(firmware["qspi_boot_partition"]))
 
 
 def default_runner(command: list[str], cwd: Path) -> None:
@@ -89,6 +104,56 @@ def default_runner(command: list[str], cwd: Path) -> None:
 def copy_required(source: Path, destination: Path) -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(source, destination)
+
+
+def create_qspi_boot_payload(
+    destination: Path,
+    boot_bin: Path,
+    extra_environment: Path,
+    boot_partition_size: int,
+    extra_environment_offset: int,
+) -> None:
+    boot_data = boot_bin.read_bytes()
+    environment_data = extra_environment.read_bytes()
+    if len(boot_data) > extra_environment_offset:
+        raise AssemblyError(
+            f"BOOT.BIN exceeds the reserved QSPI extra-environment offset: "
+            f"{len(boot_data)} > {extra_environment_offset}"
+        )
+    if extra_environment_offset + len(environment_data) > boot_partition_size:
+        raise AssemblyError("QSPI extra environment exceeds the boot partition")
+
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_bytes(b"\xff" * boot_partition_size)
+    with destination.open("r+b") as stream:
+        stream.seek(0)
+        stream.write(boot_data)
+        stream.seek(extra_environment_offset)
+        stream.write(environment_data)
+
+
+def write_update_manifest(
+    destination: Path,
+    board_id: str,
+    profile_id: str,
+    boot_image: Path,
+    firmware_image: Path,
+) -> None:
+    destination.write_text(
+        "\n".join(
+            [
+                "version=1",
+                f"board={board_id}",
+                f"profile={profile_id}",
+                f"boot_image={boot_image.name}",
+                f"boot_sha256={sha256(boot_image)}",
+                f"firmware_image={firmware_image.name}",
+                f"firmware_sha256={sha256(firmware_image)}",
+                "",
+            ]
+        ),
+        encoding="ascii",
+    )
 
 
 def manifest_files(root: Path) -> dict[str, dict[str, int | str]]:
@@ -157,6 +222,7 @@ def build_release(inputs: AssemblyInputs, runner: MkimageRunner = default_runner
         require_file(fit, "generated FIT image")
 
         partition = qspi_partition(board)
+        boot_partition = qspi_boot_partition(board)
         if fit.stat().st_size > partition["size"]:
             raise AssemblyError(
                 f"FIT image exceeds {partition['name']} capacity: "
@@ -173,8 +239,6 @@ def build_release(inputs: AssemblyInputs, runner: MkimageRunner = default_runner
         for profile in profiles:
             profile_dir = staging / "sd" / profile["id"]
             profile_dir.mkdir(parents=True)
-            shutil.copy2(boot_bin, profile_dir / str(firmware["boot_image"]))
-            shutil.copy2(fit, profile_dir / str(firmware["fit_image"]))
             selection = profile["selection"]
             (profile_dir / "uEnv.txt").write_text(
                 f"rf_model={selection['rf_model']}\nrf_topology={selection['rf_topology']}\n",
@@ -205,6 +269,36 @@ def build_release(inputs: AssemblyInputs, runner: MkimageRunner = default_runner
                     f"QSPI profile environment has invalid size: "
                     f"{environment_image.stat().st_size} != {extra_environment['size']}"
                 )
+
+            qspi_boot_image = qspi_profile_dir / "boot.dfu"
+            create_qspi_boot_payload(
+                qspi_boot_image,
+                boot_bin,
+                environment_image,
+                int(boot_partition["size"]),
+                int(extra_environment["offset"]),
+            )
+            qspi_firmware_image = qspi_profile_dir / "firmware.dfu"
+            shutil.copy2(fit, qspi_firmware_image)
+            qspi_extra_environment_image = qspi_profile_dir / "uboot-extra-env.dfu"
+            shutil.copy2(environment_image, qspi_extra_environment_image)
+
+            shutil.copy2(boot_bin, profile_dir / str(firmware["boot_image"]))
+            shutil.copy2(fit, profile_dir / str(firmware["fit_image"]))
+            shutil.copy2(qspi_boot_image, profile_dir / "boot.dfu")
+            shutil.copy2(qspi_firmware_image, profile_dir / "firmware.dfu")
+            shutil.copy2(qspi_extra_environment_image, profile_dir / "uboot-extra-env.dfu")
+            boot_update_image = profile_dir / "boot.frm"
+            firmware_update_image = profile_dir / "firmware.frm"
+            shutil.copy2(qspi_boot_image, boot_update_image)
+            shutil.copy2(qspi_firmware_image, firmware_update_image)
+            write_update_manifest(
+                profile_dir / "firmware-update.conf",
+                str(board["id"]),
+                str(profile["id"]),
+                boot_update_image,
+                firmware_update_image,
+            )
             profile_manifest.append(
                 {
                     "id": profile["id"],
@@ -212,6 +306,10 @@ def build_release(inputs: AssemblyInputs, runner: MkimageRunner = default_runner
                     "sd_directory": profile_dir.relative_to(staging).as_posix(),
                     "fit_configuration": profile["artifacts"]["fit_configuration"],
                     "qspi_environment": environment_image.relative_to(staging).as_posix(),
+                    "qspi_boot_payload": qspi_boot_image.relative_to(staging).as_posix(),
+                    "qspi_firmware_payload": qspi_firmware_image.relative_to(staging).as_posix(),
+                    "qspi_extra_environment_payload": qspi_extra_environment_image.relative_to(staging).as_posix(),
+                    "usb_update_manifest": (profile_dir / "firmware-update.conf").relative_to(staging).as_posix(),
                 }
             )
 
@@ -225,6 +323,9 @@ def build_release(inputs: AssemblyInputs, runner: MkimageRunner = default_runner
                 "hash": "sha256",
             },
             "qspi": {
+                "boot_partition": boot_partition["name"],
+                "boot_offset": boot_partition["offset"],
+                "boot_size_bytes": boot_partition["size"],
                 "partition": partition["name"],
                 "offset": partition["offset"],
                 "max_size_bytes": partition["size"],

@@ -207,7 +207,7 @@ class FpgaOverlayTest(unittest.TestCase):
         self.assertIn("active_dac_axi <= status_bus_sync[18:3];", controller)
         self.assertNotIn("control_update", controller)
         self.assertNotIn("active_dac_sync", controller)
-                
+
         for endpoint in (
             "external_reference_sync",
             "control_bus_meta",

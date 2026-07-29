@@ -21,6 +21,7 @@ from validate_boards import ContractError
 ROOT = REPOSITORY_ROOT
 PREPARE = ROOT / "tools" / "prepare_component.py"
 ASSEMBLE = ROOT / "tools" / "assemble_e310.py"
+SELECT_UENV = ROOT / "tools" / "select_uboot_uenv.py"
 COMPONENTS = ("hdl", "linux", "u_boot", "buildroot")
 
 
@@ -115,6 +116,18 @@ def plan_commands(args: argparse.Namespace, board: dict[str, object]) -> list[tu
         commands.extend(
             [
                 ("configure U-Boot", [*common, str(build["u_boot_defconfig"])]),
+                (
+                    "select U-Boot uEnv mode",
+                    [
+                        sys.executable,
+                        str(SELECT_UENV),
+                        "--config",
+                        str(output / ".config"),
+                        "--mode",
+                        args.uenv_mode,
+                    ],
+                ),
+                ("refresh U-Boot configuration", [*common, "olddefconfig"]),
                 ("build U-Boot and mkimage", [*common, f"-j{args.jobs}"]),
             ]
         )
@@ -200,6 +213,7 @@ def parser() -> argparse.ArgumentParser:
         command.add_argument("--jobs", type=int, default=1)
         command.add_argument("--make", default="make")
         command.add_argument("--cross-compile", default="arm-linux-gnueabihf-")
+        command.add_argument("--uenv-mode", choices=("compat", "locked"), default="compat")
         command.add_argument("--xsct", default="xsct")
         command.add_argument("--release", type=Path)
         if name == "prepare":

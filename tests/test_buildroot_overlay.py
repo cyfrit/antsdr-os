@@ -274,6 +274,8 @@ class BuildrootOverlayTest(unittest.TestCase):
         gadget = (RUNTIME / "init.d" / "S20antsdr-gadget").read_text(encoding="utf-8")
         network = (RUNTIME / "init.d" / "S30antsdr-network").read_text(encoding="utf-8")
         suspend = (RUNTIME / "sbin" / "antsdr-udc-suspend").read_text(encoding="utf-8")
+        volume = (RUNTIME / "init.d" / "S40antsdr-config-volume").read_text(encoding="utf-8")
+        updater = (RUNTIME / "sbin" / "antsdr-update").read_text(encoding="utf-8")
 
         for function in ("rndis.0", "ncm.usb0", "ecm.usb0"):
             self.assertIn(function, gadget)
@@ -284,6 +286,12 @@ class BuildrootOverlayTest(unittest.TestCase):
         self.assertIn('WPA_PID=/run/antsdr/wpa_supplicant.pid', network)
         self.assertIn("wpa_passphrase", network)
         self.assertIn("trap restore_mode EXIT", suspend)
+        self.assertIn("UPDATE_STATE_FILE=/mnt/antsdr-persist/etc/firmware-update.sha256", volume)
+        self.assertIn('rm -f "$MOUNT_DIR/firmware-update.conf"', volume)
+        self.assertNotIn("\n        reboot", volume)
+        self.assertIn("flashcp -v", updater)
+        self.assertIn("sha256sum", updater)
+        self.assertNotIn("md5", updater.lower())
 
     def test_runtime_excludes_unsafe_vendor_update_paths(self) -> None:
         runtime = "\n".join(
@@ -297,6 +305,7 @@ class BuildrootOverlayTest(unittest.TestCase):
         self.assertNotIn("http://", runtime)
         self.assertNotIn("dd if=", runtime)
         self.assertNotIn("uenvcmd", runtime)
+        self.assertNotIn("000000000000", runtime)
 
 
 if __name__ == "__main__":

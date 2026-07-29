@@ -21,7 +21,7 @@ install -m 0644 "$BOARD_DIR/fw_env.config" "$TARGET_DIR/etc/fw_env.config"
 install -m 0644 "$BOARD_DIR/mdev.conf" "$TARGET_DIR/etc/mdev.conf"
 install -m 0644 "$BOARD_DIR/index.html" "$TARGET_DIR/www/index.html"
 
-for program in antsdr-config antsdr-diagnostic antsdr-persist antsdr-udc-suspend; do
+for program in antsdr-config antsdr-diagnostic antsdr-persist antsdr-update antsdr-udc-suspend; do
     install -m 0755 "$RUNTIME_DIR/sbin/$program" "$TARGET_DIR/usr/sbin/$program"
 done
 for service in S15antsdr-persistence S20antsdr-gadget S30antsdr-network S40antsdr-config-volume; do

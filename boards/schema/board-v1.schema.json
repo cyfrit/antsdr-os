@@ -101,13 +101,14 @@
           "firmware": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["fit_image", "kernel_image", "rootfs_image", "boot_image", "qspi_partition"],
+            "required": ["fit_image", "kernel_image", "rootfs_image", "boot_image", "qspi_partition", "qspi_boot_partition"],
             "properties": {
               "fit_image": { "type": "string", "pattern": "^[a-zA-Z0-9._-]+\\.itb$" },
               "kernel_image": { "type": "string", "pattern": "^[a-zA-Z0-9._-]+$" },
               "rootfs_image": { "type": "string", "pattern": "^[a-zA-Z0-9._-]+$" },
               "boot_image": { "type": "string", "pattern": "^[a-zA-Z0-9._-]+$" },
-              "qspi_partition": { "type": "string", "pattern": "^[a-zA-Z0-9._-]+$" }
+              "qspi_partition": { "type": "string", "pattern": "^[a-zA-Z0-9._-]+$" },
+              "qspi_boot_partition": { "type": "string", "pattern": "^[a-zA-Z0-9._-]+$" }
             }
           },
           "profile_selection": {

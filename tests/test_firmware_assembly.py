@@ -66,6 +66,8 @@ class FirmwareAssemblyTest(unittest.TestCase):
             self.assertEqual(manifest["board"], "e310")
             self.assertFalse(manifest["fit"]["signed"])
             self.assertEqual(manifest["qspi"]["partition"], "qspi-linux")
+            self.assertEqual(manifest["qspi"]["boot_partition"], "qspi-fsbl-uboot")
+            self.assertEqual(manifest["qspi"]["boot_size_bytes"], 0x100000)
             self.assertEqual(manifest["qspi"]["profile_environment_offset"], 0x0FF000)
             self.assertEqual(manifest["qspi"]["profile_environment_size_bytes"], 0x1000)
             self.assertEqual(len(manifest["profiles"]), 4)
@@ -75,7 +77,17 @@ class FirmwareAssemblyTest(unittest.TestCase):
                 directory = output / "sd" / profile["id"]
                 self.assertEqual(
                     {path.name for path in directory.iterdir()},
-                    {"BOOT.BIN", "antsdr-e310.itb", "uEnv.txt"},
+                    {
+                        "BOOT.BIN",
+                        "antsdr-e310.itb",
+                        "uEnv.txt",
+                        "boot.dfu",
+                        "firmware.dfu",
+                        "uboot-extra-env.dfu",
+                        "boot.frm",
+                        "firmware.frm",
+                        "firmware-update.conf",
+                    },
                 )
                 self.assertTrue((directory / "BOOT.BIN").is_file())
                 self.assertTrue((directory / "antsdr-e310.itb").is_file())
@@ -84,6 +96,14 @@ class FirmwareAssemblyTest(unittest.TestCase):
                     f"rf_model={profile['selection']['rf_model']}\n"
                     f"rf_topology={profile['selection']['rf_topology']}\n",
                 )
+                self.assertEqual((directory / "boot.dfu").stat().st_size, 0x100000)
+                self.assertEqual((directory / "boot.frm").read_bytes(), (directory / "boot.dfu").read_bytes())
+                update_manifest = (directory / "firmware-update.conf").read_text(encoding="ascii")
+                self.assertIn("version=1\n", update_manifest)
+                self.assertIn(f"board={board['id']}\n", update_manifest)
+                self.assertIn(f"profile={profile['id']}\n", update_manifest)
+                self.assertIn("boot_image=boot.frm\n", update_manifest)
+                self.assertIn("firmware_image=firmware.frm\n", update_manifest)
                 qspi_profile = output / "qspi" / "profiles" / profile["id"]
                 self.assertEqual((qspi_profile / "extra-env.bin").stat().st_size, 0x1000)
                 self.assertEqual(
@@ -94,6 +114,11 @@ class FirmwareAssemblyTest(unittest.TestCase):
                 self.assertEqual(
                     next(item for item in manifest["profiles"] if item["id"] == profile["id"])["qspi_environment"],
                     f"qspi/profiles/{profile['id']}/extra-env.bin",
+                )
+                qspi_manifest = next(item for item in manifest["profiles"] if item["id"] == profile["id"])
+                self.assertEqual(
+                    qspi_manifest["qspi_boot_payload"],
+                    f"qspi/profiles/{profile['id']}/boot.dfu",
                 )
 
     def test_output_inside_repository_is_rejected(self) -> None:

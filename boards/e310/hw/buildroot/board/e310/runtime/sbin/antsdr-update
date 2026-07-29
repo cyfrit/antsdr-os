@@ -1,0 +1,100 @@
+#!/bin/sh
+# SPDX-License-Identifier: MIT
+# Apply a signed-by-manifest E310 firmware update from the USB volume.
+
+set -eu
+
+CONF=${1:-}
+ROOT_DIR=${2:-}
+[ -n "$CONF" ] && [ -r "$CONF" ] || {
+    echo "usage: $0 UPDATE_CONF UPDATE_DIRECTORY" >&2
+    exit 2
+}
+[ -n "$ROOT_DIR" ] || ROOT_DIR=$(dirname "$CONF")
+
+config_value() {
+    sed -n "s/^$1=//p" "$CONF" | head -n 1
+}
+
+fail() {
+    echo "firmware update: $*" >&2
+    exit 1
+}
+
+version=$(config_value version)
+[ "$version" = 1 ] || fail "unsupported update manifest version"
+[ "$(config_value board)" = e310 ] || fail "update is not for E310"
+
+mtd_device() {
+    label=$1
+    sed -n "s/^\\(mtd[0-9][0-9]*\\):[^\"]*\"$label\".*$/\\/dev\\/\\1/p" /proc/mtd | head -n 1
+}
+
+mtd_size() {
+    label=$1
+    sed -n "s/^mtd[0-9][0-9]*: \\([0-9a-fA-F]*\\) [^\"]*\"$label\".*$/\\1/p" /proc/mtd | head -n 1
+}
+
+verify_sha256() {
+    image=$1
+    expected=$2
+    case "$expected" in
+        ""|*[!0-9A-Fa-f]*) fail "invalid SHA-256 for $(basename "$image")" ;;
+    esac
+    [ "${#expected}" -eq 64 ] || fail "invalid SHA-256 length for $(basename "$image")"
+    actual=$(sha256sum "$image" | awk '{print $1}')
+    [ "$actual" = "$expected" ] || fail "SHA-256 mismatch for $(basename "$image")"
+}
+
+image_size() {
+    wc -c < "$1" | awk '{print $1}'
+}
+
+flash_image() {
+    label=$1
+    image=$2
+    expected=$3
+    exact_size=$4
+    device=$(mtd_device "$label")
+    size_hex=$(mtd_size "$label")
+    [ -n "$device" ] && [ -n "$size_hex" ] || fail "missing MTD partition $label"
+    verify_sha256 "$image" "$expected"
+    image_bytes=$(image_size "$image")
+    partition_bytes=$((0x$size_hex))
+    [ "$image_bytes" -le "$partition_bytes" ] || fail "$(basename "$image") exceeds $label"
+    if [ "$exact_size" = 1 ] && [ "$image_bytes" -ne "$partition_bytes" ]; then
+        fail "$(basename "$image") must fill $label exactly"
+    fi
+    flashcp -v "$image" "$device" || fail "writing $label failed"
+}
+
+updated=0
+boot_name=$(config_value boot_image)
+boot_sha=$(config_value boot_sha256)
+firmware_name=$(config_value firmware_image)
+firmware_sha=$(config_value firmware_sha256)
+
+case "$boot_name" in
+    "") ;;
+    boot.frm)
+        [ -n "$boot_sha" ] || fail "boot_sha256 is required"
+        flash_image qspi-fsbl-uboot "$ROOT_DIR/$boot_name" "$boot_sha" 1
+        updated=1
+        ;;
+    *) fail "unsupported boot image name" ;;
+esac
+
+case "$firmware_name" in
+    "") ;;
+    firmware.frm)
+        [ -n "$firmware_sha" ] || fail "firmware_sha256 is required"
+        flash_image qspi-linux "$ROOT_DIR/$firmware_name" "$firmware_sha" 0
+        updated=1
+        ;;
+    *) fail "unsupported firmware image name" ;;
+esac
+
+[ "$updated" -eq 1 ] || fail "manifest contains no update image"
+sync
+printf 'profile=%s\n' "$(config_value profile)"
+printf 'firmware update applied; reboot to apply\n'
