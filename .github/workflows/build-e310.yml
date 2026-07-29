@@ -132,6 +132,7 @@ jobs:
           workspace="$RUNNER_TEMP/antsdr-e310-build"
           export ADI_HDL_DIR="$workspace/src/hdl"
           export VIVADO_SETTINGS=/opt/Xilinx/Vivado/2023.2/settings64.sh
+          export ANTSDR_OS_VERSION="$ANTSDR_VERSION"
           python tools/e310_build.py all \
             --workspace "$workspace" \
             --jobs "${RUNNER_NUM_CPUS:-4}" \

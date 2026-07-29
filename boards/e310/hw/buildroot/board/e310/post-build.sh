@@ -41,7 +41,7 @@ grep -q '^mtd2 /mnt/antsdr-persist ' "$TARGET_DIR/etc/fstab" || \
     printf 'mtd2 /mnt/antsdr-persist jffs2 rw,noatime 0 0\n' >> "$TARGET_DIR/etc/fstab"
 
 cat > "$TARGET_DIR/etc/antsdr/release" <<EOF
-firmware=development
+firmware=${ANTSDR_OS_VERSION:-development}
 board=e310
 buildroot=${BR2_VERSION_FULL:-unknown}
 EOF

@@ -46,6 +46,7 @@ class BuildrootOverlayTest(unittest.TestCase):
     def test_defconfig_declares_the_runtime_contract(self) -> None:
         config = DEFCONFIG.read_text(encoding="utf-8")
         required = {
+            "BR2_REPRODUCIBLE=y",
             'BR2_TARGET_GENERIC_ROOT_PASSWD="antsdr"',
             'BR2_TARGET_GENERIC_GETTY_PORT="ttyPS0"',
             'BR2_ROOTFS_POST_BUILD_SCRIPT="board/e310/post-build.sh"',
