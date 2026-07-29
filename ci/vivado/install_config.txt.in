@@ -12,7 +12,7 @@ Destination=@DESTINATION@
 # tools that provide XSCT and bootgen.
 Modules=Zynq-7000:1,Vitis Embedded Development:1
 
-InstallOptions=Acquire or Manage a License Key:0,Enable WebTalk for Vivado to send usage statistics to Xilinx (Always enabled for WebPACK license):0
+InstallOptions=
 CreateProgramGroupShortcuts=0
 CreateShortcutsForAllUsers=0
 CreateDesktopShortcuts=0

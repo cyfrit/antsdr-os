@@ -142,6 +142,7 @@ chmod +x "$installer"
 
 # AMD's web installer stores a seven-day authentication token below HOME.
 # Generate it per workflow from repository secrets instead of persisting one.
+original_home="$HOME"
 export HOME="$work_root/home"
 export client
 mkdir -p "$HOME"
@@ -164,6 +165,8 @@ sed "s|@DESTINATION@|$install_root|g" "$repo_root/ci/vivado/install_config.txt.i
 
 settings="$install_root/Vitis/$VIVADO_VERSION/settings64.sh"
 test -r "$settings"
+export HOME="$original_home"
+rm -rf "$work_root"
 # shellcheck disable=SC1090
 source "$settings"
 command -v vivado
