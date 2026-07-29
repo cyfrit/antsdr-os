@@ -10,8 +10,6 @@
     "name",
     "vendor",
     "aliases",
-    "status",
-    "support",
     "upstream",
     "toolchain",
     "build",
@@ -28,37 +26,6 @@
       "type": "array",
       "items": { "type": "string", "minLength": 1 },
       "uniqueItems": true
-    },
-    "status": {
-      "enum": ["scaffold", "development", "build-validated", "hardware-validated"]
-    },
-    "support": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["reference_revisions", "firmware_validation", "limitations"],
-      "properties": {
-        "reference_revisions": {
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["revision", "evidence", "sources"],
-            "properties": {
-              "revision": { "type": "string" },
-              "evidence": { "enum": ["vendor-reference", "device-observed", "firmware-tested"] },
-              "sources": { "$ref": "#/$defs/sourceRefs" }
-            }
-          }
-        },
-        "firmware_validation": {
-          "enum": ["not-built", "static-only", "built", "booted", "hardware-tested"]
-        },
-        "limitations": {
-          "type": "array",
-          "items": { "type": "string" }
-        }
-      }
     },
     "upstream": {
       "type": "object",
@@ -231,11 +198,10 @@
     "tool": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "version", "status", "sources"],
+      "required": ["name", "version", "sources"],
       "properties": {
         "name": { "type": "string" },
         "version": { "type": "string" },
-        "status": { "enum": ["required", "deferred", "available"] },
         "sources": { "$ref": "#/$defs/sourceRefs" }
       }
     },

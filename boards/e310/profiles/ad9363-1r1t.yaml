@@ -2,7 +2,6 @@
 schema_version: 1
 id: ad9363-1r1t
 board: e310
-status: development
 
 selection:
   rf_model: ad9363

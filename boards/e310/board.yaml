@@ -6,20 +6,6 @@ vendor: MicroPhase
 aliases:
   - ant
   - ANTSDR Rev.C
-status: development
-
-support:
-  reference_revisions:
-    - revision: E310 Rev.C
-      evidence: vendor-reference
-      sources: [microphase_hdl_e310, microphase_linux_e310]
-  firmware_validation: not-built
-  limitations:
-    - Only E310 Rev.C is in scope for initial hardware validation.
-    - The E310 device tree is compile-checked against the pinned ADI Linux tree but has not been boot-tested.
-    - The Buildroot overlay and runtime configuration policy are statically tested but the root filesystem has not been built or boot-tested.
-    - Vivado, FSBL and full kernel builds remain pending until their toolchains are available.
-    - E200 and E310V2/E316 are separate board targets and are not implied compatible.
 
 upstream:
   plutosdr_fw:
@@ -43,17 +29,14 @@ toolchain:
   vivado:
     name: AMD Vivado
     version: "2023.2"
-    status: deferred
     sources: [adi_plutosdr_makefile, microphase_hdl_project]
   fsbl:
     name: AMD XSCT/Vitis
     version: "2023.2"
-    status: deferred
     sources: [adi_fsbl_script]
   linux:
     name: GNU Arm cross toolchain
     version: arm-linux-gnueabihf
-    status: deferred
     sources: [adi_plutosdr_makefile]
 
 build:
@@ -451,7 +434,8 @@ compatibility:
       status: reference-only
     - component: later ADI releases
       version: unpinned
-      status: unsupported-until-rebased
+      status: unsupported
+      evidence: requires explicit upstream rebase
 
 sources:
   adi_plutosdr_makefile:

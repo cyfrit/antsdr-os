@@ -214,10 +214,6 @@ def validate_contract(path: Path) -> None:
     validate_unique_hardware(board)
     validate_qspi(board)
 
-    if board["status"] == "hardware-validated" and board["support"]["firmware_validation"] != "hardware-tested":
-        raise ContractError("hardware-validated status requires hardware-tested firmware evidence")
-
-
 def discover_contracts() -> list[Path]:
     return sorted(
         path

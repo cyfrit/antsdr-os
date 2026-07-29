@@ -4,12 +4,11 @@
   "title": "ANTSDR board profile v1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "id", "board", "status", "selection", "transceiver", "datapath", "artifacts", "sources"],
+  "required": ["schema_version", "id", "board", "selection", "transceiver", "datapath", "artifacts", "sources"],
   "properties": {
     "schema_version": { "const": 1 },
     "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
     "board": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
-    "status": { "enum": ["development", "build-validated", "hardware-validated"] },
     "selection": {
       "type": "object",
       "minProperties": 1,
