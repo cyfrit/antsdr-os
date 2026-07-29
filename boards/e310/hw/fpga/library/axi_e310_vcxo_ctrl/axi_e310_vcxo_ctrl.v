@@ -50,7 +50,6 @@ module axi_e310_vcxo_ctrl #(
   wire            manual_mode_axi;
   wire    [15:0]  manual_dac_axi;
   wire    [ 1:0]  reference_select_axi;
-  wire            control_update_axi;
   reg     [15:0]  active_dac_axi;
   reg     [ 2:0]  reference_status_axi;
 
@@ -60,16 +59,31 @@ module axi_e310_vcxo_ctrl #(
   wire            clk_200m;
   wire            clk_40m;
   wire            clock_pll_locked;
+  wire            vcxo_reset_async;
+  wire            vcxo_reset;
 
+  (* ASYNC_REG = "TRUE" *) reg [2:0] vcxo_reset_release;
   (* ASYNC_REG = "TRUE" *) reg [18:0] control_bus_meta;
   (* ASYNC_REG = "TRUE" *) reg [18:0] control_bus_sync;
-  (* ASYNC_REG = "TRUE" *) reg [ 2:0] control_update_sync;
-  reg             control_update_seen;
+  (* ASYNC_REG = "TRUE" *) reg [ 2:0] control_request_sync;
+  (* ASYNC_REG = "TRUE" *) reg [ 2:0] control_ack_sync;
+  reg     [18:0]  control_mailbox_axi;
+  reg     [18:0]  control_queued_axi;
+  reg             control_request_axi;
+  reg             control_ack_200m;
+  reg             control_dirty_axi;
   reg             manual_mode;
   reg     [15:0]  manual_dac;
   reg     [ 1:0]  reference_select;
-  (* ASYNC_REG = "TRUE" *) reg [31:0] active_dac_sync;
-  (* ASYNC_REG = "TRUE" *) reg [5:0] reference_status_sync;
+  (* ASYNC_REG = "TRUE" *) reg [18:0] status_bus_meta;
+  (* ASYNC_REG = "TRUE" *) reg [18:0] status_bus_sync;
+  (* ASYNC_REG = "TRUE" *) reg [ 2:0] status_request_sync;
+  (* ASYNC_REG = "TRUE" *) reg [ 2:0] status_ack_sync;
+  reg     [18:0]  status_mailbox_200m;
+  reg     [18:0]  status_queued_200m;
+  reg             status_request_200m;
+  reg             status_ack_axi;
+  reg             status_dirty_200m;
 
   wire            selected_reference =
     reference_select == 2'd0 ? ref_10m_in :
@@ -79,6 +93,25 @@ module axi_e310_vcxo_ctrl #(
   wire            reference_locked;
   wire            reference_is_10m;
   wire            reference_is_pps;
+  wire            control_pending_axi =
+    control_request_axi != control_ack_sync[2];
+  wire            status_pending_200m =
+    status_request_200m != status_ack_sync[2];
+  wire    [18:0]  status_current_200m = {
+    active_dac,
+    reference_is_pps,
+    reference_is_10m,
+    reference_locked
+  };
+  wire            control_write_axi = up_wreq &&
+    (up_waddr[3:0] == 4'h0 || up_waddr[3:0] == 4'h1 ||
+     up_waddr[3:0] == 4'h3);
+  wire    [18:0]  control_write_value_axi =
+    up_waddr[3:0] == 4'h0 ?
+      {reference_select_axi, manual_dac_axi, up_wdata[0]} :
+    up_waddr[3:0] == 4'h1 ?
+      {reference_select_axi, up_wdata[15:0], manual_mode_axi} :
+      {up_wdata[1:0], manual_dac_axi, manual_mode_axi};
 
   assign ref_10m_locked = reference_locked && reference_is_10m;
   assign pps_locked = reference_locked && reference_is_pps;
@@ -122,59 +155,129 @@ module axi_e310_vcxo_ctrl #(
   BUFG i_clk_200m_bufg (.I (clk_200m_raw), .O (clk_200m));
   BUFG i_clk_40m_bufg (.I (clk_40m_raw), .O (clk_40m));
 
-  always @(posedge clk_200m or negedge clock_pll_locked or negedge s_axi_aresetn) begin
-    if (!clock_pll_locked || !s_axi_aresetn) begin
+  // All 200 MHz state receives an asynchronous assertion but only leaves
+  // reset after three local clock edges. No PS-domain reset release reaches
+  // the VCXO or DAC logic directly.
+  assign vcxo_reset_async = !clock_pll_locked || !s_axi_aresetn;
+  always @(posedge clk_200m or posedge vcxo_reset_async) begin
+    if (vcxo_reset_async)
+      vcxo_reset_release <= 3'b111;
+    else
+      vcxo_reset_release <= {vcxo_reset_release[1:0], 1'b0};
+  end
+  assign vcxo_reset = vcxo_reset_release[2];
+
+  // The request/acknowledge pair freezes the multi-bit mailbox until the
+  // receiving domain has captured it. Writes while a transfer is in flight
+  // are coalesced into one subsequent mailbox update.
+  always @(posedge s_axi_aclk) begin
+    if (!s_axi_aresetn) begin
+      control_ack_sync <= 3'd0;
+      control_mailbox_axi <= 19'd0;
+      control_queued_axi <= 19'd0;
+      control_request_axi <= 1'b0;
+      control_dirty_axi <= 1'b0;
+    end else begin
+      control_ack_sync <= {control_ack_sync[1:0], control_ack_200m};
+      if (control_write_axi) begin
+        if (control_pending_axi) begin
+          control_queued_axi <= control_write_value_axi;
+          control_dirty_axi <= 1'b1;
+        end else begin
+          control_mailbox_axi <= control_write_value_axi;
+          control_request_axi <= !control_request_axi;
+          control_dirty_axi <= 1'b0;
+        end
+      end else if (!control_pending_axi && control_dirty_axi) begin
+        control_mailbox_axi <= control_queued_axi;
+        control_request_axi <= !control_request_axi;
+        control_dirty_axi <= 1'b0;
+      end
+    end
+  end
+
+  always @(posedge clk_200m or posedge vcxo_reset) begin
+    if (vcxo_reset) begin
       control_bus_meta <= 19'd0;
       control_bus_sync <= 19'd0;
-      control_update_sync <= 3'd0;
-      control_update_seen <= 1'b0;
+      control_request_sync <= 3'd0;
+      control_ack_200m <= 1'b0;
       manual_mode <= 1'b0;
       manual_dac <= 16'd0;
       reference_select <= 2'd0;
     end else begin
-      // The control bus is held stable in the AXI domain. Delay its update
-      // toggle by an extra stage, then capture all fields as one snapshot.
-      control_bus_meta <= {
-        reference_select_axi,
-        manual_dac_axi,
-        manual_mode_axi
-      };
+      control_bus_meta <= control_mailbox_axi;
       control_bus_sync <= control_bus_meta;
-      control_update_sync <= {control_update_sync[1:0], control_update_axi};
-      if (control_update_sync[2] != control_update_seen) begin
+      control_request_sync <= {
+        control_request_sync[1:0],
+        control_request_axi
+      };
+      if (control_request_sync[2] != control_ack_200m) begin
         {
           reference_select,
           manual_dac,
           manual_mode
         } <= control_bus_sync;
-        control_update_seen <= control_update_sync[2];
+        control_ack_200m <= control_request_sync[2];
+      end
+    end
+  end
+
+  // Return VCXO state through another frozen mailbox. This prevents software
+  // from observing a word assembled from two different DAC updates.
+  always @(posedge clk_200m or posedge vcxo_reset) begin
+    if (vcxo_reset) begin
+      status_ack_sync <= 3'd0;
+      status_mailbox_200m <= 19'd0;
+      status_queued_200m <= 19'd0;
+      status_request_200m <= 1'b0;
+      status_dirty_200m <= 1'b0;
+    end else begin
+      status_ack_sync <= {status_ack_sync[1:0], status_ack_axi};
+      if (status_current_200m != status_mailbox_200m) begin
+        if (status_pending_200m) begin
+          status_queued_200m <= status_current_200m;
+          status_dirty_200m <= 1'b1;
+        end else begin
+          status_mailbox_200m <= status_current_200m;
+          status_request_200m <= !status_request_200m;
+          status_dirty_200m <= 1'b0;
+        end
+      end else if (!status_pending_200m && status_dirty_200m) begin
+        status_mailbox_200m <= status_queued_200m;
+        status_request_200m <= !status_request_200m;
+        status_dirty_200m <= 1'b0;
       end
     end
   end
 
   always @(posedge s_axi_aclk) begin
     if (!s_axi_aresetn) begin
-      active_dac_sync <= 32'd0;
-      reference_status_sync <= 6'd0;
+      status_bus_meta <= 19'd0;
+      status_bus_sync <= 19'd0;
+      status_request_sync <= 3'd0;
+      status_ack_axi <= 1'b0;
       active_dac_axi <= 16'd0;
       reference_status_axi <= 3'd0;
     end else begin
-      active_dac_sync <= {active_dac_sync[15:0], active_dac};
-      reference_status_sync <= {
-        reference_status_sync[2:0],
-        reference_is_pps,
-        reference_is_10m,
-        reference_locked
+      status_bus_meta <= status_mailbox_200m;
+      status_bus_sync <= status_bus_meta;
+      status_request_sync <= {
+        status_request_sync[1:0],
+        status_request_200m
       };
-      active_dac_axi <= active_dac_sync[31:16];
-      reference_status_axi <= reference_status_sync[5:3];
+      if (status_request_sync[2] != status_ack_axi) begin
+        active_dac_axi <= status_bus_sync[18:3];
+        reference_status_axi <= status_bus_sync[2:0];
+        status_ack_axi <= status_request_sync[2];
+      end
     end
   end
 
   e310_ref_pll #(
     .HOLDOVER_DAC (HOLDOVER_DAC)
   ) i_reference_pll (
-    .reset (!clock_pll_locked),
+    .reset (vcxo_reset),
     .sample_clock (clk_200m),
     .reference_clock (clk_40m),
     .external_reference (selected_reference),
@@ -203,7 +306,6 @@ module axi_e310_vcxo_ctrl #(
     .manual_mode (manual_mode_axi),
     .manual_dac (manual_dac_axi),
     .reference_select (reference_select_axi),
-    .control_update (control_update_axi),
     .active_dac (active_dac_axi),
     .reference_status (reference_status_axi)
   );

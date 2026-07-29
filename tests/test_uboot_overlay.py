@@ -104,7 +104,11 @@ class UbootOverlayTest(unittest.TestCase):
         self.assertNotIn('"boot_antsdr=run sdboot || run qspiboot\\0"', header)
         self.assertIn('"recovery=run load_qspi_extraenv; run qspiboot\\0"', header)
         self.assertIn("antsdr-e310.itb", header)
-        self.assertIn("sdboot_legacy", header)
+        self.assertNotIn("sdboot_legacy", header)
+        self.assertNotIn("uramdisk.image.gz", header)
+        self.assertNotIn("devicetree.dtb", header)
+        self.assertNotIn("devicetree_image", header)
+        self.assertNotIn('"kernel_image=', header)
         self.assertIn("select_rf_profile", header)
         self.assertIn(
             '"setenv fit_config config@e310-${rf_model}-${rf_topology}; "',
@@ -160,12 +164,10 @@ class UbootOverlayTest(unittest.TestCase):
 
         fit_start = environment_hex("fit_load_address")
         fit_end = fit_start + environment_hex("qspi_fit_max_size")
-        legacy_initrd = environment_hex("ramdisk_load_address")
         fpga_start = 0x0F000000
         memory_end = board["hardware"]["ddr"]["size_bytes"]
 
-        self.assertLessEqual(fit_end, legacy_initrd)
-        self.assertLess(legacy_initrd, fpga_start)
+        self.assertLessEqual(fit_end, fpga_start)
         self.assertLess(fpga_start, memory_end)
 
     def test_locked_uenv_importer_has_a_narrow_variable_allowlist(self) -> None:

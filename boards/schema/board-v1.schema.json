@@ -132,7 +132,7 @@
     "hardware": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["soc", "ddr", "clocks", "gpios", "rf", "datapath", "boot"],
+      "required": ["soc", "ddr", "clocks", "gpios", "pl_io", "rf", "datapath", "boot"],
       "properties": {
         "soc": { "$ref": "#/$defs/sourcedObject" },
         "ddr": { "$ref": "#/$defs/sourcedObject" },
@@ -152,6 +152,31 @@
                 "required": ["name", "controller", "line", "direction", "active"]
               }
             ]
+          }
+        },
+        "pl_io": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["signals", "sources"],
+          "properties": {
+            "signals": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["port", "package_pin", "iostandard", "direction", "pull"],
+                "properties": {
+                  "port": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
+                  "index": { "type": "integer", "minimum": 0 },
+                  "package_pin": { "type": "string", "pattern": "^[A-Z]+[0-9]+$" },
+                  "iostandard": { "enum": ["LVCMOS18", "LVCMOS33"] },
+                  "direction": { "enum": ["input", "output", "inout"] },
+                  "pull": { "enum": ["none", "up", "down"] }
+                }
+              }
+            },
+            "sources": { "$ref": "#/$defs/sourceRefs" }
           }
         },
         "rf": { "$ref": "#/$defs/sourcedObject" },

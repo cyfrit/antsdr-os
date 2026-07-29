@@ -73,6 +73,10 @@ class FirmwareAssemblyTest(unittest.TestCase):
 
             for profile in profiles:
                 directory = output / "sd" / profile["id"]
+                self.assertEqual(
+                    {path.name for path in directory.iterdir()},
+                    {"BOOT.BIN", "antsdr-e310.itb", "uEnv.txt"},
+                )
                 self.assertTrue((directory / "BOOT.BIN").is_file())
                 self.assertTrue((directory / "antsdr-e310.itb").is_file())
                 self.assertEqual(

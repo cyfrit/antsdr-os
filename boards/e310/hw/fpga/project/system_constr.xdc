@@ -87,5 +87,39 @@ create_clock -name spi0_clk -period 40.000 [get_pins -hier */EMIOSPI0SCLKO]
 set_input_jitter clk_fpga_0 0.3
 set_input_jitter clk_fpga_1 0.15
 
+# VCXO CDC constraints are intentionally scoped to each synchronizer or
+# mailbox endpoint. Do not replace these with broad clock-group exceptions:
+# FCLK0 and FCLK1 still have unrelated paths elsewhere in the design.
+#
+# CLKIN_10MHz and PPS_IN are unrelated to the 200 MHz VCXO clock. Only their
+# first synchronizer stage is asynchronous; subsequent stages are timed.
+set_false_path -from [get_ports {CLKIN_10MHz PPS_IN}] \
+  -to [get_cells -hier -filter {NAME =~ *external_reference_sync*}]
+
+# AXI control mailbox: FCLK0 -> 200 MHz request and bundled data, then the
+# acknowledgement returns through its own single-bit synchronizer.
+set_false_path -from [get_clocks clk_fpga_0] \
+  -to [get_cells -hier -filter {NAME =~ *control_bus_meta*}]
+set_false_path -from [get_clocks clk_fpga_0] \
+  -to [get_cells -hier -filter {NAME =~ *control_request_sync*}]
+set_false_path -from [get_clocks clk_fpga_1] \
+  -to [get_cells -hier -filter {NAME =~ *control_ack_sync*}]
+
+# VCXO status mailbox: 200 MHz -> FCLK0 data and request, with an independent
+# FCLK0 -> 200 MHz acknowledgement synchronizer.
+set_false_path -from [get_clocks clk_fpga_1] \
+  -to [get_cells -hier -filter {NAME =~ *status_bus_meta*}]
+set_false_path -from [get_clocks clk_fpga_1] \
+  -to [get_cells -hier -filter {NAME =~ *status_request_sync*}]
+set_false_path -from [get_clocks clk_fpga_0] \
+  -to [get_cells -hier -filter {NAME =~ *status_ack_sync*}]
+
+# The PS reset is asynchronously asserted at the local reset synchronizer;
+# the synchronizer releases all 200 MHz state only on local clock edges.
+set_false_path -from [get_clocks clk_fpga_0] \
+  -to [get_cells -hier -filter {NAME =~ *vcxo_reset_release*}]
+set_false_path -from [get_cells -hier -filter {NAME =~ *vcxo_reset_release*}] \
+  -to [get_cells -hier -filter {NAME =~ *reference_reset_release*}]
+
 set_false_path -from [get_pins {i_system_wrapper/system_i/axi_ad9361/inst/i_rx/i_up_adc_common/up_adc_gpio_out_int_reg[0]/C}]
 set_false_path -from [get_pins {i_system_wrapper/system_i/axi_ad9361/inst/i_tx/i_up_dac_common/up_dac_gpio_out_int_reg[0]/C}]

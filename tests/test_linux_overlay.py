@@ -149,6 +149,7 @@ class LinuxOverlayTest(unittest.TestCase):
         self.assertIn("devm_platform_ioremap_resource(pdev, 0)", driver)
         self.assertIn("devm_iio_device_register(&pdev->dev, indio_dev)", driver)
         self.assertIn("E310_VCXO_CORE_VERSION", driver)
+        self.assertNotIn("writel(", driver[driver.index("e310_vcxo_probe"):])
         self.assertNotIn("0x43c00000", driver.lower())
 
     @unittest.skipUnless(shutil.which("cpp") and shutil.which("dtc"), "cpp and dtc are required")

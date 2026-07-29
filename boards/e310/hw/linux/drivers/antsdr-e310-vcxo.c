@@ -222,7 +222,6 @@ static int e310_vcxo_probe(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, -ENODEV,
 				     "unsupported VCXO core version %#x\n", version);
 
-
 	indio_dev->name = "e310-vcxo-control";
 	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->info = &e310_vcxo_info;

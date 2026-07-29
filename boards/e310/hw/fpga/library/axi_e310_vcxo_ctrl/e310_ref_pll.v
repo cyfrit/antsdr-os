@@ -50,14 +50,25 @@ module e310_ref_pll #(
   localparam integer LOCK_MARGIN_PPS = PFD_PERIOD_PPS / 1000000;
 
   reg reference_clock_div2;
+  (* ASYNC_REG = "TRUE" *) reg [2:0] reference_reset_release;
+  wire reference_reset = reference_reset_release[2];
   (* ASYNC_REG = "TRUE" *) reg [3:0] external_reference_sync;
   (* ASYNC_REG = "TRUE" *) reg [3:0] reference_clock_sync;
 
   wire external_reference_rising = external_reference_sync[3:2] == 2'b01;
   wire reference_clock_rising = reference_clock_sync[3:2] == 2'b01;
 
+  // reset is already released in the 200 MHz domain. Synchronize it again
+  // before releasing logic clocked by the independent 40 MHz clock.
   always @(posedge reference_clock or posedge reset) begin
     if (reset)
+      reference_reset_release <= 3'b111;
+    else
+      reference_reset_release <= {reference_reset_release[1:0], 1'b0};
+  end
+
+  always @(posedge reference_clock or posedge reference_reset) begin
+    if (reference_reset)
       reference_clock_div2 <= 1'b0;
     else
       reference_clock_div2 <= !reference_clock_div2;

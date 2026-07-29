@@ -33,12 +33,6 @@
 	"bootargs=console=ttyPS0,115200 root=/dev/ram0 rw rootfstype=ramfs earlyprintk clk_ignore_unused\0" \
 	"fdt_high=0x20000000\0" \
 	"initrd_high=0x20000000\0" \
-	"kernel_image=uImage\0" \
-	"kernel_load_address=0x00008000\0" \
-	"ramdisk_image=uramdisk.image.gz\0" \
-	"ramdisk_load_address=0x04000000\0" \
-	"devicetree_image=devicetree.dtb\0" \
-	"devicetree_load_address=0x02000000\0" \
 	"bootenv=uEnv.txt\0" \
 	"uenv_image=uEnv.txt\0" \
 	"uenv_file=uEnv.txt\0" \
@@ -74,23 +68,12 @@
 	"select_rf_profile=if run validate_rf_model; then " \
 		"if run validate_rf_topology; then " \
 			"setenv fit_config config@e310-${rf_model}-${rf_topology}; " \
-			"setenv devicetree_image zynq-antsdr-e310-${rf_model}-${rf_topology}.dtb; " \
 		"else echo Set rf_topology to 1r1t or 2r2t; false; fi; " \
 		"else echo Set rf_model to ad9363 or ad9361; false; fi\0" \
-	"sdboot_legacy=if run select_rf_profile; then " \
-		"if fatload mmc 0 ${kernel_load_address} ${kernel_image}; then " \
-		"if fatload mmc 0 ${devicetree_load_address} ${devicetree_image}; then " \
-			"if fatload mmc 0 ${ramdisk_load_address} ${ramdisk_image}; then " \
-				"bootm ${kernel_load_address} ${ramdisk_load_address} ${devicetree_load_address}; " \
-			"fi; " \
-		"fi; " \
-		"fi; " \
-	"fi; false\0" \
 	"sdboot=if mmc dev 0; then " \
 		"if mmc rescan; then " \
 			"if fatload mmc 0 ${fit_load_address} ${fit_image}; then " \
 				"if run select_rf_profile; then bootm ${fit_load_address}#${fit_config}; fi; " \
-			"else run sdboot_legacy; " \
 			"fi; " \
 		"fi; " \
 	"fi; false\0" \

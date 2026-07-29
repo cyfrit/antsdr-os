@@ -256,6 +256,79 @@ hardware:
       fpga_pin: D19
       sources: [microphase_hdl_top, microphase_hdl_xdc, microphase_linux_e310]
 
+  # Complete PL-facing package-pin ABI. PS DDR, MIO and fixed I/O are owned
+  # by the PS7 configuration and deliberately do not appear in this list.
+  pl_io:
+    signals:
+      - { port: CLK_40M_DAC_nSYNC, package_pin: K16, iostandard: LVCMOS33, direction: output, pull: none }
+      - { port: CLK_40M_DAC_SCLK, package_pin: J16, iostandard: LVCMOS33, direction: output, pull: none }
+      - { port: CLK_40M_DAC_DIN, package_pin: J15, iostandard: LVCMOS33, direction: output, pull: none }
+      - { port: PPS_IN, package_pin: J18, iostandard: LVCMOS33, direction: input, pull: none }
+      - { port: CLK_40MHz_FPGA, package_pin: K17, iostandard: LVCMOS33, direction: input, pull: none }
+      - { port: CLKIN_10MHz, package_pin: T9, iostandard: LVCMOS18, direction: input, pull: none }
+      - { port: CLKIN_10MHz_REQ, package_pin: V6, iostandard: LVCMOS18, direction: output, pull: none }
+
+      - { port: gpio_ctl, index: 0, package_pin: T10, iostandard: LVCMOS18, direction: inout, pull: none }
+      - { port: gpio_ctl, index: 1, package_pin: Y12, iostandard: LVCMOS18, direction: inout, pull: none }
+      - { port: gpio_ctl, index: 2, package_pin: Y13, iostandard: LVCMOS18, direction: inout, pull: none }
+      - { port: gpio_ctl, index: 3, package_pin: V11, iostandard: LVCMOS18, direction: inout, pull: none }
+      - { port: gpio_status, index: 0, package_pin: T11, iostandard: LVCMOS18, direction: inout, pull: none }
+      - { port: gpio_status, index: 1, package_pin: T14, iostandard: LVCMOS18, direction: inout, pull: none }
+      - { port: gpio_status, index: 2, package_pin: T15, iostandard: LVCMOS18, direction: inout, pull: none }
+      - { port: gpio_status, index: 3, package_pin: T17, iostandard: LVCMOS18, direction: inout, pull: none }
+      - { port: gpio_status, index: 4, package_pin: T19, iostandard: LVCMOS18, direction: inout, pull: none }
+      - { port: gpio_status, index: 5, package_pin: T20, iostandard: LVCMOS18, direction: inout, pull: none }
+      - { port: gpio_status, index: 6, package_pin: U13, iostandard: LVCMOS18, direction: inout, pull: none }
+      - { port: gpio_status, index: 7, package_pin: V13, iostandard: LVCMOS18, direction: inout, pull: none }
+      - { port: txnrx, package_pin: P14, iostandard: LVCMOS18, direction: output, pull: none }
+      - { port: enable, package_pin: R18, iostandard: LVCMOS18, direction: output, pull: none }
+      - { port: gpio_en_agc, package_pin: P16, iostandard: LVCMOS18, direction: inout, pull: none }
+      - { port: gpio_resetb, package_pin: N17, iostandard: LVCMOS18, direction: inout, pull: none }
+
+      - { port: spi_csn, package_pin: P18, iostandard: LVCMOS18, direction: output, pull: up }
+      - { port: spi_clk, package_pin: R14, iostandard: LVCMOS18, direction: output, pull: none }
+      - { port: spi_mosi, package_pin: P15, iostandard: LVCMOS18, direction: output, pull: none }
+      - { port: spi_miso, package_pin: R19, iostandard: LVCMOS18, direction: input, pull: none }
+
+      - { port: rx_clk_in, package_pin: N20, iostandard: LVCMOS18, direction: input, pull: none }
+      - { port: rx_frame_in, package_pin: U18, iostandard: LVCMOS18, direction: input, pull: none }
+      - { port: rx_data_in, index: 0, package_pin: Y19, iostandard: LVCMOS18, direction: input, pull: none }
+      - { port: rx_data_in, index: 1, package_pin: Y18, iostandard: LVCMOS18, direction: input, pull: none }
+      - { port: rx_data_in, index: 2, package_pin: V18, iostandard: LVCMOS18, direction: input, pull: none }
+      - { port: rx_data_in, index: 3, package_pin: V17, iostandard: LVCMOS18, direction: input, pull: none }
+      - { port: rx_data_in, index: 4, package_pin: W20, iostandard: LVCMOS18, direction: input, pull: none }
+      - { port: rx_data_in, index: 5, package_pin: V20, iostandard: LVCMOS18, direction: input, pull: none }
+      - { port: rx_data_in, index: 6, package_pin: R17, iostandard: LVCMOS18, direction: input, pull: none }
+      - { port: rx_data_in, index: 7, package_pin: R16, iostandard: LVCMOS18, direction: input, pull: none }
+      - { port: rx_data_in, index: 8, package_pin: W19, iostandard: LVCMOS18, direction: input, pull: none }
+      - { port: rx_data_in, index: 9, package_pin: W18, iostandard: LVCMOS18, direction: input, pull: none }
+      - { port: rx_data_in, index: 10, package_pin: W16, iostandard: LVCMOS18, direction: input, pull: none }
+      - { port: rx_data_in, index: 11, package_pin: V16, iostandard: LVCMOS18, direction: input, pull: none }
+      - { port: tx_clk_out, package_pin: N18, iostandard: LVCMOS18, direction: output, pull: none }
+      - { port: tx_frame_out, package_pin: Y16, iostandard: LVCMOS18, direction: output, pull: none }
+      - { port: tx_data_out, index: 0, package_pin: Y14, iostandard: LVCMOS18, direction: output, pull: none }
+      - { port: tx_data_out, index: 1, package_pin: W14, iostandard: LVCMOS18, direction: output, pull: none }
+      - { port: tx_data_out, index: 2, package_pin: U12, iostandard: LVCMOS18, direction: output, pull: none }
+      - { port: tx_data_out, index: 3, package_pin: T12, iostandard: LVCMOS18, direction: output, pull: none }
+      - { port: tx_data_out, index: 4, package_pin: U15, iostandard: LVCMOS18, direction: output, pull: none }
+      - { port: tx_data_out, index: 5, package_pin: U14, iostandard: LVCMOS18, direction: output, pull: none }
+      - { port: tx_data_out, index: 6, package_pin: U17, iostandard: LVCMOS18, direction: output, pull: none }
+      - { port: tx_data_out, index: 7, package_pin: T16, iostandard: LVCMOS18, direction: output, pull: none }
+      - { port: tx_data_out, index: 8, package_pin: W13, iostandard: LVCMOS18, direction: output, pull: none }
+      - { port: tx_data_out, index: 9, package_pin: V12, iostandard: LVCMOS18, direction: output, pull: none }
+      - { port: tx_data_out, index: 10, package_pin: W15, iostandard: LVCMOS18, direction: output, pull: none }
+      - { port: tx_data_out, index: 11, package_pin: V15, iostandard: LVCMOS18, direction: output, pull: none }
+
+      - { port: VCRX1_H, package_pin: G14, iostandard: LVCMOS33, direction: output, pull: none }
+      - { port: VCRX1_L, package_pin: C20, iostandard: LVCMOS33, direction: output, pull: none }
+      - { port: VCTX1_H, package_pin: B19, iostandard: LVCMOS33, direction: output, pull: none }
+      - { port: VCTX1_L, package_pin: B20, iostandard: LVCMOS33, direction: output, pull: none }
+      - { port: VCRX2_H, package_pin: E17, iostandard: LVCMOS33, direction: output, pull: none }
+      - { port: VCRX2_L, package_pin: A20, iostandard: LVCMOS33, direction: output, pull: none }
+      - { port: VCTX2_H, package_pin: D18, iostandard: LVCMOS33, direction: output, pull: none }
+      - { port: VCTX2_L, package_pin: D19, iostandard: LVCMOS33, direction: output, pull: none }
+    sources: [microphase_hdl_xdc]
+
   rf:
     physical_transceiver: AD9363
     driver_models:
@@ -303,7 +376,8 @@ hardware:
     vcxo_control_address: 0x43c00000
     vcxo_control:
       dac: LTC2630
-      manual_dac_boot_value: 0
+      reset_mode: automatic
+      manual_dac_register_reset_value: 0
       automatic_holdover_dac_value: 42580
       register_abi_version: 0x00010000
       sources: [microphase_hdl_vcxo, microphase_linux_e310]
