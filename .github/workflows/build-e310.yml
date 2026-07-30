@@ -112,14 +112,20 @@ jobs:
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y expect libncurses5 libtinfo5
           command -v aws
-      - name: Restore AMD FPGA toolchain cache
+      - name: Restore Vitis toolchain cache
+        id: vitis_cache
+        uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ${{ github.workspace }}/.toolchains/Xilinx/Vitis
+          key: vivado-x64-ubuntu2204-vitis-${{ hashFiles('ci/vivado/web-installer.env', 'ci/vivado/install_config.txt.in') }}
+      - name: Restore Vivado toolchain cache
         id: vivado_cache
         uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
-          path: ${{ github.workspace }}/.toolchains/Xilinx
-          key: vivado-x64-ubuntu2204-${{ hashFiles('ci/vivado/web-installer.env', 'ci/vivado/install_config.txt.in') }}
+          path: ${{ github.workspace }}/.toolchains/Xilinx/Vivado
+          key: vivado-x64-ubuntu2204-vivado-${{ hashFiles('ci/vivado/web-installer.env', 'ci/vivado/install_config.txt.in') }}
       - name: Install AMD FPGA toolchain
-        if: steps.vivado_cache.outputs.cache-hit != 'true'
+        if: steps.vitis_cache.outputs.cache-hit != 'true' || steps.vivado_cache.outputs.cache-hit != 'true'
         shell: bash
         env:
           R2_S3_API_URL: ${{ secrets.R2_S3_API_URL }}
@@ -129,9 +135,12 @@ jobs:
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           AMD_USERNAME: ${{ secrets.AMD_USERNAME }}
           AMD_PASSWORD: ${{ secrets.AMD_PASSWORD }}
-        run: bash ci/vivado/install-vivado.sh
+        run: |
+          set -euo pipefail
+          rm -rf "$GITHUB_WORKSPACE/.toolchains/Xilinx"
+          bash ci/vivado/install-vivado.sh
       - name: Activate cached AMD FPGA toolchain
-        if: steps.vivado_cache.outputs.cache-hit == 'true'
+        if: steps.vitis_cache.outputs.cache-hit == 'true' && steps.vivado_cache.outputs.cache-hit == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -149,11 +158,17 @@ jobs:
             printf 'XILINX_INSTALL_ROOT=%s\n' "$install_root"
             printf 'ANTSDR_BUILD_ROOT=%s\n' "$RUNNER_TEMP/antsdr-os-build"
           } >> "$GITHUB_ENV"
-      - name: Save AMD FPGA toolchain cache
+      - name: Save Vitis toolchain cache
+        if: steps.vitis_cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ${{ github.workspace }}/.toolchains/Xilinx/Vitis
+          key: ${{ steps.vitis_cache.outputs.cache-primary-key }}
+      - name: Save Vivado toolchain cache
         if: steps.vivado_cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
-          path: ${{ github.workspace }}/.toolchains/Xilinx
+          path: ${{ github.workspace }}/.toolchains/Xilinx/Vivado
           key: ${{ steps.vivado_cache.outputs.cache-primary-key }}
       - name: Report toolchain capacity
         shell: bash
