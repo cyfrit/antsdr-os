@@ -188,6 +188,7 @@ def build_environment(workspace: Path) -> dict[str, str]:
 
 
 def run_commands(commands: list[tuple[str, list[str]]], workspace: Path, action: str) -> None:
+    workspace.mkdir(parents=True, exist_ok=True)
     required = {
         "rootfs": ("buildroot",),
         "linux": ("linux",),
