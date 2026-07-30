@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: MIT
-# Install the pinned AMD toolchain into the expanded CI workspace.
+# Prepare an AMD selected-product image or install the pinned toolchain from it.
 
 set -euo pipefail
 
@@ -34,6 +34,26 @@ require_fingerprint() {
   fi
 }
 
+image_xsetup() {
+  find "$image_root" -maxdepth 3 -type f -name xsetup -perm -u+x -print -quit
+}
+
+emit_toolchain_environment() {
+  local settings="$install_root/Vitis/$VIVADO_VERSION/settings64.sh"
+  test -r "$settings"
+  # shellcheck disable=SC1090
+  source "$settings"
+  command -v vivado
+  command -v xsct
+  command -v bootgen
+  vivado -version | grep -F "$VIVADO_VERSION"
+  {
+    printf 'VIVADO_SETTINGS=%s\n' "$settings"
+    printf 'XILINX_INSTALL_ROOT=%s\n' "$install_root"
+    printf 'ANTSDR_BUILD_ROOT=%s\n' "$RUNNER_TEMP/antsdr-os-build"
+  } >> "$GITHUB_ENV"
+}
+
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 readonly WEB_INSTALLER_CONFIG="$repo_root/ci/vivado/web-installer.env"
 if [[ ! -r "$WEB_INSTALLER_CONFIG" ]]; then
@@ -43,11 +63,60 @@ fi
 # shellcheck disable=SC1090
 source "$WEB_INSTALLER_CONFIG"
 
+for variable in GITHUB_WORKSPACE GITHUB_ENV RUNNER_TEMP VIVADO_VERSION; do
+  require_env "$variable"
+done
+
+readonly image_root="${AMD_INSTALL_IMAGE_ROOT:-$GITHUB_WORKSPACE/.toolchains/amd-image}"
+case "$image_root" in
+  "$GITHUB_WORKSPACE"/*) ;;
+  *)
+    printf 'AMD_INSTALL_IMAGE_ROOT must be within GITHUB_WORKSPACE\n' >&2
+    exit 2
+    ;;
+esac
+
+if [[ "${AMD_IMAGE_ONLY:-0}" != 1 ]]; then
+  readonly install_root="${XILINX_INSTALL_ROOT:-$GITHUB_WORKSPACE/.toolchains/Xilinx}"
+  case "$install_root" in
+    "$GITHUB_WORKSPACE"/*) ;;
+    *)
+      printf 'XILINX_INSTALL_ROOT must be within GITHUB_WORKSPACE\n' >&2
+      exit 2
+      ;;
+  esac
+
+  cached_xsetup="$(image_xsetup)"
+  if [[ -z "$cached_xsetup" ]]; then
+    printf 'AMD installation image does not contain an executable xsetup\n' >&2
+    exit 2
+  fi
+
+  config_root="$RUNNER_TEMP/antsdr-vivado-install"
+  config="$config_root/install_config.txt"
+  rm -rf "$config_root" "$install_root"
+  mkdir -p "$config_root" "$install_root"
+  sed "s|@DESTINATION@|$install_root|g" "$repo_root/ci/vivado/install_config.txt.in" > "$config"
+
+  installer_status=0
+  (
+    cd "$(dirname "$cached_xsetup")"
+    timeout --signal=TERM --kill-after=2m 45m \
+      ./xsetup --agree XilinxEULA,3rdPartyEULA --batch Install --config "$config"
+  ) || installer_status=$?
+  if (( installer_status != 0 )); then
+    printf 'AMD installer exited with status %d\n' "$installer_status" >&2
+    ps -eo pid,ppid,stat,etime,cmd --forest | \
+      grep -E '[x]setup|[j]ava|[v]ivado|[l]oader' >&2 || true
+    exit "$installer_status"
+  fi
+
+  rm -rf "$config_root"
+  emit_toolchain_environment
+  exit 0
+fi
+
 for variable in \
-  GITHUB_WORKSPACE \
-  GITHUB_ENV \
-  RUNNER_TEMP \
-  VIVADO_VERSION \
   R2_S3_API_URL_ENV \
   R2_BUCKET_ENV \
   R2_INSTALLER_KEY_ENV \
@@ -63,25 +132,16 @@ for variable in \
   require_env "$variable"
 done
 
-install_root="${XILINX_INSTALL_ROOT:-$GITHUB_WORKSPACE/.toolchains/Xilinx}"
-case "$install_root" in
-  "$GITHUB_WORKSPACE"/*) ;;
-  *)
-    printf 'XILINX_INSTALL_ROOT must be within GITHUB_WORKSPACE\n' >&2
-    exit 2
-    ;;
-esac
-
-work_root="$GITHUB_WORKSPACE/.ci-vivado-installer"
+work_root="$GITHUB_WORKSPACE/.ci-vivado-image"
 installer="$work_root/FPGAs_AdaptiveSoCs_Unified_${VIVADO_VERSION}_1013_2256_Lin64.bin"
 signature="$installer.sig"
 client="$work_root/client"
 gnupg_home="$work_root/gnupg"
-config="$work_root/install_config.txt"
+config="$work_root/download_config.txt"
 signing_key="$work_root/xilinx-master-signing-key.asc"
 
-rm -rf "$work_root"
-mkdir -p "$client" "$gnupg_home" "$install_root"
+rm -rf "$work_root" "$image_root"
+mkdir -p "$client" "$gnupg_home" "$image_root"
 chmod 700 "$gnupg_home"
 
 r2_access_key_id="$(read_secret R2_ACCESS_KEY_ID_ENV)"
@@ -97,8 +157,6 @@ case "$r2_s3_api_url" in
     ;;
 esac
 
-# The secret URL is a bucket root. AWS CLI accepts the account endpoint and
-# bucket separately, so derive the former only at runtime.
 r2_s3_api_url="${r2_s3_api_url%/}"
 case "$r2_s3_api_url" in
   */"$r2_bucket") r2_s3_endpoint="${r2_s3_api_url%/$r2_bucket}" ;;
@@ -113,14 +171,12 @@ export AWS_SECRET_ACCESS_KEY="$r2_secret_access_key"
 export AWS_DEFAULT_REGION=auto
 export AWS_EC2_METADATA_DISABLED=true
 export AWS_PAGER=
-
 aws s3api get-object \
   --endpoint-url "$r2_s3_endpoint" \
   --region auto \
   --bucket "$r2_bucket" \
   --key "$r2_installer_key" \
   "$installer" >/dev/null
-
 unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_DEFAULT_REGION AWS_EC2_METADATA_DISABLED AWS_PAGER
 unset r2_access_key_id r2_secret_access_key r2_s3_api_url r2_s3_endpoint r2_bucket r2_installer_key
 
@@ -141,8 +197,6 @@ grep -F "[GNUPG:] VALIDSIG $VIVADO_SIGNING_SUBKEY_FINGERPRINT " "$work_root/gpg-
 chmod +x "$installer"
 "$installer" --keep --noexec --target "$client"
 
-# AMD's web installer stores a seven-day authentication token below HOME.
-# Generate it per workflow from repository secrets instead of persisting one.
 original_home="$HOME"
 export HOME="$work_root/home"
 export client
@@ -161,32 +215,16 @@ expect eof
 EOF
 unset AMD_USERNAME AMD_PASSWORD
 
-sed "s|@DESTINATION@|$install_root|g" "$repo_root/ci/vivado/install_config.txt.in" > "$config"
-
-installer_status=0
+sed "s|@DESTINATION@|$image_root|g" "$repo_root/ci/vivado/install_config.txt.in" > "$config"
+download_status=0
 timeout --signal=TERM --kill-after=2m 45m \
-  "$client/xsetup" --agree XilinxEULA,3rdPartyEULA --batch Install --config "$config" || \
-  installer_status=$?
-if (( installer_status != 0 )); then
-  printf 'AMD installer exited with status %d\n' "$installer_status" >&2
-  ps -eo pid,ppid,stat,etime,cmd --forest | \
-    grep -E '[x]setup|[j]ava|[v]ivado|[l]oader' >&2 || true
-  exit "$installer_status"
+  "$client/xsetup" --agree XilinxEULA,3rdPartyEULA --batch Download --config "$config" || \
+  download_status=$?
+if (( download_status != 0 )); then
+  printf 'AMD image download exited with status %d\n' "$download_status" >&2
+  exit "$download_status"
 fi
 
-settings="$install_root/Vitis/$VIVADO_VERSION/settings64.sh"
-test -r "$settings"
+test -n "$(image_xsetup)"
 export HOME="$original_home"
 rm -rf "$work_root"
-# shellcheck disable=SC1090
-source "$settings"
-command -v vivado
-command -v xsct
-command -v bootgen
-vivado -version | grep -F "$VIVADO_VERSION"
-
-{
-  printf 'VIVADO_SETTINGS=%s\n' "$settings"
-  printf 'XILINX_INSTALL_ROOT=%s\n' "$install_root"
-  printf 'ANTSDR_BUILD_ROOT=%s\n' "$RUNNER_TEMP/antsdr-os-build"
-} >> "$GITHUB_ENV"

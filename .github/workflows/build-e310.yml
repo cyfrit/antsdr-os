@@ -65,7 +65,7 @@ on:
         default: manual
         type: string
       toolchain_only:
-        description: Populate or verify the AMD toolchain cache without building firmware
+        description: Populate or verify the AMD installation image cache without building firmware
         required: true
         default: false
         type: boolean
@@ -112,20 +112,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y expect libncurses5 libtinfo5
           command -v aws
-      - name: Restore Vitis toolchain cache
-        id: vitis_cache
+      - name: Restore AMD FPGA installation image
+        id: amd_image_cache
         uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
-          path: ${{ github.workspace }}/.toolchains/Xilinx/Vitis
-          key: vivado-x64-ubuntu2204-vitis-${{ hashFiles('ci/vivado/web-installer.env', 'ci/vivado/install_config.txt.in') }}
-      - name: Restore Vivado toolchain cache
-        id: vivado_cache
-        uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
-        with:
-          path: ${{ github.workspace }}/.toolchains/Xilinx/Vivado
-          key: vivado-x64-ubuntu2204-vivado-${{ hashFiles('ci/vivado/web-installer.env', 'ci/vivado/install_config.txt.in') }}
-      - name: Install AMD FPGA toolchain
-        if: steps.vitis_cache.outputs.cache-hit != 'true' || steps.vivado_cache.outputs.cache-hit != 'true'
+          path: ${{ github.workspace }}/.toolchains/amd-image
+          key: vivado-image-x64-ubuntu2204-${{ hashFiles('ci/vivado/web-installer.env', 'ci/vivado/install_config.txt.in') }}
+      - name: Download AMD FPGA installation image
+        if: steps.amd_image_cache.outputs.cache-hit != 'true'
         shell: bash
         env:
           R2_S3_API_URL: ${{ secrets.R2_S3_API_URL }}
@@ -135,42 +129,28 @@ jobs:
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           AMD_USERNAME: ${{ secrets.AMD_USERNAME }}
           AMD_PASSWORD: ${{ secrets.AMD_PASSWORD }}
-        run: |
-          set -euo pipefail
-          rm -rf "$GITHUB_WORKSPACE/.toolchains/Xilinx"
-          bash ci/vivado/install-vivado.sh
-      - name: Activate cached AMD FPGA toolchain
-        if: steps.vitis_cache.outputs.cache-hit == 'true' && steps.vivado_cache.outputs.cache-hit == 'true'
+          AMD_IMAGE_ONLY: 1
+          AMD_INSTALL_IMAGE_ROOT: ${{ github.workspace }}/.toolchains/amd-image
+        run: bash ci/vivado/install-vivado.sh
+      - name: Save AMD FPGA installation image
+        if: steps.amd_image_cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ${{ github.workspace }}/.toolchains/amd-image
+          key: ${{ steps.amd_image_cache.outputs.cache-primary-key }}
+      - name: Install AMD FPGA toolchain from installation image
+        if: inputs.toolchain_only != true
         shell: bash
         run: |
           set -euo pipefail
-          source ci/vivado/web-installer.env
-          install_root="$GITHUB_WORKSPACE/.toolchains/Xilinx"
-          settings="$install_root/Vitis/$VIVADO_VERSION/settings64.sh"
-          test -r "$settings"
-          source "$settings"
-          command -v vivado
-          command -v xsct
-          command -v bootgen
-          vivado -version | grep -F "$VIVADO_VERSION"
-          {
-            printf 'VIVADO_SETTINGS=%s\n' "$settings"
-            printf 'XILINX_INSTALL_ROOT=%s\n' "$install_root"
-            printf 'ANTSDR_BUILD_ROOT=%s\n' "$RUNNER_TEMP/antsdr-os-build"
-          } >> "$GITHUB_ENV"
-      - name: Save Vitis toolchain cache
-        if: steps.vitis_cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
-        with:
-          path: ${{ github.workspace }}/.toolchains/Xilinx/Vitis
-          key: ${{ steps.vitis_cache.outputs.cache-primary-key }}
-      - name: Save Vivado toolchain cache
-        if: steps.vivado_cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
-        with:
-          path: ${{ github.workspace }}/.toolchains/Xilinx/Vivado
-          key: ${{ steps.vivado_cache.outputs.cache-primary-key }}
+          AMD_INSTALL_IMAGE_ROOT="$GITHUB_WORKSPACE/.toolchains/amd-image" \
+            bash ci/vivado/install-vivado.sh
+      - name: Discard local AMD FPGA installation image
+        if: inputs.toolchain_only != true && always()
+        shell: bash
+        run: rm -rf "$GITHUB_WORKSPACE/.toolchains/amd-image"
       - name: Report toolchain capacity
+        if: inputs.toolchain_only != true
         shell: bash
         run: |
           set -euo pipefail
