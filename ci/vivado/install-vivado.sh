@@ -162,22 +162,10 @@ unset AMD_USERNAME AMD_PASSWORD
 
 sed "s|@DESTINATION@|$install_root|g" "$repo_root/ci/vivado/install_config.txt.in" > "$config"
 
-installer_heartbeat() {
-  while sleep 60; do
-    printf 'AMD installer heartbeat: %s\n' "$(date --utc --iso-8601=seconds)"
-    df -h "$install_root" || true
-    du -sh "$install_root" || true
-  done
-}
-
-installer_heartbeat &
-heartbeat_pid=$!
 installer_status=0
 timeout --signal=TERM --kill-after=2m 45m \
   "$client/xsetup" --agree XilinxEULA,3rdPartyEULA --batch Install --config "$config" || \
   installer_status=$?
-kill "$heartbeat_pid" 2>/dev/null || true
-wait "$heartbeat_pid" 2>/dev/null || true
 if (( installer_status != 0 )); then
   printf 'AMD installer exited with status %d\n' "$installer_status" >&2
   ps -eo pid,ppid,stat,etime,cmd --forest | \
