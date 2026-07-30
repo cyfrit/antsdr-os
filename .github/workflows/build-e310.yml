@@ -112,14 +112,19 @@ jobs:
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y expect libncurses5 libtinfo5
           command -v aws
-      - name: Restore AMD FPGA installation image
-        id: amd_image_cache
+      - name: Prepare toolchain cache staging
+        shell: bash
+        run: mkdir -p "$GITHUB_WORKSPACE/.cache-tmp"
+      - name: Restore AMD FPGA toolchain
+        id: amd_toolchain_cache
         uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        env:
+          RUNNER_TEMP: ${{ github.workspace }}/.cache-tmp
         with:
-          path: ${{ github.workspace }}/.toolchains/amd-image
-          key: vivado-image-x64-ubuntu2204-${{ hashFiles('ci/vivado/web-installer.env', 'ci/vivado/install_config.txt.in') }}
-      - name: Download AMD FPGA installation image
-        if: steps.amd_image_cache.outputs.cache-hit != 'true'
+          path: ${{ github.workspace }}/.toolchains/Xilinx
+          key: vivado-toolchain-x64-ubuntu2204-${{ hashFiles('ci/vivado/web-installer.env', 'ci/vivado/install_config.txt.in') }}
+      - name: Install AMD FPGA toolchain
+        if: steps.amd_toolchain_cache.outputs.cache-hit != 'true'
         shell: bash
         env:
           R2_S3_API_URL: ${{ secrets.R2_S3_API_URL }}
@@ -129,26 +134,25 @@ jobs:
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           AMD_USERNAME: ${{ secrets.AMD_USERNAME }}
           AMD_PASSWORD: ${{ secrets.AMD_PASSWORD }}
-          AMD_IMAGE_ONLY: 1
-          AMD_INSTALL_IMAGE_ROOT: ${{ github.workspace }}/.toolchains/amd-image
         run: bash ci/vivado/install-vivado.sh
-      - name: Save AMD FPGA installation image
-        if: steps.amd_image_cache.outputs.cache-hit != 'true'
+      - name: Activate cached AMD FPGA toolchain
+        if: steps.amd_toolchain_cache.outputs.cache-hit == 'true'
+        shell: bash
+        env:
+          AMD_TOOLCHAIN_PRESENT: 1
+        run: bash ci/vivado/install-vivado.sh
+      - name: Save AMD FPGA toolchain
+        if: steps.amd_toolchain_cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        env:
+          RUNNER_TEMP: ${{ github.workspace }}/.cache-tmp
         with:
-          path: ${{ github.workspace }}/.toolchains/amd-image
-          key: ${{ steps.amd_image_cache.outputs.cache-primary-key }}
-      - name: Install AMD FPGA toolchain from installation image
-        if: inputs.toolchain_only != true
+          path: ${{ github.workspace }}/.toolchains/Xilinx
+          key: ${{ steps.amd_toolchain_cache.outputs.cache-primary-key }}
+      - name: Clear toolchain cache staging
+        if: always()
         shell: bash
-        run: |
-          set -euo pipefail
-          AMD_INSTALL_IMAGE_ROOT="$GITHUB_WORKSPACE/.toolchains/amd-image" \
-            bash ci/vivado/install-vivado.sh
-      - name: Discard local AMD FPGA installation image
-        if: inputs.toolchain_only != true && always()
-        shell: bash
-        run: rm -rf "$GITHUB_WORKSPACE/.toolchains/amd-image"
+        run: rm -rf "$GITHUB_WORKSPACE/.cache-tmp"
       - name: Report toolchain capacity
         if: inputs.toolchain_only != true
         shell: bash
