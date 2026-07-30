@@ -88,7 +88,6 @@ jobs:
       TZ: UTC
       LANG: C
       LC_ALL: C
-      AMD_CACHE_KEY: vivado-toolchain-x64-ubuntu2204-v3-${{ hashFiles('ci/vivado/web-installer.env', 'ci/vivado/install_config.txt.in', 'ci/vivado/toolchain-cache.sh') }}
     steps:
       - name: Expand build filesystem
         uses: easimon/maximize-build-space@c28619d8999a147d5e09c1199f84ff6af6ad5794
@@ -106,6 +105,16 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
+      - name: Resolve AMD toolchain cache identity
+        id: amd_cache
+        shell: bash
+        run: |
+          set -euo pipefail
+          digest="$(sha256sum \
+            ci/vivado/web-installer.env \
+            ci/vivado/install_config.txt.in \
+            ci/vivado/toolchain-cache.sh | sha256sum | awk '{print $1}')"
+          printf 'key=vivado-toolchain-x64-ubuntu2204-v3-%s\n' "$digest" >> "$GITHUB_OUTPUT"
       - name: Install AMD FPGA runtime dependencies
         shell: bash
         run: |
@@ -123,9 +132,9 @@ jobs:
           RUNNER_TEMP: ${{ github.workspace }}/.cache-tmp
         with:
           path: ${{ github.workspace }}/.toolchains/cache/manifest
-          key: ${{ env.AMD_CACHE_KEY }}-manifest-lookup-${{ github.run_id }}
+          key: ${{ steps.amd_cache.outputs.key }}-manifest-lookup-${{ github.run_id }}
           restore-keys: |
-            ${{ env.AMD_CACHE_KEY }}-manifest-
+            ${{ steps.amd_cache.outputs.key }}-manifest-
       - name: Read toolchain cache generation
         id: cache_index
         shell: bash
@@ -147,7 +156,7 @@ jobs:
           RUNNER_TEMP: ${{ github.workspace }}/.cache-tmp
         with:
           path: ${{ github.workspace }}/.toolchains/cache/parts/part-00
-          key: ${{ env.AMD_CACHE_KEY }}-part-00-${{ steps.cache_index.outputs.generation }}
+          key: ${{ steps.amd_cache.outputs.key }}-part-00-${{ steps.cache_index.outputs.generation }}
       - name: Restore toolchain cache part 01
         if: steps.cache_index.outputs.generation != ''
         uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
@@ -155,7 +164,7 @@ jobs:
           RUNNER_TEMP: ${{ github.workspace }}/.cache-tmp
         with:
           path: ${{ github.workspace }}/.toolchains/cache/parts/part-01
-          key: ${{ env.AMD_CACHE_KEY }}-part-01-${{ steps.cache_index.outputs.generation }}
+          key: ${{ steps.amd_cache.outputs.key }}-part-01-${{ steps.cache_index.outputs.generation }}
       - name: Restore toolchain cache part 02
         if: steps.cache_index.outputs.generation != ''
         uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
@@ -163,7 +172,7 @@ jobs:
           RUNNER_TEMP: ${{ github.workspace }}/.cache-tmp
         with:
           path: ${{ github.workspace }}/.toolchains/cache/parts/part-02
-          key: ${{ env.AMD_CACHE_KEY }}-part-02-${{ steps.cache_index.outputs.generation }}
+          key: ${{ steps.amd_cache.outputs.key }}-part-02-${{ steps.cache_index.outputs.generation }}
       - name: Restore toolchain cache part 03
         if: steps.cache_index.outputs.generation != ''
         uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
@@ -171,7 +180,7 @@ jobs:
           RUNNER_TEMP: ${{ github.workspace }}/.cache-tmp
         with:
           path: ${{ github.workspace }}/.toolchains/cache/parts/part-03
-          key: ${{ env.AMD_CACHE_KEY }}-part-03-${{ steps.cache_index.outputs.generation }}
+          key: ${{ steps.amd_cache.outputs.key }}-part-03-${{ steps.cache_index.outputs.generation }}
       - name: Restore packed AMD FPGA toolchain
         id: toolchain_cache
         shell: bash
@@ -233,7 +242,7 @@ jobs:
           RUNNER_TEMP: ${{ github.workspace }}/.cache-tmp
         with:
           path: ${{ github.workspace }}/.toolchains/cache/parts/part-00
-          key: ${{ env.AMD_CACHE_KEY }}-part-00-${{ github.run_id }}
+          key: ${{ steps.amd_cache.outputs.key }}-part-00-${{ github.run_id }}
       # BEGIN TEMPORARY VIVADO CACHE DEBUG
       - name: "TEMP DEBUG: after cache part 00"
         if: always() && steps.toolchain_cache.outputs.cache-hit != 'true'
@@ -247,7 +256,7 @@ jobs:
           RUNNER_TEMP: ${{ github.workspace }}/.cache-tmp
         with:
           path: ${{ github.workspace }}/.toolchains/cache/parts/part-01
-          key: ${{ env.AMD_CACHE_KEY }}-part-01-${{ github.run_id }}
+          key: ${{ steps.amd_cache.outputs.key }}-part-01-${{ github.run_id }}
       - name: Save toolchain cache part 02
         if: steps.toolchain_cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
@@ -255,7 +264,7 @@ jobs:
           RUNNER_TEMP: ${{ github.workspace }}/.cache-tmp
         with:
           path: ${{ github.workspace }}/.toolchains/cache/parts/part-02
-          key: ${{ env.AMD_CACHE_KEY }}-part-02-${{ github.run_id }}
+          key: ${{ steps.amd_cache.outputs.key }}-part-02-${{ github.run_id }}
       - name: Save toolchain cache part 03
         if: steps.toolchain_cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
@@ -263,7 +272,7 @@ jobs:
           RUNNER_TEMP: ${{ github.workspace }}/.cache-tmp
         with:
           path: ${{ github.workspace }}/.toolchains/cache/parts/part-03
-          key: ${{ env.AMD_CACHE_KEY }}-part-03-${{ github.run_id }}
+          key: ${{ steps.amd_cache.outputs.key }}-part-03-${{ github.run_id }}
       # BEGIN TEMPORARY VIVADO CACHE DEBUG
       - name: "TEMP DEBUG: after all cache parts"
         if: always() && steps.toolchain_cache.outputs.cache-hit != 'true'
@@ -277,13 +286,13 @@ jobs:
           RUNNER_TEMP: ${{ github.workspace }}/.cache-tmp
         with:
           path: ${{ github.workspace }}/.toolchains/cache/manifest
-          key: ${{ env.AMD_CACHE_KEY }}-manifest-${{ github.run_id }}
+          key: ${{ steps.amd_cache.outputs.key }}-manifest-${{ github.run_id }}
       - name: Verify toolchain cache part 00
         if: steps.toolchain_cache.outputs.cache-hit != 'true'
         uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
           path: ${{ github.workspace }}/.toolchains/cache/parts/part-00
-          key: ${{ env.AMD_CACHE_KEY }}-part-00-${{ github.run_id }}
+          key: ${{ steps.amd_cache.outputs.key }}-part-00-${{ github.run_id }}
           lookup-only: true
           fail-on-cache-miss: true
       - name: Verify toolchain cache part 01
@@ -291,7 +300,7 @@ jobs:
         uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
           path: ${{ github.workspace }}/.toolchains/cache/parts/part-01
-          key: ${{ env.AMD_CACHE_KEY }}-part-01-${{ github.run_id }}
+          key: ${{ steps.amd_cache.outputs.key }}-part-01-${{ github.run_id }}
           lookup-only: true
           fail-on-cache-miss: true
       - name: Verify toolchain cache part 02
@@ -299,7 +308,7 @@ jobs:
         uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
           path: ${{ github.workspace }}/.toolchains/cache/parts/part-02
-          key: ${{ env.AMD_CACHE_KEY }}-part-02-${{ github.run_id }}
+          key: ${{ steps.amd_cache.outputs.key }}-part-02-${{ github.run_id }}
           lookup-only: true
           fail-on-cache-miss: true
       - name: Verify toolchain cache part 03
@@ -307,7 +316,7 @@ jobs:
         uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
           path: ${{ github.workspace }}/.toolchains/cache/parts/part-03
-          key: ${{ env.AMD_CACHE_KEY }}-part-03-${{ github.run_id }}
+          key: ${{ steps.amd_cache.outputs.key }}-part-03-${{ github.run_id }}
           lookup-only: true
           fail-on-cache-miss: true
       - name: Verify toolchain cache manifest
@@ -315,7 +324,7 @@ jobs:
         uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
           path: ${{ github.workspace }}/.toolchains/cache/manifest
-          key: ${{ env.AMD_CACHE_KEY }}-manifest-${{ github.run_id }}
+          key: ${{ steps.amd_cache.outputs.key }}-manifest-${{ github.run_id }}
           lookup-only: true
           fail-on-cache-miss: true
       - name: Clear toolchain cache staging
