@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   save:
-    name: Save 30 GiB random payload
+    name: Save 1 GiB random payload
     runs-on: ubicloud-standard-2
     timeout-minutes: 30
     steps:
@@ -18,7 +18,7 @@ jobs:
         uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
           path: ${{ runner.temp }}/ubicloud-cache-probe
-          key: ubicloud-cache-probe-random-30g-v1
+          key: ubicloud-cache-probe-random-1g-v1
       - name: Generate cache payload
         if: steps.probe_cache.outputs.cache-hit != 'true'
         shell: bash
@@ -27,7 +27,7 @@ jobs:
           payload="$RUNNER_TEMP/ubicloud-cache-probe"
           mkdir -p "$payload"
           df -h "$RUNNER_TEMP"
-          dd if=/dev/urandom of="$payload/payload.bin" bs=16M count=1920 iflag=fullblock status=progress conv=fsync
+          dd if=/dev/urandom of="$payload/payload.bin" bs=16M count=64 iflag=fullblock status=progress conv=fsync
           sha256sum "$payload/payload.bin" > "$payload/SHA256SUMS"
           du -sh "$payload"
       - name: Save probe cache
@@ -47,12 +47,12 @@ jobs:
         uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
           path: ${{ runner.temp }}/ubicloud-cache-probe
-          key: ubicloud-cache-probe-random-30g-v1
+          key: ubicloud-cache-probe-random-1g-v1
           fail-on-cache-miss: true
       - name: Verify restored payload
         shell: bash
         run: |
           set -euo pipefail
           payload="$RUNNER_TEMP/ubicloud-cache-probe"
-          test "$(stat --format=%s "$payload/payload.bin")" -eq $((30 * 1024 * 1024 * 1024))
+          test "$(stat --format=%s "$payload/payload.bin")" -eq $((1024 * 1024 * 1024))
           sha256sum --check "$payload/SHA256SUMS"
