@@ -126,17 +126,17 @@ restore_toolchain() {
 
 (( $# >= 3 )) || usage
 readonly mode="$1"
-readonly toolchain_root="$2"
-readonly cache_root="$3"
+readonly input_toolchain_root="$2"
+readonly input_cache_root="$3"
 
 case "$mode" in
   pack)
     (( $# == 4 )) || usage
-    pack_toolchain "$toolchain_root" "$cache_root" "$4"
+    pack_toolchain "$input_toolchain_root" "$input_cache_root" "$4"
     ;;
   restore)
     (( $# == 3 )) || usage
-    restore_toolchain "$toolchain_root" "$cache_root"
+    restore_toolchain "$input_toolchain_root" "$input_cache_root"
     ;;
   *)
     usage
