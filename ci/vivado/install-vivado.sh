@@ -46,6 +46,7 @@ source "$WEB_INSTALLER_CONFIG"
 for variable in \
   GITHUB_WORKSPACE \
   GITHUB_ENV \
+  RUNNER_TEMP \
   VIVADO_VERSION \
   R2_S3_API_URL_ENV \
   R2_BUCKET_ENV \
@@ -187,5 +188,5 @@ vivado -version | grep -F "$VIVADO_VERSION"
 {
   printf 'VIVADO_SETTINGS=%s\n' "$settings"
   printf 'XILINX_INSTALL_ROOT=%s\n' "$install_root"
-  printf 'ANTSDR_BUILD_ROOT=%s\n' "$GITHUB_WORKSPACE/.ci-build"
+  printf 'ANTSDR_BUILD_ROOT=%s\n' "$RUNNER_TEMP/antsdr-os-build"
 } >> "$GITHUB_ENV"

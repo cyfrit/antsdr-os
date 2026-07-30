@@ -147,7 +147,7 @@ jobs:
           {
             printf 'VIVADO_SETTINGS=%s\n' "$settings"
             printf 'XILINX_INSTALL_ROOT=%s\n' "$install_root"
-            printf 'ANTSDR_BUILD_ROOT=%s\n' "$GITHUB_WORKSPACE/.ci-build"
+            printf 'ANTSDR_BUILD_ROOT=%s\n' "$RUNNER_TEMP/antsdr-os-build"
           } >> "$GITHUB_ENV"
       - name: Save AMD FPGA toolchain cache
         if: steps.vivado_cache.outputs.cache-hit != 'true'
