@@ -129,6 +129,7 @@ jobs:
             file \
             flex \
             libelf-dev \
+            libmpc-dev \
             libncurses5 \
             libssl-dev \
             libtinfo5 \
