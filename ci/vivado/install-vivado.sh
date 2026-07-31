@@ -66,8 +66,14 @@ done
 readonly install_root="${XILINX_INSTALL_ROOT:-$GITHUB_WORKSPACE/.toolchains/Xilinx}"
 case "$install_root" in
   "$GITHUB_WORKSPACE"/*) ;;
+  "$HOME/.local/share/antsdr-os/Xilinx")
+    if [[ "${ANTSDR_PERSISTENT_TOOLCHAIN:-0}" != 1 ]]; then
+      printf 'persistent Xilinx install root requires ANTSDR_PERSISTENT_TOOLCHAIN=1\n' >&2
+      exit 2
+    fi
+    ;;
   *)
-    printf 'XILINX_INSTALL_ROOT must be within GITHUB_WORKSPACE\n' >&2
+    printf 'XILINX_INSTALL_ROOT is outside an allowed toolchain directory\n' >&2
     exit 2
     ;;
 esac
