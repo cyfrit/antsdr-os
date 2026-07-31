@@ -30,6 +30,8 @@ files:
     destination: board/e310/runtime/sbin/antsdr-diagnostic
   - source: board/e310/runtime/sbin/antsdr-persist
     destination: board/e310/runtime/sbin/antsdr-persist
+  - source: board/e310/runtime/sbin/antsdr-update
+    destination: board/e310/runtime/sbin/antsdr-update
   - source: board/e310/runtime/sbin/antsdr-udc-suspend
     destination: board/e310/runtime/sbin/antsdr-udc-suspend
   - source: board/e310/runtime/libexec/net-hotplug
