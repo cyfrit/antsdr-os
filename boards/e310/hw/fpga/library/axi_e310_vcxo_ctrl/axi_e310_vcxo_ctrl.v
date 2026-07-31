@@ -145,11 +145,7 @@ module axi_e310_vcxo_ctrl #(
     .DI (16'd0),
     .DO (),
     .DRDY (),
-    .DWE (1'b0),
-    .PSCLK (1'b0),
-    .PSEN (1'b0),
-    .PSINCDEC (1'b0),
-    .PSDONE ()
+    .DWE (1'b0)
   );
 
   BUFG i_clk_200m_bufg (.I (clk_200m_raw), .O (clk_200m));

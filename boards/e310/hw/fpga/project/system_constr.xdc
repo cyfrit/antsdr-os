@@ -90,6 +90,15 @@ set_input_jitter clk_fpga_1 0.15
 # VCXO CDC constraints are intentionally scoped to each synchronizer or
 # mailbox endpoint. Do not replace these with broad clock-group exceptions:
 # FCLK0 and FCLK1 still have unrelated paths elsewhere in the design.
+# The VCXO controller's 200 MHz domain is generated locally from the 40 MHz
+# board clock; it is not the PS FCLK1 domain, despite sharing its frequency.
+# Keep this lookup strict so a hierarchy change cannot silently leave the CDC
+# paths unconstrained.
+set vcxo_200m_clock [get_clocks -quiet -of_objects \
+  [get_pins -hierarchical -filter {NAME =~ *i_clock_pll/CLKOUT0}]]
+if {[llength $vcxo_200m_clock] != 1} {
+  error "Expected exactly one VCXO PLL 200 MHz generated clock"
+}
 #
 # CLKIN_10MHz and PPS_IN are unrelated to the 200 MHz VCXO clock. Only their
 # first synchronizer stage is asynchronous; subsequent stages are timed.
@@ -102,14 +111,14 @@ set_false_path -from [get_clocks clk_fpga_0] \
   -to [get_cells -hier -filter {NAME =~ *control_bus_meta*}]
 set_false_path -from [get_clocks clk_fpga_0] \
   -to [get_cells -hier -filter {NAME =~ *control_request_sync*}]
-set_false_path -from [get_clocks clk_fpga_1] \
+set_false_path -from $vcxo_200m_clock \
   -to [get_cells -hier -filter {NAME =~ *control_ack_sync*}]
 
 # VCXO status mailbox: 200 MHz -> FCLK0 data and request, with an independent
 # FCLK0 -> 200 MHz acknowledgement synchronizer.
-set_false_path -from [get_clocks clk_fpga_1] \
+set_false_path -from $vcxo_200m_clock \
   -to [get_cells -hier -filter {NAME =~ *status_bus_meta*}]
-set_false_path -from [get_clocks clk_fpga_1] \
+set_false_path -from $vcxo_200m_clock \
   -to [get_cells -hier -filter {NAME =~ *status_request_sync*}]
 set_false_path -from [get_clocks clk_fpga_0] \
   -to [get_cells -hier -filter {NAME =~ *status_ack_sync*}]
