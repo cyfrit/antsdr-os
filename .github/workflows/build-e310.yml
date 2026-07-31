@@ -367,6 +367,17 @@ jobs:
             --xsct xsct \
             --release "$RUNNER_TEMP/antsdr-e310-release" \
             --execute
+      - name: Report FPGA project failure
+        if: failure() && inputs.toolchain_only != true
+        shell: bash
+        run: |
+          set -euo pipefail
+          log="$ANTSDR_BUILD_ROOT/e310/src/hdl/projects/e310/e310_vivado.log"
+          if [ -r "$log" ]; then
+            tail -n 1000 "$log"
+          else
+            printf 'Vivado project log was not created: %s\n' "$log" >&2
+          fi
       - name: Attach build metadata and verify assembly
         if: inputs.toolchain_only != true
         shell: bash
