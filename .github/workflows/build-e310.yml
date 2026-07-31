@@ -69,6 +69,11 @@ on:
         required: true
         default: false
         type: boolean
+      debug_enabled:
+        description: Temporarily open a tmate shell after Vivado and source setup
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -80,7 +85,7 @@ concurrency:
 jobs:
   build:
     name: Build E310 Rev.C
-    runs-on: ubicloud-standard-8-ubuntu-2204
+    runs-on: ubicloud-standard-4-ubuntu-2204
     timeout-minutes: 90
     outputs:
       artifact_name: ${{ steps.metadata.outputs.artifact_name }}
@@ -349,6 +354,10 @@ jobs:
           PY
           echo "SOURCE_DATE_EPOCH=$epoch" >> "$GITHUB_ENV"
           echo "ANTSDR_VERSION=$version" >> "$GITHUB_ENV"
+      - name: Temporary Vivado debug shell
+        if: github.event_name == 'workflow_dispatch' && inputs.debug_enabled
+        uses: mxschmitt/action-tmate@35b54afac29c97fb54faba5b513f8fbd1882f113 # v3
+        timeout-minutes: 45
       - name: Build Linux, Buildroot, U-Boot, FPGA and BOOT.BIN
         if: inputs.toolchain_only != true
         shell: bash
