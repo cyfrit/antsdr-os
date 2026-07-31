@@ -95,7 +95,7 @@ concurrency:
 jobs:
   build:
     name: Build E310 Rev.C
-    runs-on: ${{ inputs.runner_mode == 'aliyun-persistent' && 'aliyun-' || 'ubicloud-standard-4-ubuntu-2204' }}
+    runs-on: ${{ inputs.runner_mode == 'aliyun-persistent' && 'self-hosted' || 'ubicloud-standard-4-ubuntu-2204' }}
     timeout-minutes: 90
     outputs:
       artifact_name: ${{ steps.metadata.outputs.artifact_name }}
