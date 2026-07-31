@@ -27,6 +27,10 @@ on:
         required: false
         type: string
         default: hosted
+      release_signing:
+        required: false
+        type: boolean
+        default: false
     outputs:
       artifact_name:
         description: Name of the uploaded build artifact
@@ -46,6 +50,8 @@ on:
         required: true
       AMD_PASSWORD:
         required: true
+      FIT_SIGNING_KEY_PEM:
+        required: false
   workflow_dispatch:
     inputs:
       version:
@@ -83,7 +89,12 @@ on:
         required: true
         default: hosted
         type: choice
-        options: [hosted, aliyun-persistent]
+        options: [hosted, release-hosted, aliyun-persistent]
+      release_signing:
+        description: Require and apply the ANTSDR OS release FIT signature
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -95,8 +106,9 @@ concurrency:
 jobs:
   build:
     name: Build E310 Rev.C
-    runs-on: ${{ inputs.runner_mode == 'aliyun-persistent' && 'self-hosted' || 'ubicloud-standard-4-ubuntu-2204' }}
+    runs-on: ${{ inputs.runner_mode == 'aliyun-persistent' && 'self-hosted' || inputs.runner_mode == 'release-hosted' && 'ubicloud-standard-8-ubuntu-2204' || 'ubicloud-standard-4-ubuntu-2204' }}
     timeout-minutes: 90
+    environment: ${{ inputs.release_signing && 'release' || '' }}
     outputs:
       artifact_name: ${{ steps.metadata.outputs.artifact_name }}
     env:
@@ -356,6 +368,7 @@ jobs:
         shell: bash
         env:
           UENV_MODE: ${{ inputs.uenv_mode || 'compat' }}
+          FIT_SIGNING_KEY_PEM: ${{ secrets.FIT_SIGNING_KEY_PEM }}
         run: |
           set -euo pipefail
           source "$VIVADO_SETTINGS"
@@ -369,13 +382,33 @@ jobs:
           esac
           export ADI_HDL_DIR="$workspace/src/hdl"
           export ANTSDR_OS_VERSION="$ANTSDR_VERSION"
+          signing_args=()
+          if [ "${{ inputs.release_signing }}" = true ]; then
+            test -n "$FIT_SIGNING_KEY_PEM"
+            key_dir="$RUNNER_TEMP/fit-signing-key"
+            install -d -m 700 "$key_dir"
+            printf '%s' "$FIT_SIGNING_KEY_PEM" > "$key_dir/antsdr-os-release.key"
+            chmod 600 "$key_dir/antsdr-os-release.key"
+            cp keys/fit/antsdr-os-release.crt "$key_dir/antsdr-os-release.crt"
+            signing_args=(--fit-signing-key-dir "$key_dir")
+          fi
           python tools/e310_build.py all \
             --workspace "$workspace" \
             --jobs "$jobs" \
             --uenv-mode "$UENV_MODE" \
             --xsct "$GITHUB_WORKSPACE/ci/vivado/xsct-headless.sh" \
             --release "$RUNNER_TEMP/antsdr-e310-release" \
+            "${signing_args[@]}" \
             --execute
+          if [ "${{ inputs.release_signing }}" = true ]; then
+            "$workspace/out/u-boot/tools/fit_check_sign" \
+              -f "$RUNNER_TEMP/antsdr-e310-release/common/antsdr-e310.itb" \
+              -k "$workspace/out/u-boot/u-boot.dtb"
+          fi
+      - name: Remove FIT signing private key
+        if: always() && inputs.release_signing
+        shell: bash
+        run: rm -rf "$RUNNER_TEMP/fit-signing-key"
       - name: Report build diagnostics
         if: failure() && inputs.toolchain_only != true && inputs.debug_enabled != true
         shell: bash

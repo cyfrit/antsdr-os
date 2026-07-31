@@ -1,6 +1,6 @@
 #!/bin/sh
 # SPDX-License-Identifier: MIT
-# Apply a signed-by-manifest E310 firmware update from the USB volume.
+# Apply a checksum-verified E310 firmware update from the USB volume.
 
 set -eu
 
@@ -76,7 +76,7 @@ firmware_sha=$(config_value firmware_sha256)
 
 case "$boot_name" in
     "") ;;
-    boot.frm)
+    qspi-boot.bin)
         [ -n "$boot_sha" ] || fail "boot_sha256 is required"
         flash_image qspi-fsbl-uboot "$ROOT_DIR/$boot_name" "$boot_sha" 1
         updated=1
@@ -86,7 +86,7 @@ esac
 
 case "$firmware_name" in
     "") ;;
-    firmware.frm)
+    antsdr-e310.itb)
         [ -n "$firmware_sha" ] || fail "firmware_sha256 is required"
         flash_image qspi-linux "$ROOT_DIR/$firmware_name" "$firmware_sha" 0
         updated=1

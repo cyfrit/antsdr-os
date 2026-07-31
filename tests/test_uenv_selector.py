@@ -34,7 +34,9 @@ class UenvSelectorTest(unittest.TestCase):
             self.run_selector(config, "locked")
             self.assertEqual(
                 config.read_text(encoding="utf-8"),
-                "CONFIG_FIT=y\n# CONFIG_ANTSDR_UENV_COMPAT is not set\n",
+                "CONFIG_FIT=y\n"
+                "# CONFIG_ANTSDR_UENV_COMPAT is not set\n"
+                "# CONFIG_ANTSDR_FIT_SIGNATURE_REQUIRED is not set\n",
             )
 
             self.run_selector(config, "locked")
@@ -43,7 +45,9 @@ class UenvSelectorTest(unittest.TestCase):
             self.run_selector(config, "compat")
             self.assertEqual(
                 config.read_text(encoding="utf-8"),
-                "CONFIG_FIT=y\nCONFIG_ANTSDR_UENV_COMPAT=y\n",
+                "CONFIG_FIT=y\n"
+                "CONFIG_ANTSDR_UENV_COMPAT=y\n"
+                "# CONFIG_ANTSDR_FIT_SIGNATURE_REQUIRED is not set\n",
             )
 
 

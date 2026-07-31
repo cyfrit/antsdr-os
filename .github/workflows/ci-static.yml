@@ -42,6 +42,11 @@ jobs:
         run: python tools/validate_boards.py
       - name: Validate release metadata
         run: python tools/release_metadata.py show --board e310 --format json
+      - name: Validate FIT release public key
+        run: >-
+          python tools/verify_fit_release_key.py
+          --certificate keys/fit/antsdr-os-release.crt
+          --dtsi boards/e310/hw/uboot/dts/antsdr-os-release-key.dtsi
       - name: Run repository tests
         run: python -m unittest discover --start-directory tests --pattern 'test_*.py' --verbose
       - name: Check shell syntax

@@ -60,7 +60,7 @@ class FirmwareAssemblyTest(unittest.TestCase):
             )
             self.assertEqual(assembled, output)
             self.assertEqual(len(commands), 5)
-            self.assertTrue((output / "qspi" / "antsdr-e310.itb").is_file())
+            self.assertTrue((output / "common" / "antsdr-e310.itb").is_file())
 
             manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
             self.assertEqual(manifest["board"], "e310")
@@ -71,54 +71,49 @@ class FirmwareAssemblyTest(unittest.TestCase):
             self.assertEqual(manifest["qspi"]["profile_environment_offset"], 0x3FF000)
             self.assertEqual(manifest["qspi"]["profile_environment_size_bytes"], 0x1000)
             self.assertEqual(len(manifest["profiles"]), 4)
-            self.assertIn("qspi/antsdr-e310.itb", manifest["files"])
+            self.assertIn("common/antsdr-e310.itb", manifest["files"])
 
             for profile in profiles:
-                directory = output / "sd" / profile["id"]
+                directory = output / "profiles" / profile["id"]
                 self.assertEqual(
                     {path.name for path in directory.iterdir()},
                     {
-                        "BOOT.BIN",
-                        "antsdr-e310.itb",
                         "uEnv.txt",
-                        "boot.dfu",
-                        "firmware.dfu",
-                        "uboot-extra-env.dfu",
-                        "boot.frm",
-                        "firmware.frm",
+                        "qspi-boot.bin",
+                        "qspi-extra-env.bin",
+                        "qspi-extra-env.txt",
                         "firmware-update.conf",
                     },
                 )
-                self.assertTrue((directory / "BOOT.BIN").is_file())
-                self.assertTrue((directory / "antsdr-e310.itb").is_file())
+                self.assertTrue((output / "common" / "BOOT.BIN").is_file())
+                self.assertTrue((output / "common" / "antsdr-e310.itb").is_file())
                 self.assertEqual(
                     (directory / "uEnv.txt").read_text(encoding="ascii"),
                     f"rf_model={profile['selection']['rf_model']}\n"
                     f"rf_topology={profile['selection']['rf_topology']}\n",
                 )
-                self.assertEqual((directory / "boot.dfu").stat().st_size, 0x400000)
-                self.assertEqual((directory / "boot.frm").read_bytes(), (directory / "boot.dfu").read_bytes())
+                self.assertEqual((directory / "qspi-boot.bin").stat().st_size, 0x400000)
                 update_manifest = (directory / "firmware-update.conf").read_text(encoding="ascii")
                 self.assertIn("version=1\n", update_manifest)
                 self.assertIn(f"board={board['id']}\n", update_manifest)
                 self.assertIn(f"profile={profile['id']}\n", update_manifest)
-                self.assertIn("boot_image=boot.frm\n", update_manifest)
-                self.assertIn("firmware_image=firmware.frm\n", update_manifest)
-                qspi_profile = output / "qspi" / "profiles" / profile["id"]
-                self.assertEqual((qspi_profile / "extra-env.bin").stat().st_size, 0x1000)
+                self.assertIn("boot_image=qspi-boot.bin\n", update_manifest)
+                self.assertIn("firmware_image=antsdr-e310.itb\n", update_manifest)
+                qspi_profile = output / "profiles" / profile["id"]
+                self.assertEqual((qspi_profile / "qspi-extra-env.bin").stat().st_size, 0x1000)
                 self.assertEqual(
-                    (qspi_profile / "extra-env.txt").read_text(encoding="ascii"),
+                    (qspi_profile / "qspi-extra-env.txt").read_text(encoding="ascii"),
                     f"rf_model={profile['selection']['rf_model']}\n"
                     f"rf_topology={profile['selection']['rf_topology']}\n",
                 )
                 self.assertEqual(
                     next(item for item in manifest["profiles"] if item["id"] == profile["id"])["qspi_environment"],
-                    f"qspi/profiles/{profile['id']}/extra-env.bin",
+                    f"profiles/{profile['id']}/qspi-extra-env.bin",
                 )
                 qspi_manifest = next(item for item in manifest["profiles"] if item["id"] == profile["id"])
                 self.assertEqual(
                     qspi_manifest["qspi_boot_payload"],
-                    f"qspi/profiles/{profile['id']}/boot.dfu",
+                    f"profiles/{profile['id']}/qspi-boot.bin",
                 )
 
     def test_output_inside_repository_is_rejected(self) -> None:

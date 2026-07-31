@@ -46,7 +46,12 @@ def profile_description(profile: dict[str, Any]) -> str:
     return f"ANTSDR E310 {transceiver} {topology}"
 
 
-def render_its(board: dict[str, Any], profiles: list[dict[str, Any]]) -> str:
+def render_its(
+    board: dict[str, Any],
+    profiles: list[dict[str, Any]],
+    *,
+    signed: bool = False,
+) -> str:
     firmware = board["build"]["firmware"]
     bitstreams = {
         profile["artifacts"]["fpga_bitstream"]
@@ -132,9 +137,19 @@ def render_its(board: dict[str, Any], profiles: list[dict[str, Any]]) -> str:
                 '\t\t\tramdisk = "ramdisk";',
                 f"\t\t\tfdt = {quoted(fdt_image)};",
                 f"\t\t\tfpga = {quoted(fpga_image)};",
-                "\t\t};",
             ]
         )
+        if signed:
+            lines.extend(
+                [
+                    "\t\t\tsignature {",
+                    '\t\t\t\talgo = "sha256,rsa2048";',
+                    '\t\t\t\tkey-name-hint = "antsdr-os-release";',
+                    '\t\t\t\tsign-images = "kernel", "ramdisk", "fdt", "fpga";',
+                    "\t\t\t};",
+                ]
+            )
+        lines.append("\t\t};")
     lines.extend(["\t};", "};", ""])
     return "\n".join(lines)
 
@@ -144,6 +159,7 @@ def main() -> int:
     parser.add_argument("board")
     parser.add_argument("--output", type=Path)
     parser.add_argument("--check", action="store_true")
+    parser.add_argument("--signed", action="store_true")
     args = parser.parse_args()
 
     if args.check == (args.output is not None):
@@ -153,7 +169,7 @@ def main() -> int:
     try:
         validate_contract(board_dir / "board.yaml")
         board = load_board(args.board, validate=False)
-        its = render_its(board, load_profiles(args.board))
+        its = render_its(board, load_profiles(args.board), signed=args.signed)
         if args.output:
             args.output.parent.mkdir(parents=True, exist_ok=True)
             args.output.write_text(its, encoding="utf-8")

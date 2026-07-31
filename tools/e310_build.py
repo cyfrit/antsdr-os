@@ -125,6 +125,7 @@ def plan_commands(args: argparse.Namespace, board: dict[str, object]) -> list[tu
                         str(output / ".config"),
                         "--mode",
                         args.uenv_mode,
+                        *(["--fit-signature-required"] if args.fit_signing_key_dir else []),
                     ],
                 ),
                 ("refresh U-Boot configuration", [*common, "olddefconfig"]),
@@ -167,6 +168,11 @@ def plan_commands(args: argparse.Namespace, board: dict[str, object]) -> list[tu
                     str(artifacts["mkenvimage"]),
                     "--output",
                     str(release),
+                    *(
+                        ["--signing-key-dir", str(args.fit_signing_key_dir)]
+                        if args.fit_signing_key_dir
+                        else []
+                    ),
                 ],
             )
         )
@@ -217,6 +223,7 @@ def parser() -> argparse.ArgumentParser:
         command.add_argument("--uenv-mode", choices=("compat", "locked"), default="compat")
         command.add_argument("--xsct", default="xsct")
         command.add_argument("--release", type=Path)
+        command.add_argument("--fit-signing-key-dir", type=Path)
         if name == "prepare":
             command.add_argument("--components", choices=COMPONENTS, nargs="+", default=list(COMPONENTS))
         if name != "plan":

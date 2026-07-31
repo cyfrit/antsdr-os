@@ -8,6 +8,7 @@
 /dts-v1/;
 #include "zynq-7000.dtsi"
 #include <dt-bindings/gpio/gpio.h>
+#include "antsdr-os-release-key.dtsi"
 
 / {
 	model = "ANTSDR E310 Rev.C";

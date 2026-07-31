@@ -6,6 +6,8 @@ files:
     destination: cmd/antsdr_uenv.c
   - source: dts/zynq-antsdr-e310.dts
     destination: arch/arm/dts/zynq-antsdr-e310.dts
+  - source: dts/antsdr-os-release-key.dtsi
+    destination: arch/arm/dts/antsdr-os-release-key.dtsi
   - source: configs/zynq_antsdr_e310_defconfig
     destination: configs/zynq_antsdr_e310_defconfig
   - source: include/configs/zynq_antsdr_e310.h

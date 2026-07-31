@@ -46,6 +46,7 @@ class AssemblyInputs:
     output: Path
     mkimage: Path
     mkenvimage: Path
+    signing_key_dir: Path | None = None
 
 
 def load_board() -> tuple[dict[str, object], list[dict[str, object]]]:
@@ -216,9 +217,17 @@ def build_release(inputs: AssemblyInputs, runner: MkimageRunner = default_runner
 
         its_name = Path(str(firmware["fit_image"])).with_suffix(".its").name
         its = fit_input / its_name
-        its.write_text(render_its(board, profiles), encoding="utf-8")
+        signed = inputs.signing_key_dir is not None
+        its.write_text(render_its(board, profiles, signed=signed), encoding="utf-8")
         fit = staging / str(firmware["fit_image"])
-        runner([str(mkimage), "-f", its.name, str(fit)], fit_input)
+        mkimage_command = [str(mkimage), "-f", its.name]
+        if signed:
+            key_dir = inputs.signing_key_dir.expanduser().resolve()
+            require_file(key_dir / "antsdr-os-release.key", "FIT signing private key")
+            require_file(key_dir / "antsdr-os-release.crt", "FIT signing certificate")
+            mkimage_command.extend(["-k", str(key_dir)])
+        mkimage_command.append(str(fit))
+        runner(mkimage_command, fit_input)
         require_file(fit, "generated FIT image")
 
         partition = qspi_partition(board)
@@ -229,29 +238,29 @@ def build_release(inputs: AssemblyInputs, runner: MkimageRunner = default_runner
                 f"{fit.stat().st_size} > {partition['size']}"
             )
 
-        qspi_dir = staging / "qspi"
-        qspi_dir.mkdir()
-        shutil.copy2(fit, qspi_dir / str(firmware["fit_image"]))
+        common_dir = staging / "common"
+        common_dir.mkdir()
+        common_fit = common_dir / str(firmware["fit_image"])
+        shutil.copy2(fit, common_fit)
+        shutil.copy2(boot_bin, common_dir / str(firmware["boot_image"]))
         qspi = board["hardware"]["boot"]["qspi"]
         extra_environment = qspi["extra_environment"]
 
         profile_manifest: list[dict[str, object]] = []
         for profile in profiles:
-            profile_dir = staging / "sd" / profile["id"]
+            profile_dir = staging / "profiles" / profile["id"]
             profile_dir.mkdir(parents=True)
             selection = profile["selection"]
             (profile_dir / "uEnv.txt").write_text(
                 f"rf_model={selection['rf_model']}\nrf_topology={selection['rf_topology']}\n",
                 encoding="ascii",
             )
-            qspi_profile_dir = qspi_dir / "profiles" / profile["id"]
-            qspi_profile_dir.mkdir(parents=True)
-            environment_source = qspi_profile_dir / "extra-env.txt"
+            environment_source = profile_dir / "qspi-extra-env.txt"
             environment_source.write_text(
                 f"rf_model={selection['rf_model']}\nrf_topology={selection['rf_topology']}\n",
                 encoding="ascii",
             )
-            environment_image = qspi_profile_dir / "extra-env.bin"
+            environment_image = profile_dir / "qspi-extra-env.bin"
             runner(
                 [
                     str(mkenvimage),
@@ -261,7 +270,7 @@ def build_release(inputs: AssemblyInputs, runner: MkimageRunner = default_runner
                     str(environment_image),
                     str(environment_source),
                 ],
-                qspi_profile_dir,
+                profile_dir,
             )
             require_file(environment_image, "generated QSPI profile environment")
             if environment_image.stat().st_size != extra_environment["size"]:
@@ -270,7 +279,7 @@ def build_release(inputs: AssemblyInputs, runner: MkimageRunner = default_runner
                     f"{environment_image.stat().st_size} != {extra_environment['size']}"
                 )
 
-            qspi_boot_image = qspi_profile_dir / "boot.dfu"
+            qspi_boot_image = profile_dir / "qspi-boot.bin"
             create_qspi_boot_payload(
                 qspi_boot_image,
                 boot_bin,
@@ -278,37 +287,23 @@ def build_release(inputs: AssemblyInputs, runner: MkimageRunner = default_runner
                 int(boot_partition["size"]),
                 int(extra_environment["offset"]),
             )
-            qspi_firmware_image = qspi_profile_dir / "firmware.dfu"
-            shutil.copy2(fit, qspi_firmware_image)
-            qspi_extra_environment_image = qspi_profile_dir / "uboot-extra-env.dfu"
-            shutil.copy2(environment_image, qspi_extra_environment_image)
-
-            shutil.copy2(boot_bin, profile_dir / str(firmware["boot_image"]))
-            shutil.copy2(fit, profile_dir / str(firmware["fit_image"]))
-            shutil.copy2(qspi_boot_image, profile_dir / "boot.dfu")
-            shutil.copy2(qspi_firmware_image, profile_dir / "firmware.dfu")
-            shutil.copy2(qspi_extra_environment_image, profile_dir / "uboot-extra-env.dfu")
-            boot_update_image = profile_dir / "boot.frm"
-            firmware_update_image = profile_dir / "firmware.frm"
-            shutil.copy2(qspi_boot_image, boot_update_image)
-            shutil.copy2(qspi_firmware_image, firmware_update_image)
             write_update_manifest(
                 profile_dir / "firmware-update.conf",
                 str(board["id"]),
                 str(profile["id"]),
-                boot_update_image,
-                firmware_update_image,
+                qspi_boot_image,
+                common_fit,
             )
             profile_manifest.append(
                 {
                     "id": profile["id"],
                     "selection": selection,
-                    "sd_directory": profile_dir.relative_to(staging).as_posix(),
+                    "profile_directory": profile_dir.relative_to(staging).as_posix(),
                     "fit_configuration": profile["artifacts"]["fit_configuration"],
                     "qspi_environment": environment_image.relative_to(staging).as_posix(),
                     "qspi_boot_payload": qspi_boot_image.relative_to(staging).as_posix(),
-                    "qspi_firmware_payload": qspi_firmware_image.relative_to(staging).as_posix(),
-                    "qspi_extra_environment_payload": qspi_extra_environment_image.relative_to(staging).as_posix(),
+                    "qspi_firmware_payload": common_fit.relative_to(staging).as_posix(),
+                    "qspi_extra_environment_payload": environment_image.relative_to(staging).as_posix(),
                     "usb_update_manifest": (profile_dir / "firmware-update.conf").relative_to(staging).as_posix(),
                 }
             )
@@ -319,7 +314,7 @@ def build_release(inputs: AssemblyInputs, runner: MkimageRunner = default_runner
             "board": board["id"],
             "fit": {
                 "filename": firmware["fit_image"],
-                "signed": False,
+                "signed": signed,
                 "hash": "sha256",
             },
             "qspi": {
@@ -329,7 +324,7 @@ def build_release(inputs: AssemblyInputs, runner: MkimageRunner = default_runner
                 "partition": partition["name"],
                 "offset": partition["offset"],
                 "max_size_bytes": partition["size"],
-                "artifact": (qspi_dir / str(firmware["fit_image"])).relative_to(staging).as_posix(),
+                "artifact": common_fit.relative_to(staging).as_posix(),
                 "profile_environment_offset": extra_environment["offset"],
                 "profile_environment_size_bytes": extra_environment["size"],
             },
@@ -357,6 +352,7 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--mkimage", required=True, type=Path)
     result.add_argument("--mkenvimage", required=True, type=Path)
     result.add_argument("--output", required=True, type=Path)
+    result.add_argument("--signing-key-dir", type=Path)
     return result
 
 
@@ -373,6 +369,7 @@ def main() -> int:
                 output=args.output,
                 mkimage=args.mkimage,
                 mkenvimage=args.mkenvimage,
+                signing_key_dir=args.signing_key_dir,
             )
         )
         print(output)

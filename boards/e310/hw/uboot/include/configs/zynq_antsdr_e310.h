@@ -37,9 +37,9 @@
 	"uenv_image=uEnv.txt\0" \
 	"uenv_file=uEnv.txt\0" \
 	"uenv_load_address=0x02000000\0" \
-	"qspi_boot_payload=boot.dfu\0" \
-	"qspi_firmware_payload=firmware.dfu\0" \
-	"qspi_extraenv_payload=uboot-extra-env.dfu\0" \
+	"qspi_boot_payload=qspi-boot.bin\0" \
+	"qspi_firmware_payload=antsdr-e310.itb\0" \
+	"qspi_extraenv_payload=qspi-extra-env.bin\0" \
 	"qspi_boot_load_address=0x01000000\0" \
 	"qspi_firmware_load_address=0x02080000\0" \
 	"qspi_extraenv_load_address=0x0207e000\0" \
@@ -50,11 +50,11 @@
 	"qspi_exact_size=0\0" \
 	/* Keep this in sync with board.yaml: BOOT.BIN carries FSBL, bitstream and
 	 * U-Boot, so the vendor's inherited 1 MiB boot region is not usable. */ \
-	"dfu_alt_info=boot.dfu raw 0x00000000 0x00400000\\;" \
-		"firmware.dfu raw 0x00500000 0x01b00000\\;" \
-		"uboot-extra-env.dfu raw 0x003ff000 0x00001000\\;" \
-		"uboot-env.dfu raw 0x00400000 0x00020000\\;" \
-		"spare.dfu raw 0x00420000 0x000e0000\0" \
+	"dfu_alt_info=qspi-boot.bin raw 0x00000000 0x00400000\\;" \
+		"antsdr-e310.itb raw 0x00500000 0x01b00000\\;" \
+		"qspi-extra-env.bin raw 0x003ff000 0x00001000\\;" \
+		"uboot-env.bin raw 0x00400000 0x00020000\\;" \
+		"spare.bin raw 0x00420000 0x000e0000\0" \
 	"select_bootenv=if test -n ${bootenv}; then " \
 		"setenv uenv_file ${bootenv}; " \
 		"else setenv uenv_file ${uenv_image}; fi\0" \

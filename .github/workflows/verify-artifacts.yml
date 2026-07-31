@@ -58,18 +58,12 @@ jobs:
           release="$RUNNER_TEMP/input/release"
           test -d "$release"
           python tools/verify_release.py --release "$release" --board e310
-          python tools/generate_sbom.py --release "$release" --output "$release/sbom.spdx.json"
-          python tools/write_checksums.py --root "$release"
           mkdir -p "$RUNNER_TEMP/verified"
-          cp -a "$release/." "$RUNNER_TEMP/verified/"
-          epoch=0
-          if [ -f "$release/build-metadata.json" ]; then
-            epoch="$(python -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8")) .get("source_date_epoch", 0))' "$release/build-metadata.json")"
-          fi
-          archive="$RUNNER_TEMP/${ARTIFACT_NAME}.tar.gz"
-          tar --sort=name --mtime="@$epoch" --owner=0 --group=0 --numeric-owner \
-            -C "$RUNNER_TEMP/verified" -czf "$archive" .
-          cp "$archive" "$RUNNER_TEMP/verified/"
+          python tools/package_release.py --release "$release" --output "$RUNNER_TEMP/verified"
+          python tools/generate_sbom.py --release "$release" --output "$RUNNER_TEMP/verified/sbom.spdx.json"
+          cp "$release/manifest.json" "$release/build-metadata.json" "$RUNNER_TEMP/verified/"
+          cp keys/fit/antsdr-os-release.crt "$RUNNER_TEMP/verified/"
+          python tools/write_checksums.py --root "$RUNNER_TEMP/verified"
       - name: Bundle verified artifacts
         id: bundle
         shell: bash

@@ -22,7 +22,7 @@ index 7b19efc9b8..e651d9d922 100644
 diff --git a/cmd/Kconfig b/cmd/Kconfig
 --- a/cmd/Kconfig
 +++ b/cmd/Kconfig
-@@ -264,6 +264,20 @@ config CMD_ENV_EXISTS
+@@ -264,6 +264,27 @@ config CMD_ENV_EXISTS
  	  Check if a variable is defined in the environment for use in
  	  shell scripting.
  
@@ -39,6 +39,13 @@ diff --git a/cmd/Kconfig b/cmd/Kconfig
 +	help
 +	  Use the conventional env import and uenvcmd ABI. Disable this for
 +	  a locked build that imports only rf_model and rf_topology.
++
++config ANTSDR_FIT_SIGNATURE_REQUIRED
++	bool "Require ANTSDR OS FIT configuration signatures"
++	depends on FIT_SIGNATURE
++	help
++	  Enforce the release signing key for every selected FIT configuration.
++	  Enable this only for signed release builds.
 +
  endmenu
  

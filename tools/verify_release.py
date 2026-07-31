@@ -18,7 +18,7 @@ class ReleaseVerificationError(RuntimeError):
     pass
 
 
-GENERATED_FILES = {"SHA256SUMS", "sbom.spdx.json", "build-metadata.json"}
+GENERATED_FILES = {"SHA256SUMS", "SHA256SUMS.sig", "sbom.spdx.json", "build-metadata.json"}
 
 
 def sha256(path: Path) -> str:
@@ -103,8 +103,8 @@ def verify(release: Path, board_id: str) -> dict[str, Any]:
         if not isinstance(item, dict):
             raise ReleaseVerificationError("profile manifest entry must be a mapping")
         profile_id = str(item["id"])
-        sd = require_file(release, f"{item['sd_directory']}/{firmware['boot_image']}")
-        if sd.stat().st_size == 0:
+        boot = require_file(release, f"common/{firmware['boot_image']}")
+        if boot.stat().st_size == 0:
             raise ReleaseVerificationError(f"empty SD BOOT.BIN for {profile_id}")
         qspi_boot = require_file(release, str(item["qspi_boot_payload"]))
         if qspi_boot.stat().st_size != boot_size:
@@ -114,6 +114,9 @@ def verify(release: Path, board_id: str) -> dict[str, Any]:
             raise ReleaseVerificationError(f"QSPI environment size mismatch for {profile_id}")
         require_file(release, str(item["qspi_firmware_payload"]))
         require_file(release, str(item["qspi_extra_environment_payload"]))
+        profile_dir = str(item["profile_directory"])
+        require_file(release, f"{profile_dir}/uEnv.txt")
+        require_file(release, f"{profile_dir}/firmware-update.conf")
 
     metadata = release / "build-metadata.json"
     if metadata.is_file():

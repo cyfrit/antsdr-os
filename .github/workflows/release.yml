@@ -21,6 +21,8 @@ jobs:
     with:
       build_label: release
       uenv_mode: compat
+      runner_mode: release-hosted
+      release_signing: true
   verify:
     name: Verify release source
     needs: build
@@ -48,22 +50,38 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          archive="$(find "$RUNNER_TEMP/release-bundle" -type f -name '*.tar.gz' -print -quit)"
           release_dir="$RUNNER_TEMP/release-bundle"
-          test -n "$archive"
+          test "$(find "$release_dir" -maxdepth 1 -type f -name '*.zip' | wc -l)" -eq 4
           test -f "$release_dir/SHA256SUMS"
           (cd "$release_dir" && sha256sum -c SHA256SUMS)
-          echo "archive=$archive" >> "$GITHUB_OUTPUT"
           echo "release_dir=$release_dir" >> "$GITHUB_OUTPUT"
-      - name: Attest release archive
+      - name: Sign and verify release checksums
+        env:
+          FIT_SIGNING_KEY_PEM: ${{ secrets.FIT_SIGNING_KEY_PEM }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          key="$RUNNER_TEMP/antsdr-os-release.key"
+          pub="$RUNNER_TEMP/antsdr-os-release.pub"
+          printf '%s' "$FIT_SIGNING_KEY_PEM" > "$key"
+          openssl dgst -sha256 -sign "$key" \
+            -out "${{ steps.package.outputs.release_dir }}/SHA256SUMS.sig" \
+            "${{ steps.package.outputs.release_dir }}/SHA256SUMS"
+          openssl x509 -in "${{ steps.package.outputs.release_dir }}/antsdr-os-release.crt" \
+            -pubkey -noout > "$pub"
+          openssl dgst -sha256 -verify "$pub" \
+            -signature "${{ steps.package.outputs.release_dir }}/SHA256SUMS.sig" \
+            "${{ steps.package.outputs.release_dir }}/SHA256SUMS"
+          rm -f "$key" "$pub"
+      - name: Attest release assets
         uses: actions/attest-build-provenance@c074443f1aee8d4aeeae555aebba3282517141b2 # v2.2.3
         with:
-          subject-path: ${{ steps.package.outputs.archive }}
+          subject-path: ${{ steps.package.outputs.release_dir }}/*
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_DIR: ${{ steps.package.outputs.release_dir }}
-          ARCHIVE: ${{ steps.package.outputs.archive }}
         shell: bash
         run: |
           set -euo pipefail
@@ -72,8 +90,10 @@ jobs:
             --verify-tag \
             --title "ANTSDR OS $version (E310 Rev.C)" \
             --generate-notes \
-            "$ARCHIVE" \
+            "$RELEASE_DIR"/*.zip \
             "$RELEASE_DIR/manifest.json" \
             "$RELEASE_DIR/build-metadata.json" \
             "$RELEASE_DIR/sbom.spdx.json" \
-            "$RELEASE_DIR/SHA256SUMS"
+            "$RELEASE_DIR/SHA256SUMS" \
+            "$RELEASE_DIR/SHA256SUMS.sig" \
+            "$RELEASE_DIR/antsdr-os-release.crt"

@@ -60,6 +60,20 @@ class FitGenerationTest(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
 
+    def test_signed_fit_signs_every_configuration(self) -> None:
+        sys.path.insert(0, str(ROOT / "tools"))
+        from board_data import load_board, load_profiles
+        from generate_fit import render_its
+
+        profiles = load_profiles("e310")
+        its = render_its(load_board("e310"), profiles, signed=True)
+        self.assertEqual(its.count('algo = "sha256,rsa2048";'), len(profiles))
+        self.assertEqual(its.count('key-name-hint = "antsdr-os-release";'), len(profiles))
+        self.assertEqual(
+            its.count('sign-images = "kernel", "ramdisk", "fdt", "fpga";'),
+            len(profiles),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -12,6 +12,7 @@ sys.path.insert(0, str(ROOT / "tools"))
 
 import compare_reproducibility  # noqa: E402
 import generate_sbom  # noqa: E402
+import package_release  # noqa: E402
 import verify_release  # noqa: E402
 import write_checksums  # noqa: E402
 from board_data import load_board, load_profiles  # noqa: E402
@@ -23,39 +24,36 @@ class ReleaseToolsTest(unittest.TestCase):
         profiles = load_profiles("e310")
         release = root / "release"
         release.mkdir()
-        fit = release / "qspi" / "antsdr-e310.itb"
+        fit = release / "common" / "antsdr-e310.itb"
         fit.parent.mkdir(parents=True)
         fit.write_bytes(b"fit-image")
+        (fit.parent / "BOOT.BIN").write_bytes(b"boot")
         firmware = board["build"]["firmware"]
         profile_records = []
         for profile in profiles:
             profile_id = profile["id"]
-            sd = release / "sd" / profile_id
-            sd.mkdir(parents=True)
-            (sd / firmware["boot_image"]).write_bytes(b"boot")
-            (sd / firmware["fit_image"]).write_bytes(b"fit")
-            qspi = release / "qspi" / "profiles" / profile_id
-            qspi.mkdir(parents=True)
-            boot = qspi / "boot.dfu"
+            profile_dir = release / "profiles" / profile_id
+            profile_dir.mkdir(parents=True)
+            (profile_dir / "uEnv.txt").write_text("rf_model=ad9361\nrf_topology=1r1t\n")
+            boot = profile_dir / "qspi-boot.bin"
             boot.write_bytes(b"boot")
             with boot.open("r+b") as stream:
                 stream.truncate(0x400000)
-            environment = qspi / "extra-env.bin"
+            environment = profile_dir / "qspi-extra-env.bin"
             environment.write_bytes(b"env")
             with environment.open("r+b") as stream:
                 stream.truncate(0x1000)
-            (qspi / "firmware.dfu").write_bytes(b"firmware")
-            (qspi / "uboot-extra-env.dfu").write_bytes(b"env")
+            (profile_dir / "firmware-update.conf").write_text("version=1\n")
             profile_records.append(
                 {
                     "id": profile_id,
                     "selection": profile["selection"],
-                    "sd_directory": sd.relative_to(release).as_posix(),
+                    "profile_directory": profile_dir.relative_to(release).as_posix(),
                     "fit_configuration": profile["artifacts"]["fit_configuration"],
                     "qspi_environment": environment.relative_to(release).as_posix(),
                     "qspi_boot_payload": boot.relative_to(release).as_posix(),
-                    "qspi_firmware_payload": (qspi / "firmware.dfu").relative_to(release).as_posix(),
-                    "qspi_extra_environment_payload": (qspi / "uboot-extra-env.dfu").relative_to(release).as_posix(),
+                    "qspi_firmware_payload": fit.relative_to(release).as_posix(),
+                    "qspi_extra_environment_payload": environment.relative_to(release).as_posix(),
                 }
             )
         files = {}
@@ -67,7 +65,7 @@ class ReleaseToolsTest(unittest.TestCase):
         manifest = {
             "schema_version": 1,
             "board": "e310",
-            "fit": {"filename": "antsdr-e310.itb", "signed": False, "hash": "sha256"},
+            "fit": {"filename": "antsdr-e310.itb", "signed": True, "hash": "sha256"},
             "qspi": {
                 "boot_partition": "qspi-fsbl-uboot",
                 "boot_offset": 0,
@@ -75,7 +73,7 @@ class ReleaseToolsTest(unittest.TestCase):
                 "partition": "qspi-linux",
                 "offset": 0x500000,
                 "max_size_bytes": 0x1B00000,
-                "artifact": "qspi/antsdr-e310.itb",
+                "artifact": "common/antsdr-e310.itb",
                 "profile_environment_offset": 0x3FF000,
                 "profile_environment_size_bytes": 0x1000,
             },
@@ -84,7 +82,16 @@ class ReleaseToolsTest(unittest.TestCase):
         }
         (release / "manifest.json").write_text(json.dumps(manifest) + "\n", encoding="utf-8")
         (release / "build-metadata.json").write_text(
-            json.dumps({"board": "e310", "os_name": "ANTSDR OS", "source_date_epoch": "0"}),
+            json.dumps(
+                {
+                    "board": "e310",
+                    "os_name": "ANTSDR OS",
+                    "os_version": "1.0",
+                    "hardware_revision": "revc",
+                    "adi_baseline": "v0.39",
+                    "source_date_epoch": "0",
+                }
+            ),
             encoding="utf-8",
         )
         return release
@@ -99,9 +106,20 @@ class ReleaseToolsTest(unittest.TestCase):
             self.assertGreater(len(sbom["files"]), 10)
             checksum = write_checksums.write_checksums(release)
             self.assertTrue(checksum.is_file())
+            packages = package_release.package(release, root / "packages")
+            self.assertEqual(len(packages), 4)
+            self.assertEqual(
+                {path.name for path in packages},
+                {
+                    "antsdr-e310-revc-os-1.0-adi-v0.39-ad9361-1r1t.zip",
+                    "antsdr-e310-revc-os-1.0-adi-v0.39-ad9361-2r2t.zip",
+                    "antsdr-e310-revc-os-1.0-adi-v0.39-ad9363-1r1t.zip",
+                    "antsdr-e310-revc-os-1.0-adi-v0.39-ad9363-2r2t.zip",
+                },
+            )
             self.assertEqual(compare_reproducibility.compare(release, release), 0)
             shutil.copytree(release, root / "copy")
-            (root / "copy" / "qspi" / "antsdr-e310.itb").write_bytes(b"changed")
+            (root / "copy" / "common" / "antsdr-e310.itb").write_bytes(b"changed")
             self.assertEqual(compare_reproducibility.compare(release, root / "copy"), 1)
 
 
