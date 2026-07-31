@@ -221,54 +221,15 @@ jobs:
           command -v xlsclients
           command -v Xvfb
           command -v xvfb-run
-      - name: Restore toolchain cache manifest
+      - name: Restore AMD FPGA toolchain cache
         if: inputs.runner_mode != 'aliyun-persistent'
         uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
-          path: ${{ github.workspace }}/.toolchains/cache/manifest
-          key: ${{ steps.amd_cache.outputs.key }}-manifest-lookup-${{ github.run_id }}
+          path: ${{ github.workspace }}/.toolchains/cache
+          key: ${{ steps.amd_cache.outputs.key }}-bundle-lookup-${{ github.run_id }}
           restore-keys: |
-            ${{ steps.amd_cache.outputs.key }}-manifest-
-      - name: Read toolchain cache generation
-        if: inputs.runner_mode != 'aliyun-persistent'
-        id: cache_index
-        shell: bash
-        run: |
-          set -euo pipefail
-          manifest="$GITHUB_WORKSPACE/.toolchains/cache/manifest/toolchain.env"
-          generation=""
-          if [ -r "$manifest" ]; then
-            candidate="$(sed -n 's/^generation=//p' "$manifest")"
-            if [[ "$candidate" =~ ^[0-9]+$ ]]; then
-              generation="$candidate"
-            fi
-          fi
-          printf 'generation=%s\n' "$generation" >> "$GITHUB_OUTPUT"
-      - name: Restore toolchain cache part 00
-        if: inputs.runner_mode != 'aliyun-persistent' && steps.cache_index.outputs.generation != ''
-        uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
-        with:
-          path: ${{ github.workspace }}/.toolchains/cache/parts/part-00
-          key: ${{ steps.amd_cache.outputs.key }}-part-00-${{ steps.cache_index.outputs.generation }}
-      - name: Restore toolchain cache part 01
-        if: inputs.runner_mode != 'aliyun-persistent' && steps.cache_index.outputs.generation != ''
-        uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
-        with:
-          path: ${{ github.workspace }}/.toolchains/cache/parts/part-01
-          key: ${{ steps.amd_cache.outputs.key }}-part-01-${{ steps.cache_index.outputs.generation }}
-      - name: Restore toolchain cache part 02
-        if: inputs.runner_mode != 'aliyun-persistent' && steps.cache_index.outputs.generation != ''
-        uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
-        with:
-          path: ${{ github.workspace }}/.toolchains/cache/parts/part-02
-          key: ${{ steps.amd_cache.outputs.key }}-part-02-${{ steps.cache_index.outputs.generation }}
-      - name: Restore toolchain cache part 03
-        if: inputs.runner_mode != 'aliyun-persistent' && steps.cache_index.outputs.generation != ''
-        uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
-        with:
-          path: ${{ github.workspace }}/.toolchains/cache/parts/part-03
-          key: ${{ steps.amd_cache.outputs.key }}-part-03-${{ steps.cache_index.outputs.generation }}
-      - name: Restore AMD FPGA toolchain from cache
+            ${{ steps.amd_cache.outputs.key }}-bundle-
+      - name: Unpack AMD FPGA toolchain
         if: inputs.runner_mode != 'aliyun-persistent'
         id: toolchain_cache
         shell: bash
@@ -277,8 +238,7 @@ jobs:
           toolchain="$XILINX_INSTALL_ROOT"
           cache="$GITHUB_WORKSPACE/.toolchains/cache"
           cache_hit=false
-          if [ -n "${{ steps.cache_index.outputs.generation }}" ] && \
-             bash ci/vivado/toolchain-cache.sh restore "$toolchain" "$cache"; then
+          if bash ci/vivado/toolchain-cache.sh restore "$toolchain" "$cache"; then
             cache_hit=true
           else
             rm -rf "$toolchain" "$cache/parts"
@@ -329,76 +289,12 @@ jobs:
             "$XILINX_INSTALL_ROOT" \
             "$GITHUB_WORKSPACE/.toolchains/cache" \
             "$GITHUB_RUN_ID"
-      - name: Save toolchain cache part 00
+      - name: Save AMD FPGA toolchain cache
         if: inputs.runner_mode != 'aliyun-persistent' && steps.toolchain_cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
-          path: ${{ github.workspace }}/.toolchains/cache/parts/part-00
-          key: ${{ steps.amd_cache.outputs.key }}-part-00-${{ github.run_id }}
-      - name: Verify toolchain cache part 00
-        if: inputs.runner_mode != 'aliyun-persistent' && steps.toolchain_cache.outputs.cache-hit != 'true'
-        uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
-        with:
-          path: ${{ github.workspace }}/.toolchains/cache/parts/part-00
-          key: ${{ steps.amd_cache.outputs.key }}-part-00-${{ github.run_id }}
-          lookup-only: true
-          fail-on-cache-miss: true
-      - name: Save toolchain cache part 01
-        if: inputs.runner_mode != 'aliyun-persistent' && steps.toolchain_cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
-        with:
-          path: ${{ github.workspace }}/.toolchains/cache/parts/part-01
-          key: ${{ steps.amd_cache.outputs.key }}-part-01-${{ github.run_id }}
-      - name: Verify toolchain cache part 01
-        if: inputs.runner_mode != 'aliyun-persistent' && steps.toolchain_cache.outputs.cache-hit != 'true'
-        uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
-        with:
-          path: ${{ github.workspace }}/.toolchains/cache/parts/part-01
-          key: ${{ steps.amd_cache.outputs.key }}-part-01-${{ github.run_id }}
-          lookup-only: true
-          fail-on-cache-miss: true
-      - name: Save toolchain cache part 02
-        if: inputs.runner_mode != 'aliyun-persistent' && steps.toolchain_cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
-        with:
-          path: ${{ github.workspace }}/.toolchains/cache/parts/part-02
-          key: ${{ steps.amd_cache.outputs.key }}-part-02-${{ github.run_id }}
-      - name: Verify toolchain cache part 02
-        if: inputs.runner_mode != 'aliyun-persistent' && steps.toolchain_cache.outputs.cache-hit != 'true'
-        uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
-        with:
-          path: ${{ github.workspace }}/.toolchains/cache/parts/part-02
-          key: ${{ steps.amd_cache.outputs.key }}-part-02-${{ github.run_id }}
-          lookup-only: true
-          fail-on-cache-miss: true
-      - name: Save toolchain cache part 03
-        if: inputs.runner_mode != 'aliyun-persistent' && steps.toolchain_cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
-        with:
-          path: ${{ github.workspace }}/.toolchains/cache/parts/part-03
-          key: ${{ steps.amd_cache.outputs.key }}-part-03-${{ github.run_id }}
-      - name: Verify toolchain cache part 03
-        if: inputs.runner_mode != 'aliyun-persistent' && steps.toolchain_cache.outputs.cache-hit != 'true'
-        uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
-        with:
-          path: ${{ github.workspace }}/.toolchains/cache/parts/part-03
-          key: ${{ steps.amd_cache.outputs.key }}-part-03-${{ github.run_id }}
-          lookup-only: true
-          fail-on-cache-miss: true
-      - name: Save toolchain cache manifest
-        if: inputs.runner_mode != 'aliyun-persistent' && steps.toolchain_cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
-        with:
-          path: ${{ github.workspace }}/.toolchains/cache/manifest
-          key: ${{ steps.amd_cache.outputs.key }}-manifest-${{ github.run_id }}
-      - name: Verify toolchain cache manifest
-        if: inputs.runner_mode != 'aliyun-persistent' && steps.toolchain_cache.outputs.cache-hit != 'true'
-        uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
-        with:
-          path: ${{ github.workspace }}/.toolchains/cache/manifest
-          key: ${{ steps.amd_cache.outputs.key }}-manifest-${{ github.run_id }}
-          lookup-only: true
-          fail-on-cache-miss: true
+          path: ${{ github.workspace }}/.toolchains/cache
+          key: ${{ steps.amd_cache.outputs.key }}-bundle-${{ github.run_id }}
       - name: Clear toolchain cache staging
         if: always() && inputs.runner_mode != 'aliyun-persistent'
         shell: bash

@@ -59,7 +59,14 @@ class VivadoToolchainCacheTest(unittest.TestCase):
 
             packed = self.run_cache("pack", str(toolchain), str(cache), "123")
             self.assertEqual(packed.returncode, 0, packed.stderr)
-            self.assertEqual(len(list((cache / "parts").glob("part-*"))), 4)
+            parts = sorted((cache / "parts").glob("part-*"))
+            manifest = dict(
+                line.split("=", 1)
+                for line in (cache / "manifest" / "toolchain.env").read_text(encoding="ascii").splitlines()
+            )
+            self.assertEqual(int(manifest["parts"]), len(parts))
+            self.assertGreater(len(parts), 1)
+            self.assertTrue(all(part.stat().st_size > 0 for part in parts))
 
             shutil.rmtree(toolchain)
             restored = self.run_cache("restore", str(toolchain), str(cache))
@@ -82,7 +89,7 @@ class VivadoToolchainCacheTest(unittest.TestCase):
             toolchain.mkdir()
             sentinel = toolchain / "sentinel"
             sentinel.write_text("keep", encoding="ascii")
-            with (cache / "parts" / "part-00").open("ab") as part:
+            with (cache / "parts" / "part-000").open("ab") as part:
                 part.write(b"corrupt")
 
             restored = self.run_cache("restore", str(toolchain), str(cache))
