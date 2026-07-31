@@ -2,3 +2,7 @@
 /.vscode/
 __pycache__/
 *.py[cod]
+/keys/fit/*.key
+/keys/fit/*.pem
+/keys/fit/*.p12
+/keys/fit/*.pfx
