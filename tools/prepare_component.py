@@ -120,6 +120,7 @@ def apply_component(
     if destination.exists():
         raise PrepareError(f"output already exists: {destination}")
     destination.parent.mkdir(parents=True, exist_ok=True)
+    run(["git", "worktree", "prune", "--expire", "now"], upstream)
     run(["git", "worktree", "add", "--detach", str(destination), expected_commit], upstream)
 
     try:

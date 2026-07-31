@@ -376,16 +376,28 @@ jobs:
             --xsct "$GITHUB_WORKSPACE/ci/vivado/xsct-headless.sh" \
             --release "$RUNNER_TEMP/antsdr-e310-release" \
             --execute
-      - name: Report FPGA project failure
+      - name: Report build diagnostics
         if: failure() && inputs.toolchain_only != true && inputs.debug_enabled != true
         shell: bash
         run: |
           set -euo pipefail
-          log="$ANTSDR_BUILD_ROOT/e310/src/hdl/projects/e310/e310_vivado.log"
-          if [ -r "$log" ]; then
-            tail -n 1000 "$log"
+          hdl="$ANTSDR_BUILD_ROOT/e310/src/hdl"
+          project_log="$hdl/projects/e310/e310_vivado.log"
+          bitstream="$hdl/projects/e310/e310.runs/impl_1/system_top.bit"
+          if [ -s "$bitstream" ]; then
+            printf 'FPGA bitstream was generated; the build failed in a later stage.\n'
+          elif [ -r "$project_log" ]; then
+            tail -n 1000 "$project_log"
           else
-            printf 'Vivado project log was not created: %s\n' "$log" >&2
+            mapfile -t ip_logs < <(find "$hdl/library" -type f -name '*_ip.log' -print 2>/dev/null | sort)
+            if ((${#ip_logs[@]} == 0)); then
+              printf 'No FPGA diagnostic log was created under %s\n' "$hdl" >&2
+            else
+              for log in "${ip_logs[@]}"; do
+                printf '\n==> %s\n' "$log"
+                tail -n 250 "$log"
+              done
+            fi
           fi
       - name: Attach build metadata and verify assembly
         if: inputs.toolchain_only != true && inputs.debug_enabled != true
