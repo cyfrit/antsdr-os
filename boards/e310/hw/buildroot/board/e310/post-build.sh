@@ -4,8 +4,6 @@
 
 set -eu
 
-. "$BR2_CONFIG"
-
 BOARD_DIR=$(dirname "$0")
 RUNTIME_DIR="$BOARD_DIR/runtime"
 CONFIG_PAYLOAD="$BUILD_DIR/antsdr-e310-config-volume"
