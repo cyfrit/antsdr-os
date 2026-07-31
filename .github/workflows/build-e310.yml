@@ -167,6 +167,8 @@ jobs:
             unzip \
             wget \
             x11-utils \
+            xauth \
+            xvfb \
             zstd
           sudo apt-get clean
           sudo rm -rf /var/lib/apt/lists/*
@@ -199,6 +201,8 @@ jobs:
             unzip
             wget
             x11-utils
+            xauth
+            xvfb
             xz-utils
             zstd
           )
@@ -215,6 +219,8 @@ jobs:
           fi
           command -v aws
           command -v xlsclients
+          command -v Xvfb
+          command -v xvfb-run
       - name: Restore toolchain cache manifest
         if: inputs.runner_mode != 'aliyun-persistent'
         uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
@@ -464,7 +470,7 @@ jobs:
             --workspace "$workspace" \
             --jobs "${RUNNER_NUM_CPUS:-4}" \
             --uenv-mode "$UENV_MODE" \
-            --xsct xsct \
+            --xsct "$GITHUB_WORKSPACE/ci/vivado/xsct-headless.sh" \
             --release "$RUNNER_TEMP/antsdr-e310-release" \
             --execute
       - name: Report FPGA project failure
