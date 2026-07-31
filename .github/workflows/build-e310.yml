@@ -360,11 +360,18 @@ jobs:
           set -euo pipefail
           source "$VIVADO_SETTINGS"
           workspace="$ANTSDR_BUILD_ROOT/e310"
+          jobs="$(nproc)"
+          case "$jobs" in
+            ''|*[!0-9]*)
+              printf 'unable to determine a positive CPU count: %s\n' "$jobs" >&2
+              exit 1
+              ;;
+          esac
           export ADI_HDL_DIR="$workspace/src/hdl"
           export ANTSDR_OS_VERSION="$ANTSDR_VERSION"
           python tools/e310_build.py all \
             --workspace "$workspace" \
-            --jobs "${RUNNER_NUM_CPUS:-4}" \
+            --jobs "$jobs" \
             --uenv-mode "$UENV_MODE" \
             --xsct "$GITHUB_WORKSPACE/ci/vivado/xsct-headless.sh" \
             --release "$RUNNER_TEMP/antsdr-e310-release" \
