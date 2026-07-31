@@ -60,22 +60,22 @@
 
 			partition@0 {
 				label = "qspi-fsbl-uboot";
-				reg = <0x000000 0x100000>;
+				reg = <0x000000 0x400000>;
 			};
 
-			partition@100000 {
+			partition@400000 {
 				label = "qspi-uboot-env";
-				reg = <0x100000 0x020000>;
+				reg = <0x400000 0x020000>;
 			};
 
-			partition@120000 {
+			partition@420000 {
 				label = "qspi-nvmfs";
-				reg = <0x120000 0x0e0000>;
+				reg = <0x420000 0x0e0000>;
 			};
 
-			partition@200000 {
+			partition@500000 {
 				label = "qspi-linux";
-				reg = <0x200000 0x1e00000>;
+				reg = <0x500000 0x1b00000>;
 			};
 		};
 	};

@@ -39,7 +39,7 @@ class ReleaseToolsTest(unittest.TestCase):
             boot = qspi / "boot.dfu"
             boot.write_bytes(b"boot")
             with boot.open("r+b") as stream:
-                stream.truncate(0x100000)
+                stream.truncate(0x400000)
             environment = qspi / "extra-env.bin"
             environment.write_bytes(b"env")
             with environment.open("r+b") as stream:
@@ -71,12 +71,12 @@ class ReleaseToolsTest(unittest.TestCase):
             "qspi": {
                 "boot_partition": "qspi-fsbl-uboot",
                 "boot_offset": 0,
-                "boot_size_bytes": 0x100000,
+                "boot_size_bytes": 0x400000,
                 "partition": "qspi-linux",
-                "offset": 0x200000,
-                "max_size_bytes": 0x1E00000,
+                "offset": 0x500000,
+                "max_size_bytes": 0x1B00000,
                 "artifact": "qspi/antsdr-e310.itb",
-                "profile_environment_offset": 0xFF000,
+                "profile_environment_offset": 0x3FF000,
                 "profile_environment_size_bytes": 0x1000,
             },
             "profiles": profile_records,

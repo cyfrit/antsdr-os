@@ -67,8 +67,8 @@ class FirmwareAssemblyTest(unittest.TestCase):
             self.assertFalse(manifest["fit"]["signed"])
             self.assertEqual(manifest["qspi"]["partition"], "qspi-linux")
             self.assertEqual(manifest["qspi"]["boot_partition"], "qspi-fsbl-uboot")
-            self.assertEqual(manifest["qspi"]["boot_size_bytes"], 0x100000)
-            self.assertEqual(manifest["qspi"]["profile_environment_offset"], 0x0FF000)
+            self.assertEqual(manifest["qspi"]["boot_size_bytes"], 0x400000)
+            self.assertEqual(manifest["qspi"]["profile_environment_offset"], 0x3FF000)
             self.assertEqual(manifest["qspi"]["profile_environment_size_bytes"], 0x1000)
             self.assertEqual(len(manifest["profiles"]), 4)
             self.assertIn("qspi/antsdr-e310.itb", manifest["files"])
@@ -96,7 +96,7 @@ class FirmwareAssemblyTest(unittest.TestCase):
                     f"rf_model={profile['selection']['rf_model']}\n"
                     f"rf_topology={profile['selection']['rf_topology']}\n",
                 )
-                self.assertEqual((directory / "boot.dfu").stat().st_size, 0x100000)
+                self.assertEqual((directory / "boot.dfu").stat().st_size, 0x400000)
                 self.assertEqual((directory / "boot.frm").read_bytes(), (directory / "boot.dfu").read_bytes())
                 update_manifest = (directory / "firmware-update.conf").read_text(encoding="ascii")
                 self.assertIn("version=1\n", update_manifest)

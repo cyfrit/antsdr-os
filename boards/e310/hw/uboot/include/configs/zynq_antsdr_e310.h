@@ -43,16 +43,18 @@
 	"qspi_boot_load_address=0x01000000\0" \
 	"qspi_firmware_load_address=0x02080000\0" \
 	"qspi_extraenv_load_address=0x0207e000\0" \
-	"qspi_extraenv_offset=0x000ff000\0" \
+	"qspi_extraenv_offset=0x003ff000\0" \
 	"qspi_extraenv_size=0x00001000\0" \
-	"qspi_fit_offset=0x00200000\0" \
-	"qspi_fit_max_size=0x01e00000\0" \
+	"qspi_fit_offset=0x00500000\0" \
+	"qspi_fit_max_size=0x01b00000\0" \
 	"qspi_exact_size=0\0" \
-	"dfu_alt_info=boot.dfu raw 0x00000000 0x00100000\\;" \
-		"firmware.dfu raw 0x00200000 0x01e00000\\;" \
-		"uboot-extra-env.dfu raw 0x000ff000 0x00001000\\;" \
-		"uboot-env.dfu raw 0x00100000 0x00020000\\;" \
-		"spare.dfu raw 0x00120000 0x000e0000\0" \
+	/* Keep this in sync with board.yaml: BOOT.BIN carries FSBL, bitstream and
+	 * U-Boot, so the vendor's inherited 1 MiB boot region is not usable. */ \
+	"dfu_alt_info=boot.dfu raw 0x00000000 0x00400000\\;" \
+		"firmware.dfu raw 0x00500000 0x01b00000\\;" \
+		"uboot-extra-env.dfu raw 0x003ff000 0x00001000\\;" \
+		"uboot-env.dfu raw 0x00400000 0x00020000\\;" \
+		"spare.dfu raw 0x00420000 0x000e0000\0" \
 	"select_bootenv=if test -n ${bootenv}; then " \
 		"setenv uenv_file ${bootenv}; " \
 		"else setenv uenv_file ${uenv_image}; fi\0" \
@@ -108,14 +110,14 @@
 			"if sf probe 0:0 50000000 0; then " \
 				"setenv qspi_file ${qspi_firmware_payload}; " \
 				"setenv qspi_load_address ${qspi_firmware_load_address}; " \
-				"setenv qspi_offset 0x00200000; " \
-				"setenv qspi_max_size 0x01e00000; " \
+				"setenv qspi_offset 0x00500000; " \
+				"setenv qspi_max_size 0x01b00000; " \
 				"setenv qspi_exact_size 0; " \
 				"if run qspi_flash_file; then " \
 					"setenv qspi_file ${qspi_boot_payload}; " \
 					"setenv qspi_load_address ${qspi_boot_load_address}; " \
 					"setenv qspi_offset 0x00000000; " \
-					"setenv qspi_max_size 0x00100000; " \
+					"setenv qspi_max_size 0x00400000; " \
 					"setenv qspi_exact_size 1; " \
 					"if run qspi_flash_file; then run qspiboot; fi; " \
 				"fi; " \

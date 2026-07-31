@@ -381,23 +381,29 @@ hardware:
       size_bytes: 33554432
       frequency_hz: 50000000
       bus_width: 4
+      # MicroPhase inherited a 1 MiB boot region from Pluto-era templates, but
+      # its own Bootgen recipe puts FSBL, the full XC7Z020 bitstream and U-Boot
+      # in BOOT.BIN. The first reproducible E310 image is 0x2a3480 bytes, so
+      # the inherited map would overwrite its environment and FIT. Reserve 4
+      # MiB to leave growth headroom; this is a firmware layout, not a hardware
+      # property of the board.
       extra_environment:
-        offset: 0x0ff000
+        offset: 0x3ff000
         size: 0x001000
         format: crc32-uboot-environment
       partitions:
-        - { name: qspi-fsbl-uboot, offset: 0x000000, size: 0x100000 }
-        - { name: qspi-uboot-env, offset: 0x100000, size: 0x020000 }
-        - { name: qspi-nvmfs, offset: 0x120000, size: 0x0e0000 }
-        - { name: qspi-linux, offset: 0x200000, size: 0x1e00000 }
+        - { name: qspi-fsbl-uboot, offset: 0x000000, size: 0x400000 }
+        - { name: qspi-uboot-env, offset: 0x400000, size: 0x020000 }
+        - { name: qspi-nvmfs, offset: 0x420000, size: 0x0e0000 }
+        - { name: qspi-linux, offset: 0x500000, size: 0x1b00000 }
     usb_dfu_recovery:
       vendor_id: 0x0456
       product_id: 0xb674
       alt_targets:
-        - { name: qspi-fsbl-uboot, offset: 0x000000, size: 0x00100000 }
-        - { name: qspi-extra-env, offset: 0x0ff000, size: 0x00001000 }
-        - { name: qspi-uboot-env, offset: 0x100000, size: 0x00020000 }
-        - { name: qspi-linux, offset: 0x200000, size: 0x1e00000 }
+        - { name: qspi-fsbl-uboot, offset: 0x000000, size: 0x00400000 }
+        - { name: qspi-extra-env, offset: 0x3ff000, size: 0x00001000 }
+        - { name: qspi-uboot-env, offset: 0x400000, size: 0x00020000 }
+        - { name: qspi-linux, offset: 0x500000, size: 0x01b00000 }
     uenv:
       path: /uEnv.txt
       format: text-key-value
