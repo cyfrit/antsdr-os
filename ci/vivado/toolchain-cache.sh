@@ -5,8 +5,8 @@
 set -euo pipefail
 
 readonly PART_SIZE="${ANTSDR_CACHE_PART_SIZE:-7G}"
-readonly PART_SUFFIX_LENGTH=3
-readonly PART_LIMIT=999
+readonly PART_SUFFIX_LENGTH=2
+readonly PART_LIMIT=4
 
 usage() {
   printf 'usage: %s pack|restore TOOLCHAIN_ROOT CACHE_ROOT [GENERATION]\n' "$0" >&2
@@ -60,7 +60,7 @@ pack_toolchain() {
       --suffix-length="$PART_SUFFIX_LENGTH" \
       - "$parts_root/part-"
 
-  count="$(find "$parts_root" -maxdepth 1 -type f -name 'part-[0-9][0-9][0-9]' | wc -l)"
+  count="$(find "$parts_root" -maxdepth 1 -type f -name 'part-[0-9][0-9]' | wc -l)"
   if (( count < 1 || count > PART_LIMIT )); then
     printf 'compressed toolchain requires %d parts; supported range is 1..%d\n' "$count" "$PART_LIMIT" >&2
     exit 1
@@ -72,10 +72,15 @@ pack_toolchain() {
     printf 'generation=%s\n' "$generation"
     printf 'parts=%s\n' "$count"
     printf 'archive_sha256=%s\n' "$archive_digest"
-    for ((index = 0; index < count; index++)); do
-      printf -v part '%s/part-%03d' "$parts_root" "$index"
-      part_digest="$(sha256sum "$part" | awk '{print $1}')"
-      printf 'part_%03d_sha256=%s\n' "$index" "$part_digest"
+    for ((index = 0; index < PART_LIMIT; index++)); do
+      printf -v part '%s/part-%02d' "$parts_root" "$index"
+      if (( index < count )); then
+        part_digest="$(sha256sum "$part" | awk '{print $1}')"
+        printf 'part_%02d_sha256=%s\n' "$index" "$part_digest"
+      else
+        : > "$part"
+        printf 'part_%02d_sha256=empty\n' "$index"
+      fi
     done
   } > "$manifest"
 }
@@ -103,16 +108,15 @@ restore_toolchain() {
 
   [[ "$schema" == 1 ]]
   [[ "$generation" =~ ^[0-9]+$ ]]
-  [[ "$count" =~ ^[0-9]+$ ]]
-  (( count >= 1 && count <= PART_LIMIT ))
+  [[ "$count" =~ ^[1-4]$ ]]
   [[ "$expected" =~ ^[0-9a-f]{64}$ ]]
-  actual_count="$(find "$parts_root" -maxdepth 1 -type f -name 'part-[0-9][0-9][0-9]' | wc -l)"
-  (( actual_count == count ))
+  actual_count="$(find "$parts_root" -maxdepth 1 -type f -name 'part-[0-9][0-9]' | wc -l)"
+  (( actual_count == PART_LIMIT ))
 
   for ((index = 0; index < count; index++)); do
-    printf -v part '%s/part-%03d' "$parts_root" "$index"
+    printf -v part '%s/part-%02d' "$parts_root" "$index"
     test -f "$part"
-    expected="$(manifest_value "part_$(printf '%03d' "$index")_sha256" "$manifest")"
+    expected="$(manifest_value "part_$(printf '%02d' "$index")_sha256" "$manifest")"
     [[ "$expected" =~ ^[0-9a-f]{64}$ ]]
     printf '%s  %s\n' "$expected" "$part" | sha256sum --check --status
     selected_parts+=("$part")

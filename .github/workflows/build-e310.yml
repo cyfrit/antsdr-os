@@ -127,11 +127,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          digest="$(sha256sum \
-            ci/vivado/web-installer.env \
-            ci/vivado/install_config.txt.in \
-            ci/vivado/toolchain-cache.sh | sha256sum | awk '{print $1}')"
-          printf 'key=vivado-toolchain-x64-ubuntu2204-v3-%s\n' "$digest" >> "$GITHUB_OUTPUT"
+          printf 'key=vivado-toolchain-x64-ubuntu2204-2023.2-zynq-v1\n' >> "$GITHUB_OUTPUT"
+          printf 'legacy_key=vivado-toolchain-x64-ubuntu2204-v3-a42fa17a3324955206272f95d7913f4771e591e2e04e71dfaab9f3020e71a133\n' >> "$GITHUB_OUTPUT"
       - name: Resolve AMD toolchain location
         id: toolchain_location
         shell: bash
@@ -235,27 +232,12 @@ jobs:
           command -v xvfb-run
       - name: Restore AMD FPGA toolchain cache
         if: inputs.runner_mode != 'aliyun-persistent'
-        uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
-        with:
-          path: ${{ github.workspace }}/.toolchains/cache
-          key: ${{ steps.amd_cache.outputs.key }}-bundle-lookup-${{ github.run_id }}
-          restore-keys: |
-            ${{ steps.amd_cache.outputs.key }}-bundle-
-      - name: Unpack AMD FPGA toolchain
-        if: inputs.runner_mode != 'aliyun-persistent'
         id: toolchain_cache
-        shell: bash
-        run: |
-          set -euo pipefail
-          toolchain="$XILINX_INSTALL_ROOT"
-          cache="$GITHUB_WORKSPACE/.toolchains/cache"
-          cache_hit=false
-          if bash ci/vivado/toolchain-cache.sh restore "$toolchain" "$cache"; then
-            cache_hit=true
-          else
-            rm -rf "$toolchain" "$cache/parts"
-          fi
-          printf 'cache-hit=%s\n' "$cache_hit" >> "$GITHUB_OUTPUT"
+        uses: ./.github/actions/vivado-cache-restore
+        with:
+          key: ${{ steps.amd_cache.outputs.key }}
+          legacy-key: ${{ steps.amd_cache.outputs.legacy_key }}
+          toolchain-root: ${{ steps.toolchain_location.outputs.install-root }}
       - name: Detect persistent AMD FPGA toolchain
         if: inputs.runner_mode == 'aliyun-persistent'
         id: persistent_toolchain
@@ -303,10 +285,10 @@ jobs:
             "$GITHUB_RUN_ID"
       - name: Save AMD FPGA toolchain cache
         if: inputs.runner_mode != 'aliyun-persistent' && steps.toolchain_cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        uses: ./.github/actions/vivado-cache-save
         with:
-          path: ${{ github.workspace }}/.toolchains/cache
-          key: ${{ steps.amd_cache.outputs.key }}-bundle-${{ github.run_id }}
+          key: ${{ steps.amd_cache.outputs.key }}
+          generation: ${{ github.run_id }}
       - name: Clear toolchain cache staging
         if: always() && inputs.runner_mode != 'aliyun-persistent'
         shell: bash
