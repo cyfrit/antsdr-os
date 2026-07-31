@@ -359,7 +359,7 @@ jobs:
         uses: mxschmitt/action-tmate@35b54afac29c97fb54faba5b513f8fbd1882f113 # v3
         timeout-minutes: 45
       - name: Build Linux, Buildroot, U-Boot, FPGA and BOOT.BIN
-        if: inputs.toolchain_only != true
+        if: inputs.toolchain_only != true && inputs.debug_enabled != true
         shell: bash
         env:
           UENV_MODE: ${{ inputs.uenv_mode || 'compat' }}
@@ -377,7 +377,7 @@ jobs:
             --release "$RUNNER_TEMP/antsdr-e310-release" \
             --execute
       - name: Report FPGA project failure
-        if: failure() && inputs.toolchain_only != true
+        if: failure() && inputs.toolchain_only != true && inputs.debug_enabled != true
         shell: bash
         run: |
           set -euo pipefail
@@ -388,7 +388,7 @@ jobs:
             printf 'Vivado project log was not created: %s\n' "$log" >&2
           fi
       - name: Attach build metadata and verify assembly
-        if: inputs.toolchain_only != true
+        if: inputs.toolchain_only != true && inputs.debug_enabled != true
         shell: bash
         run: |
           set -euo pipefail
@@ -398,7 +398,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/antsdr-e310-package/release"
           cp -a "$release/." "$RUNNER_TEMP/antsdr-e310-package/release/"
       - name: Upload unmodified build output
-        if: inputs.toolchain_only != true
+        if: inputs.toolchain_only != true && inputs.debug_enabled != true
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: ${{ steps.metadata.outputs.artifact_name }}
