@@ -74,16 +74,6 @@ boot_sha=$(config_value boot_sha256)
 firmware_name=$(config_value firmware_image)
 firmware_sha=$(config_value firmware_sha256)
 
-case "$boot_name" in
-    "") ;;
-    qspi-boot.bin)
-        [ -n "$boot_sha" ] || fail "boot_sha256 is required"
-        flash_image qspi-fsbl-uboot "$ROOT_DIR/$boot_name" "$boot_sha" 1
-        updated=1
-        ;;
-    *) fail "unsupported boot image name" ;;
-esac
-
 case "$firmware_name" in
     "") ;;
     antsdr-e310.itb)
@@ -92,6 +82,19 @@ case "$firmware_name" in
         updated=1
         ;;
     *) fail "unsupported firmware image name" ;;
+esac
+
+# A new BOOT.BIN can enforce FIT signatures that an installed image lacks.
+# Write the signed FIT first so a power loss before the boot update preserves
+# a bootable old bootloader plus new firmware combination.
+case "$boot_name" in
+    "") ;;
+    qspi-boot.bin)
+        [ -n "$boot_sha" ] || fail "boot_sha256 is required"
+        flash_image qspi-fsbl-uboot "$ROOT_DIR/$boot_name" "$boot_sha" 1
+        updated=1
+        ;;
+    *) fail "unsupported boot image name" ;;
 esac
 
 [ "$updated" -eq 1 ] || fail "manifest contains no update image"

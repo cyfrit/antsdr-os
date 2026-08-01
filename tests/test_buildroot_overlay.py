@@ -293,6 +293,10 @@ class BuildrootOverlayTest(unittest.TestCase):
         self.assertIn("flashcp -v", updater)
         self.assertIn("sha256sum", updater)
         self.assertNotIn("md5", updater.lower())
+        self.assertLess(
+            updater.index('flash_image qspi-linux "$ROOT_DIR/$firmware_name"'),
+            updater.index('flash_image qspi-fsbl-uboot "$ROOT_DIR/$boot_name"'),
+        )
 
     def test_runtime_excludes_unsafe_vendor_update_paths(self) -> None:
         runtime = "\n".join(

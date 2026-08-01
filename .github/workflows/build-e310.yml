@@ -383,9 +383,10 @@ jobs:
             "${signing_args[@]}" \
             --execute
           if [ "${{ inputs.release_signing }}" = true ]; then
-            "$workspace/out/u-boot/tools/fit_check_sign" \
-              -f "$RUNNER_TEMP/antsdr-e310-release/common/antsdr-e310.itb" \
-              -k "$workspace/out/u-boot/u-boot.dtb"
+            python tools/verify_fit_profiles.py \
+              --fit "$RUNNER_TEMP/antsdr-e310-release/common/antsdr-e310.itb" \
+              --control-dtb "$workspace/out/u-boot/dts/dt.dtb" \
+              --fit-check-sign "$workspace/out/u-boot/tools/fit_check_sign"
           fi
       - name: Remove FIT signing private key
         if: always() && inputs.release_signing
