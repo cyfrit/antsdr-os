@@ -41,7 +41,7 @@ def quoted(value: str) -> str:
 
 
 def profile_description(profile: dict[str, Any]) -> str:
-    transceiver = profile["transceiver"]["selected_model"]
+    transceiver = profile["transceiver"]["physical_marking"]
     topology = profile["datapath"]["mode"].upper()
     return f"ANTSDR E310 {transceiver} {topology}"
 

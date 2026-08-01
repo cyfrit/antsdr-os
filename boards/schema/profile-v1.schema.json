@@ -17,11 +17,9 @@
     "transceiver": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["physical_marking", "selected_model", "driver_compatible", "rx_channels", "tx_channels", "rx_frequency_hz", "tx_frequency_hz", "bandwidth_hz", "reference_clock_hz"],
+      "required": ["physical_marking", "rx_channels", "tx_channels", "rx_frequency_hz", "tx_frequency_hz", "bandwidth_hz", "reference_clock_hz"],
       "properties": {
         "physical_marking": { "type": "string" },
-        "selected_model": { "enum": ["AD9361", "AD9363"] },
-        "driver_compatible": { "type": "string" },
         "rx_channels": { "type": "integer", "minimum": 1 },
         "tx_channels": { "type": "integer", "minimum": 1 },
         "rx_frequency_hz": { "$ref": "#/$defs/range" },

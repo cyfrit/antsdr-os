@@ -9,8 +9,6 @@ selection:
 
 transceiver:
   physical_marking: AD9363
-  selected_model: AD9363
-  driver_compatible: adi,ad9363a
   rx_channels: 2
   tx_channels: 2
   rx_frequency_hz: { min: 325000000, max: 3800000000 }

@@ -147,11 +147,13 @@ class LinuxOverlayTest(unittest.TestCase):
         for profile_path in sorted((BOARD / "profiles").glob("*.yaml")):
             profile = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
             with self.subTest(profile=profile["id"]):
-                self.assertEqual(profile["transceiver"]["physical_marking"], "AD9363")
+                self.assertEqual(
+                    profile["transceiver"]["physical_marking"],
+                    profile["selection"]["rf_model"].upper(),
+                )
                 self.assertIn(profile["id"], dtbs)
                 dts_path, compatible, topology = dtbs[profile["id"]]
                 self.assertEqual(profile["artifacts"]["linux_dtb"], dts_path.with_suffix(".dtb").name)
-                self.assertEqual(profile["transceiver"]["driver_compatible"], compatible)
                 self.assertEqual(profile["selection"]["rf_topology"], topology)
                 self.assertEqual(profile["datapath"]["mode"], topology)
                 self.assertEqual(profile["artifacts"]["fpga_bitstream"], "system_top.bit")

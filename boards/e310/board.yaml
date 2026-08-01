@@ -314,7 +314,7 @@ hardware:
     sources: [microphase_hdl_xdc]
 
   rf:
-    physical_transceiver: AD9363
+    physical_transceiver: [AD9361, AD9363]
     driver_models:
       - { model: AD9363, compatible: adi,ad9363a }
       - { model: AD9361, compatible: adi,ad9361 }

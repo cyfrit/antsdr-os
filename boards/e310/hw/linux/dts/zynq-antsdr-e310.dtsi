@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * MicroPhase ANTSDR E310 Rev.C (Zynq-7020 / AD9363)
+ * MicroPhase ANTSDR E310 Rev.C (Zynq-7020 / AD9361 or AD9363)
  *
  * Copyright (C) 2021-2024 MicroPhase Inc.
  * Copyright (C) 2026 Cyfrit <i@cli.tf>
@@ -14,7 +14,7 @@
 #include <dt-bindings/iio/adc/adi,ad9361.h>
 
 / {
-	model = "MicroPhase ANTSDR E310 Rev.C (Z7020/AD9363)";
+	model = "MicroPhase ANTSDR E310 Rev.C (Z7020/AD9361/AD9363)";
 	compatible = "microphase,antsdr-e310-revc", "microphase,antsdr-e310",
 		     "xlnx,zynq-7000";
 

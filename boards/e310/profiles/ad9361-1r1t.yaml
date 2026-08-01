@@ -8,9 +8,7 @@ selection:
   rf_topology: 1r1t
 
 transceiver:
-  physical_marking: AD9363
-  selected_model: AD9361
-  driver_compatible: adi,ad9361
+  physical_marking: AD9361
   rx_channels: 1
   tx_channels: 1
   rx_frequency_hz: { min: 70000000, max: 6000000000 }
