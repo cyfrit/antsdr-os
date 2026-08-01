@@ -23,7 +23,13 @@ class FitVerificationError(RuntimeError):
 
 
 def default_runner(command: list[str]) -> None:
-    subprocess.run(command, check=True)
+    result = subprocess.run(command, check=False, capture_output=True, text=True)
+    output = (result.stdout + result.stderr).splitlines()
+    filtered = [line for line in output if line.strip() != "Unimplemented compression type 1"]
+    if filtered:
+        print("\n".join(filtered))
+    if result.returncode:
+        raise subprocess.CalledProcessError(result.returncode, command, output=result.stdout, stderr=result.stderr)
 
 
 def require_file(path: Path, label: str) -> Path:

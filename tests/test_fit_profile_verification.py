@@ -11,6 +11,27 @@ import verify_fit_profiles  # noqa: E402
 
 
 class FitProfileVerificationTest(unittest.TestCase):
+    def test_default_runner_filters_known_host_gzip_warning(self) -> None:
+        original = verify_fit_profiles.subprocess.run
+        calls = []
+
+        class Result:
+            returncode = 0
+            stdout = "sha256+\n"
+            stderr = "Unimplemented compression type 1\nSignature check OK\n"
+
+        def fake_run(command, **kwargs):
+            calls.append((command, kwargs))
+            return Result()
+
+        verify_fit_profiles.subprocess.run = fake_run
+        try:
+            verify_fit_profiles.default_runner(["fit_check_sign"])
+        finally:
+            verify_fit_profiles.subprocess.run = original
+        self.assertEqual(calls[0][1]["capture_output"], True)
+        self.assertEqual(calls[0][1]["text"], True)
+
     def test_each_profile_is_verified_with_a_disposable_default(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             temporary = Path(directory)
