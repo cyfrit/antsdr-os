@@ -31,7 +31,7 @@ class VivadoToolchainCacheTest(unittest.TestCase):
         settings = root / "Vitis" / "2023.2" / "settings64.sh"
         settings.write_text("export XILINX_VITIS=/cached\n", encoding="ascii")
 
-        payload = os.urandom(2_500_000)
+        payload = os.urandom(5_500_000)
         shared = root / "shared" / "payload.bin"
         shared.parent.mkdir(parents=True)
         shared.write_bytes(payload)
@@ -65,10 +65,12 @@ class VivadoToolchainCacheTest(unittest.TestCase):
                 for line in (cache / "manifest" / "toolchain.env").read_text(encoding="ascii").splitlines()
             )
             count = int(manifest["parts"])
-            self.assertEqual(len(parts), 4)
-            self.assertGreater(count, 1)
-            self.assertTrue(all(part.stat().st_size > 0 for part in parts[:count]))
-            self.assertTrue(all(part.stat().st_size == 0 for part in parts[count:]))
+            self.assertEqual(manifest["schema"], "2")
+            self.assertEqual(manifest["part_suffix_length"], "6")
+            self.assertEqual(len(parts), count)
+            self.assertGreater(count, 4)
+            self.assertTrue(all(part.stat().st_size > 0 for part in parts))
+            self.assertTrue(all(part.name == f"part-{index:06d}" for index, part in enumerate(parts)))
 
             shutil.rmtree(toolchain)
             restored = self.run_cache("restore", str(toolchain), str(cache))
@@ -91,7 +93,7 @@ class VivadoToolchainCacheTest(unittest.TestCase):
             toolchain.mkdir()
             sentinel = toolchain / "sentinel"
             sentinel.write_text("keep", encoding="ascii")
-            with (cache / "parts" / "part-00").open("ab") as part:
+            with (cache / "parts" / "part-000000").open("ab") as part:
                 part.write(b"corrupt")
 
             restored = self.run_cache("restore", str(toolchain), str(cache))

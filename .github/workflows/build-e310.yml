@@ -128,7 +128,6 @@ jobs:
         run: |
           set -euo pipefail
           printf 'key=vivado-toolchain-x64-ubuntu2204-2023.2-zynq-v1\n' >> "$GITHUB_OUTPUT"
-          printf 'legacy_key=vivado-toolchain-x64-ubuntu2204-v3-a42fa17a3324955206272f95d7913f4771e591e2e04e71dfaab9f3020e71a133\n' >> "$GITHUB_OUTPUT"
       - name: Resolve AMD toolchain location
         id: toolchain_location
         shell: bash
@@ -236,7 +235,6 @@ jobs:
         uses: ./.github/actions/vivado-cache-restore
         with:
           key: ${{ steps.amd_cache.outputs.key }}
-          legacy-key: ${{ steps.amd_cache.outputs.legacy_key }}
           toolchain-root: ${{ steps.toolchain_location.outputs.install-root }}
       - name: Detect persistent AMD FPGA toolchain
         if: inputs.runner_mode == 'aliyun-persistent'

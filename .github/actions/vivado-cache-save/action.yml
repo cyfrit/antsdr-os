@@ -13,28 +13,10 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Save cache part 00
-      uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+    - name: Save declared cache segments
+      uses: ./.github/actions/vivado-cache-transfer
       with:
-        path: ${{ github.workspace }}/.toolchains/cache/parts/part-00
-        key: ${{ inputs.key }}-part-00-${{ inputs.generation }}
-    - name: Save cache part 01
-      uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
-      with:
-        path: ${{ github.workspace }}/.toolchains/cache/parts/part-01
-        key: ${{ inputs.key }}-part-01-${{ inputs.generation }}
-    - name: Save cache part 02
-      uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
-      with:
-        path: ${{ github.workspace }}/.toolchains/cache/parts/part-02
-        key: ${{ inputs.key }}-part-02-${{ inputs.generation }}
-    - name: Save cache part 03
-      uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
-      with:
-        path: ${{ github.workspace }}/.toolchains/cache/parts/part-03
-        key: ${{ inputs.key }}-part-03-${{ inputs.generation }}
-    - name: Save cache manifest
-      uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
-      with:
-        path: ${{ github.workspace }}/.toolchains/cache/manifest
-        key: ${{ inputs.key }}-manifest-${{ inputs.generation }}
+        mode: save
+        key: ${{ inputs.key }}
+        generation: ${{ inputs.generation }}
+        cache-root: ${{ github.workspace }}/.toolchains/cache

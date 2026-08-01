@@ -6,10 +6,6 @@ inputs:
   key:
     description: Stable toolchain installation ABI cache key
     required: true
-  legacy-key:
-    description: Previous cache key accepted during migration
-    required: false
-    default: ''
   toolchain-root:
     description: Destination Xilinx installation root
     required: true
@@ -22,79 +18,20 @@ outputs:
 runs:
   using: composite
   steps:
-    - name: Restore cache manifest
-      id: manifest
-      uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+    - name: Restore declared cache segments
+      id: transfer
+      uses: ./.github/actions/vivado-cache-transfer
       with:
-        path: ${{ github.workspace }}/.toolchains/cache/manifest
-        key: ${{ inputs.key }}-manifest-lookup-${{ github.run_id }}
-        restore-keys: |
-          ${{ inputs.key }}-manifest-
-    - name: Restore legacy cache manifest
-      id: legacy-manifest
-      if: steps.manifest.outputs.cache-matched-key == '' && inputs.legacy-key != ''
-      uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
-      with:
-        path: ${{ github.workspace }}/.toolchains/cache/manifest
-        key: ${{ inputs.legacy-key }}-manifest-lookup-${{ github.run_id }}
-        restore-keys: |
-          ${{ inputs.legacy-key }}-manifest-
-    - name: Resolve cache generation
-      id: index
-      shell: bash
-      run: |
-        set -euo pipefail
-        manifest="$GITHUB_WORKSPACE/.toolchains/cache/manifest/toolchain.env"
-        generation=""
-        prefix=""
-        if [ -r "$manifest" ]; then
-          candidate="$(sed -n 's/^generation=//p' "$manifest")"
-          if [[ "$candidate" =~ ^[0-9]+$ ]]; then
-            generation="$candidate"
-            if [ -n "${{ steps.manifest.outputs.cache-matched-key }}" ]; then
-              prefix="${{ inputs.key }}"
-            elif [ -n "${{ steps.legacy-manifest.outputs.cache-matched-key }}" ]; then
-              prefix="${{ inputs.legacy-key }}"
-            fi
-          fi
-        fi
-        printf 'generation=%s\n' "$generation" >> "$GITHUB_OUTPUT"
-        printf 'prefix=%s\n' "$prefix" >> "$GITHUB_OUTPUT"
-    - name: Restore cache part 00
-      if: steps.index.outputs.generation != ''
-      uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
-      with:
-        path: ${{ github.workspace }}/.toolchains/cache/parts/part-00
-        key: ${{ steps.index.outputs.prefix }}-part-00-${{ steps.index.outputs.generation }}
-        fail-on-cache-miss: true
-    - name: Restore cache part 01
-      if: steps.index.outputs.generation != ''
-      uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
-      with:
-        path: ${{ github.workspace }}/.toolchains/cache/parts/part-01
-        key: ${{ steps.index.outputs.prefix }}-part-01-${{ steps.index.outputs.generation }}
-        fail-on-cache-miss: true
-    - name: Restore cache part 02
-      if: steps.index.outputs.generation != ''
-      uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
-      with:
-        path: ${{ github.workspace }}/.toolchains/cache/parts/part-02
-        key: ${{ steps.index.outputs.prefix }}-part-02-${{ steps.index.outputs.generation }}
-        fail-on-cache-miss: true
-    - name: Restore cache part 03
-      if: steps.index.outputs.generation != ''
-      uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
-      with:
-        path: ${{ github.workspace }}/.toolchains/cache/parts/part-03
-        key: ${{ steps.index.outputs.prefix }}-part-03-${{ steps.index.outputs.generation }}
-        fail-on-cache-miss: true
+        mode: restore
+        key: ${{ inputs.key }}
+        cache-root: ${{ github.workspace }}/.toolchains/cache
     - name: Verify and unpack toolchain
       id: unpack
       shell: bash
       run: |
         set -euo pipefail
         cache_hit=false
-        if [ -n "${{ steps.index.outputs.generation }}" ] && \
+        if [ "${{ steps.transfer.outputs.cache-restored }}" = true ] && \
            bash ci/vivado/toolchain-cache.sh restore \
              "${{ inputs.toolchain-root }}" \
              "$GITHUB_WORKSPACE/.toolchains/cache"; then

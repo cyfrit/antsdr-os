@@ -1,0 +1,26 @@
+# SPDX-License-Identifier: MIT
+name: Transfer segmented Vivado cache
+description: Save or restore every segment declared by the Vivado cache manifest
+
+inputs:
+  mode:
+    description: Cache operation, save or restore
+    required: true
+  key:
+    description: Stable toolchain installation ABI cache key
+    required: true
+  generation:
+    description: Cache generation used when saving
+    required: false
+    default: ''
+  cache-root:
+    description: Directory containing the manifest and compressed parts
+    required: true
+
+outputs:
+  cache-restored:
+    description: Whether every declared segment was restored
+
+runs:
+  using: node24
+  main: dist/index.js
