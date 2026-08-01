@@ -54,6 +54,31 @@ class BuildPipelineTest(unittest.TestCase):
             environment = e310_build.build_environment(workspace)
             self.assertEqual(environment["PATH"].split(e310_build.os.pathsep)[0], str(host_bin))
 
+    def test_verified_fpga_bundle_replaces_only_the_vivado_build(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(PIPELINE),
+                    "plan",
+                    "--workspace",
+                    str(base / "workspace"),
+                    "--fpga-cache-bundle",
+                    str(base / "bundle"),
+                    "--fpga-cache-identity",
+                    str(base / "identity.json"),
+                ],
+                cwd=ROOT,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("restore verified FPGA build bundle", result.stdout)
+            self.assertNotIn("build FPGA project", result.stdout)
+            self.assertIn("create FSBL and BOOT.BIN", result.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

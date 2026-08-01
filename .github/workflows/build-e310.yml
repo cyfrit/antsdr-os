@@ -305,6 +305,40 @@ jobs:
       - name: Install metadata dependencies
         if: inputs.toolchain_only != true
         run: python -m pip install --disable-pip-version-check -r requirements-dev.txt
+      - name: Resolve FPGA build cache identity
+        if: inputs.toolchain_only != true
+        id: fpga_cache_identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          source "$VIVADO_SETTINGS"
+          python tools/fpga_cache.py identity \
+            --vivado vivado \
+            --output "$RUNNER_TEMP/fpga-cache-identity.json" \
+            --github-output "$GITHUB_OUTPUT"
+      - name: Restore FPGA build bundle
+        if: inputs.toolchain_only != true
+        id: fpga_cache
+        uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ${{ runner.temp }}/antsdr-e310-fpga-cache
+          key: ${{ steps.fpga_cache_identity.outputs.key }}
+      - name: Validate FPGA build bundle
+        if: inputs.toolchain_only != true
+        id: fpga_cache_state
+        shell: bash
+        run: |
+          set -euo pipefail
+          valid=false
+          if [ "${{ steps.fpga_cache.outputs.cache-hit }}" = true ] && \
+             python tools/fpga_cache.py validate \
+               --bundle "$RUNNER_TEMP/antsdr-e310-fpga-cache" \
+               --identity "$RUNNER_TEMP/fpga-cache-identity.json"; then
+            valid=true
+          else
+            rm -rf "$RUNNER_TEMP/antsdr-e310-fpga-cache"
+          fi
+          printf 'valid=%s\n' "$valid" >> "$GITHUB_OUTPUT"
       - name: Resolve version and source identity
         if: inputs.toolchain_only != true
         id: metadata
@@ -339,6 +373,13 @@ jobs:
           PY
           echo "SOURCE_DATE_EPOCH=$epoch" >> "$GITHUB_ENV"
           echo "ANTSDR_VERSION=$version" >> "$GITHUB_ENV"
+      - name: Record FPGA build provenance
+        if: inputs.toolchain_only != true
+        shell: bash
+        run: |
+          python tools/fpga_cache.py annotate \
+            --metadata "$RUNNER_TEMP/build-metadata.json" \
+            --identity "$RUNNER_TEMP/fpga-cache-identity.json"
       - name: Temporary Vivado debug shell
         if: github.event_name == 'workflow_dispatch' && inputs.debug_enabled
         uses: mxschmitt/action-tmate@35b54afac29c97fb54faba5b513f8fbd1882f113 # v3
@@ -362,7 +403,18 @@ jobs:
           esac
           export ADI_HDL_DIR="$workspace/src/hdl"
           export ANTSDR_OS_VERSION="$ANTSDR_VERSION"
+          export ADI_USE_OOC_SYNTHESIS=y
+          export ADI_MAX_OOC_JOBS=4
+          export MODE=default
+          unset ADI_NO_BITSTREAM_COMPRESSION ADI_IGNORE_VERSION_CHECK CFG
           signing_args=()
+          fpga_cache_args=()
+          if [ "${{ steps.fpga_cache_state.outputs.valid }}" = true ]; then
+            fpga_cache_args=(
+              --fpga-cache-bundle "$RUNNER_TEMP/antsdr-e310-fpga-cache"
+              --fpga-cache-identity "$RUNNER_TEMP/fpga-cache-identity.json"
+            )
+          fi
           if [ "${{ inputs.release_signing }}" = true ]; then
             test -n "$FIT_SIGNING_KEY_PEM"
             key_dir="$RUNNER_TEMP/fit-signing-key"
@@ -379,6 +431,7 @@ jobs:
             --xsct "$GITHUB_WORKSPACE/ci/vivado/xsct-headless.sh" \
             --release "$RUNNER_TEMP/antsdr-e310-release" \
             "${signing_args[@]}" \
+            "${fpga_cache_args[@]}" \
             --execute
           if [ "${{ inputs.release_signing }}" = true ]; then
             python tools/verify_fit_profiles.py \
@@ -386,6 +439,24 @@ jobs:
               --control-dtb "$workspace/out/u-boot/dts/dt.dtb" \
               --fit-check-sign "$workspace/out/u-boot/tools/fit_check_sign"
           fi
+      - name: Pack FPGA build bundle
+        if: inputs.toolchain_only != true && inputs.debug_enabled != true && steps.fpga_cache_state.outputs.valid != 'true'
+        shell: bash
+        run: |
+          python tools/fpga_cache.py pack \
+            --workspace "$ANTSDR_BUILD_ROOT/e310" \
+            --bundle "$RUNNER_TEMP/antsdr-e310-fpga-cache" \
+            --identity "$RUNNER_TEMP/fpga-cache-identity.json"
+      - name: Save FPGA build bundle
+        if: inputs.toolchain_only != true && inputs.debug_enabled != true && steps.fpga_cache_state.outputs.valid != 'true'
+        uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ${{ runner.temp }}/antsdr-e310-fpga-cache
+          key: ${{ steps.fpga_cache_identity.outputs.key }}
+      - name: Clear FPGA cache staging
+        if: always() && inputs.toolchain_only != true
+        shell: bash
+        run: rm -rf "$RUNNER_TEMP/antsdr-e310-fpga-cache"
       - name: Remove FIT signing private key
         if: always() && inputs.release_signing
         shell: bash

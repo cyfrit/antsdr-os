@@ -22,6 +22,7 @@ ROOT = REPOSITORY_ROOT
 PREPARE = ROOT / "tools" / "prepare_component.py"
 ASSEMBLE = ROOT / "tools" / "assemble_e310.py"
 SELECT_UENV = ROOT / "tools" / "select_uboot_uenv.py"
+FPGA_CACHE = ROOT / "tools" / "fpga_cache.py"
 COMPONENTS = ("hdl", "linux", "u_boot", "buildroot")
 
 
@@ -90,6 +91,23 @@ def plan_commands(args: argparse.Namespace, board: dict[str, object]) -> list[tu
                     ],
                 )
             )
+        if action == "all" and args.fpga_cache_bundle:
+            commands.append(
+                (
+                    "restore verified FPGA build bundle",
+                    [
+                        sys.executable,
+                        str(FPGA_CACHE),
+                        "restore",
+                        "--bundle",
+                        str(args.fpga_cache_bundle),
+                        "--identity",
+                        str(args.fpga_cache_identity),
+                        "--workspace",
+                        str(workspace),
+                    ],
+                )
+            )
     if action in ("rootfs", "all"):
         source = source_dir(workspace, "buildroot")
         output = output_dir(workspace, "buildroot")
@@ -133,8 +151,27 @@ def plan_commands(args: argparse.Namespace, board: dict[str, object]) -> list[tu
             ]
         )
     if action in ("hdl", "all"):
-        project = source_dir(workspace, "hdl") / "projects" / str(build["hdl_project"])
-        commands.append(("build FPGA project", [args.make, "-C", str(project), f"-j{args.jobs}"]))
+        if args.fpga_cache_bundle:
+            if action == "hdl":
+                commands.append(
+                    (
+                        "restore verified FPGA build bundle",
+                        [
+                            sys.executable,
+                            str(FPGA_CACHE),
+                            "restore",
+                            "--bundle",
+                            str(args.fpga_cache_bundle),
+                            "--identity",
+                            str(args.fpga_cache_identity),
+                            "--workspace",
+                            str(workspace),
+                        ],
+                    )
+                )
+        else:
+            project = source_dir(workspace, "hdl") / "projects" / str(build["hdl_project"])
+            commands.append(("build FPGA project", [args.make, "-C", str(project), f"-j{args.jobs}"]))
     if action in ("boot_bin", "all"):
         artifacts = artifact_paths(workspace, board)
         commands.append(
@@ -224,6 +261,8 @@ def parser() -> argparse.ArgumentParser:
         command.add_argument("--xsct", default="xsct")
         command.add_argument("--release", type=Path)
         command.add_argument("--fit-signing-key-dir", type=Path)
+        command.add_argument("--fpga-cache-bundle", type=Path)
+        command.add_argument("--fpga-cache-identity", type=Path)
         if name == "prepare":
             command.add_argument("--components", choices=COMPONENTS, nargs="+", default=list(COMPONENTS))
         if name != "plan":
@@ -237,6 +276,8 @@ def main() -> int:
         print("--jobs must be positive", file=sys.stderr)
         return 2
     try:
+        if bool(args.fpga_cache_bundle) != bool(args.fpga_cache_identity):
+            raise BuildError("--fpga-cache-bundle and --fpga-cache-identity must be provided together")
         board = load_board()
         workspace = external_workspace(args.workspace)
         commands = plan_commands(args, board)
