@@ -11,32 +11,35 @@ GENIMAGE_TMP="$BUILD_DIR/antsdr-e310-genimage"
 
 install -d "$TARGET_DIR/etc/antsdr" "$TARGET_DIR/opt/antsdr" \
     "$TARGET_DIR/usr/lib/antsdr" "$TARGET_DIR/www" \
-    "$TARGET_DIR/mnt/antsdr-persist"
+    "$TARGET_DIR/mnt/antsdr-persist" "$TARGET_DIR/etc/profile.d"
 
 install -m 0644 "$BOARD_DIR/board.conf" "$TARGET_DIR/etc/antsdr/board.conf"
 install -m 0644 "$BOARD_DIR/defaults.conf" "$TARGET_DIR/etc/antsdr/defaults.conf"
 install -m 0644 "$BOARD_DIR/fw_env.config" "$TARGET_DIR/etc/fw_env.config"
+install -m 0644 "$BOARD_DIR/input-event-daemon.conf" "$TARGET_DIR/etc/input-event-daemon.conf"
 install -m 0644 "$BOARD_DIR/mdev.conf" "$TARGET_DIR/etc/mdev.conf"
 install -m 0644 "$BOARD_DIR/index.html" "$TARGET_DIR/www/index.html"
 
-for program in antsdr-config antsdr-diagnostic antsdr-persist antsdr-update antsdr-udc-suspend; do
+for program in antsdr-config antsdr-diagnostic antsdr-motd antsdr-persist antsdr-update antsdr-udc-suspend; do
     install -m 0755 "$RUNTIME_DIR/sbin/$program" "$TARGET_DIR/usr/sbin/$program"
 done
-for service in S15antsdr-persistence S20antsdr-gadget S30antsdr-network S40antsdr-config-volume; do
+install -m 0644 "$RUNTIME_DIR/profile.d/antsdr-motd.sh" "$TARGET_DIR/etc/profile.d/antsdr-motd.sh"
+rm -f "$TARGET_DIR/etc/init.d/S20antsdr-gadget"
+for service in S10mdev S15antsdr-persistence S23antsdr-gadget S30antsdr-network S40antsdr-config-volume; do
     install -m 0755 "$RUNTIME_DIR/init.d/$service" "$TARGET_DIR/etc/init.d/$service"
 done
 install -m 0755 "$RUNTIME_DIR/libexec/net-hotplug" "$TARGET_DIR/usr/lib/antsdr/net-hotplug"
 install -m 0644 "$RUNTIME_DIR/lib/antsdr-runtime.sh" "$TARGET_DIR/usr/lib/antsdr/runtime.sh"
 
-# FunctionFS is owned by S20antsdr-gadget, so do not start a second IIOD.
+# FunctionFS is owned by S23antsdr-gadget, so do not start a second IIOD.
 rm -f "$TARGET_DIR/etc/init.d/S99iiod"
 
 grep -q '^ttyGS0::' "$TARGET_DIR/etc/inittab" || \
     sed -i '/GENERIC_SERIAL/a\
 ttyGS0::respawn:/sbin/getty -L ttyGS0 0 vt100 # USB ACM console' "$TARGET_DIR/etc/inittab"
 
-grep -q '^mtd2 /mnt/antsdr-persist ' "$TARGET_DIR/etc/fstab" || \
-    printf 'mtd2 /mnt/antsdr-persist jffs2 rw,noatime 0 0\n' >> "$TARGET_DIR/etc/fstab"
+# S15antsdr-persistence validates and owns this mount after mdev is ready.
+sed -i '\|^mtd2 /mnt/antsdr-persist |d' "$TARGET_DIR/etc/fstab"
 
 cat > "$TARGET_DIR/etc/antsdr/release" <<EOF
 firmware=${ANTSDR_OS_VERSION:-development}

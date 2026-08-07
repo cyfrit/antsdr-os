@@ -47,6 +47,8 @@
 	"qspi_extraenv_size=0x00001000\0" \
 	"qspi_fit_offset=0x00500000\0" \
 	"qspi_fit_max_size=0x01b00000\0" \
+	"qspi_nvmfs_offset=0x00420000\0" \
+	"qspi_nvmfs_size=0x000e0000\0" \
 	"qspi_exact_size=0\0" \
 	/* Keep this in sync with board.yaml: BOOT.BIN carries FSBL, bitstream and
 	 * U-Boot, so the vendor's inherited 1 MiB boot region is not usable. */ \
@@ -119,7 +121,10 @@
 					"setenv qspi_offset 0x00000000; " \
 					"setenv qspi_max_size 0x00400000; " \
 					"setenv qspi_exact_size 1; " \
-					"if run qspi_flash_file; then run qspiboot; fi; " \
+					/* Full provisioning resets the dedicated persistent JFFS2 partition. */ \
+					"if run qspi_flash_file; then " \
+						"if sf erase ${qspi_nvmfs_offset} ${qspi_nvmfs_size}; then run qspiboot; fi; " \
+					"fi; " \
 				"fi; " \
 			"fi; " \
 		"fi; " \

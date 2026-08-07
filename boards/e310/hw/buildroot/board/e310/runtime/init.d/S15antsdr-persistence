@@ -55,9 +55,15 @@ restore_xo_correction() {
 
 case "${1:-}" in
     start|"")
-        if [ -b "$PERSIST_DEVICE" ] && mount_persist; then
-            restore_credentials
-            restore_keys
+        if reason=$(antsdr_persist_media_status); then
+            if mount_persist; then
+                restore_credentials
+                restore_keys
+            else
+                logger -t antsdr-persist "unable to mount qspi-nvmfs"
+            fi
+        else
+            logger -t antsdr-persist "persistent storage skipped: $reason"
         fi
         restore_xo_correction
         ;;

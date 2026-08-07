@@ -16,6 +16,8 @@ files:
     destination: board/e310/defaults.conf
   - source: board/e310/fw_env.config
     destination: board/e310/fw_env.config
+  - source: board/e310/input-event-daemon.conf
+    destination: board/e310/input-event-daemon.conf
   - source: board/e310/mdev.conf
     destination: board/e310/mdev.conf
   - source: board/e310/config.txt
@@ -28,6 +30,8 @@ files:
     destination: board/e310/runtime/sbin/antsdr-config
   - source: board/e310/runtime/sbin/antsdr-diagnostic
     destination: board/e310/runtime/sbin/antsdr-diagnostic
+  - source: board/e310/runtime/sbin/antsdr-motd
+    destination: board/e310/runtime/sbin/antsdr-motd
   - source: board/e310/runtime/sbin/antsdr-persist
     destination: board/e310/runtime/sbin/antsdr-persist
   - source: board/e310/runtime/sbin/antsdr-update
@@ -38,10 +42,14 @@ files:
     destination: board/e310/runtime/libexec/net-hotplug
   - source: board/e310/runtime/lib/antsdr-runtime.sh
     destination: board/e310/runtime/lib/antsdr-runtime.sh
+  - source: board/e310/runtime/profile.d/antsdr-motd.sh
+    destination: board/e310/runtime/profile.d/antsdr-motd.sh
+  - source: board/e310/runtime/init.d/S10mdev
+    destination: board/e310/runtime/init.d/S10mdev
   - source: board/e310/runtime/init.d/S15antsdr-persistence
     destination: board/e310/runtime/init.d/S15antsdr-persistence
-  - source: board/e310/runtime/init.d/S20antsdr-gadget
-    destination: board/e310/runtime/init.d/S20antsdr-gadget
+  - source: board/e310/runtime/init.d/S23antsdr-gadget
+    destination: board/e310/runtime/init.d/S23antsdr-gadget
   - source: board/e310/runtime/init.d/S30antsdr-network
     destination: board/e310/runtime/init.d/S30antsdr-network
   - source: board/e310/runtime/init.d/S40antsdr-config-volume

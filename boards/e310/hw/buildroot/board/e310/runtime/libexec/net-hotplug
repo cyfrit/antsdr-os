@@ -4,20 +4,12 @@
 
 set -eu
 
-NETWORK_SERVICE=/etc/init.d/S30antsdr-network
-
 case "${ACTION:-}" in
     add|"")
         ifconfig "$MDEV" up
-        case "$MDEV" in
-            wlan*) "$NETWORK_SERVICE" wlan-add "$MDEV" ;;
-            *) ifup "$MDEV" 2>/dev/null || true ;;
-        esac
+        ifup "$MDEV" 2>/dev/null || true
         ;;
     remove)
-        case "$MDEV" in
-            wlan*) "$NETWORK_SERVICE" wlan-remove "$MDEV" ;;
-            *) ifdown "$MDEV" 2>/dev/null || true ;;
-        esac
+        ifdown "$MDEV" 2>/dev/null || true
         ;;
 esac

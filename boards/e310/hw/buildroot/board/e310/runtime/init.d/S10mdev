@@ -1,0 +1,23 @@
+#!/bin/sh
+# SPDX-License-Identifier: MIT
+# Populate /dev without probing unsupported loadable kernel modules.
+
+start() {
+    printf 'Starting mdev: '
+    if printf '/sbin/mdev\n' > /proc/sys/kernel/hotplug && /sbin/mdev -s; then
+        printf 'OK\n'
+    else
+        printf 'FAIL\n' >&2
+        return 1
+    fi
+}
+
+case "${1:-}" in
+    start) start ;;
+    stop) ;;
+    restart|reload) ;;
+    *)
+        echo "Usage: $0 {start|stop|restart}" >&2
+        exit 2
+        ;;
+esac

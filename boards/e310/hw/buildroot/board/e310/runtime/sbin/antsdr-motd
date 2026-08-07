@@ -1,0 +1,243 @@
+#!/bin/sh
+# SPDX-License-Identifier: MIT
+# Render the interactive ANTSDR status banner.
+
+set -u
+
+antsdr_motd_escape=$(printf '\033')
+if [ -t 1 ]; then
+    antsdr_motd_bold="${antsdr_motd_escape}[1m"
+    antsdr_motd_dim="${antsdr_motd_escape}[2m"
+    antsdr_motd_cyan="${antsdr_motd_escape}[36m"
+    antsdr_motd_green="${antsdr_motd_escape}[32m"
+    antsdr_motd_yellow="${antsdr_motd_escape}[33m"
+    antsdr_motd_red="${antsdr_motd_escape}[31m"
+    antsdr_motd_reset="${antsdr_motd_escape}[0m"
+else
+    antsdr_motd_bold=
+    antsdr_motd_dim=
+    antsdr_motd_cyan=
+    antsdr_motd_green=
+    antsdr_motd_yellow=
+    antsdr_motd_red=
+    antsdr_motd_reset=
+fi
+
+antsdr_motd_read() {
+    if [ -r "$1" ]; then
+        tr -d '\000' < "$1" 2>/dev/null
+    else
+        printf '%s' "${2:-}"
+    fi
+}
+
+antsdr_motd_state_color() {
+    case "$1" in
+        OK|READY|DISABLED) printf '%s' "$antsdr_motd_green" ;;
+        WARN|NOT\ READY|ENABLED) printf '%s' "$antsdr_motd_yellow" ;;
+        FAIL) printf '%s' "$antsdr_motd_red" ;;
+        *) printf '%s' "$antsdr_motd_dim" ;;
+    esac
+}
+
+antsdr_motd_value() {
+    printf '  %-12s %s\n' "$1" "$2"
+}
+
+antsdr_motd_status() {
+    label=$1
+    state=$2
+    detail=${3:-}
+    color=$(antsdr_motd_state_color "$state")
+    printf '  %-12s %s%-9s%s' "$label" "$color" "$state" "$antsdr_motd_reset"
+    [ -n "$detail" ] && printf '  %s' "$detail"
+    printf '\n'
+}
+
+antsdr_motd_notice_start() {
+    printf '\n%s%s%s\n' "${antsdr_motd_bold}${antsdr_motd_yellow}" "$1" "$antsdr_motd_reset"
+    printf '%s  ------------------------------------------------------------------------%s\n' "$antsdr_motd_dim" "$antsdr_motd_reset"
+}
+
+antsdr_motd_notice_line() {
+    printf '  %s\n' "$1"
+}
+
+antsdr_motd_notice_command() {
+    printf '    %s%s%s\n' "$antsdr_motd_cyan" "$1" "$antsdr_motd_reset"
+}
+
+antsdr_motd_notice_end() {
+    printf '%s  ------------------------------------------------------------------------%s\n' "$antsdr_motd_dim" "$antsdr_motd_reset"
+}
+
+antsdr_motd_qspi_notice() {
+    antsdr_motd_notice_start 'Notice: QSPI setup required'
+    antsdr_motd_notice_line "Reason: $antsdr_motd_qspi_detail"
+    antsdr_motd_notice_line 'SD boot can continue, but QSPI persistent storage is unavailable.'
+    printf '\n'
+    antsdr_motd_notice_line 'Full QSPI provisioning (U-Boot):'
+    antsdr_motd_notice_command 'run qspi_provision'
+    antsdr_motd_notice_line 'Requires on SD: qspi-boot.bin and antsdr-e310.itb.'
+    antsdr_motd_notice_line 'Writes the current QSPI boot/FIT layout and resets qspi-nvmfs.'
+    printf '\n'
+    antsdr_motd_notice_line 'SD-only persistent storage initialization (Linux):'
+    antsdr_motd_notice_command 'antsdr-persist init --confirm'
+    antsdr_motd_notice_line 'Erases /dev/mtd2 and creates clean JFFS2 metadata.'
+    antsdr_motd_notice_line 'This also removes saved persistent configuration and credentials.'
+    printf '\n'
+    antsdr_motd_notice_line 'No QSPI operation is performed automatically.'
+    antsdr_motd_notice_end
+}
+
+antsdr_motd_format_temperature() {
+    case "$1" in
+        ''|*[!0-9-]*) printf 'not available' ;;
+        *) awk -v value="$1" 'BEGIN { printf "%.1f C", value / 1000 }' ;;
+    esac
+}
+
+antsdr_motd_find_temperature() {
+    for zone in /sys/class/thermal/thermal_zone*; do
+        [ -r "$zone/temp" ] || continue
+        type=$(antsdr_motd_read "$zone/type")
+        case "$type" in
+            cpu*|soc*|xadc*|zynq*)
+                cat "$zone/temp" 2>/dev/null
+                return 0
+                ;;
+        esac
+    done
+    for sensor in /sys/class/hwmon/hwmon*/temp*_input; do
+        [ -r "$sensor" ] || continue
+        cat "$sensor" 2>/dev/null
+        return 0
+    done
+    return 1
+}
+
+antsdr_motd_detect_rf_chip() {
+    if grep -aR -q 'adi,ad9363' /sys/firmware/devicetree/base 2>/dev/null; then
+        printf 'AD9363'
+    elif grep -aR -q 'adi,ad9361' /sys/firmware/devicetree/base 2>/dev/null; then
+        printf 'AD9361'
+    else
+        printf 'unknown'
+    fi
+}
+
+antsdr_motd_find_rf_device() {
+    for candidate in /sys/bus/iio/devices/iio:device*; do
+        [ -r "$candidate/name" ] || continue
+        name=$(antsdr_motd_read "$candidate/name")
+        case "$name" in
+            *ad936*)
+                printf '%s\n' "$candidate"
+                return 0
+                ;;
+        esac
+    done
+    return 1
+}
+
+antsdr_motd_firmware=development
+if [ -r /etc/antsdr/release ]; then
+    antsdr_motd_firmware=$(sed -n 's/^firmware=//p' /etc/antsdr/release | head -n 1)
+    [ -n "$antsdr_motd_firmware" ] || antsdr_motd_firmware=development
+fi
+
+antsdr_motd_board=$(antsdr_motd_read /sys/firmware/devicetree/base/model 'ANTSDR E310 Rev.C')
+antsdr_motd_cpu=$(awk -F: '
+    /^Processor[[:space:]]*:/ { sub(/^[[:space:]]+/, "", $2); print $2; exit }
+    /^model name[[:space:]]*:/ { sub(/^[[:space:]]+/, "", $2); print $2; exit }
+' /proc/cpuinfo 2>/dev/null || true)
+antsdr_motd_soc=$(awk -F: '/^Hardware[[:space:]]*:/ { sub(/^[[:space:]]+/, "", $2); print $2; exit }' /proc/cpuinfo 2>/dev/null || true)
+[ -n "$antsdr_motd_cpu" ] || antsdr_motd_cpu=unknown
+[ -n "$antsdr_motd_soc" ] || antsdr_motd_soc='Xilinx Zynq-7000'
+antsdr_motd_rf_chip=$(antsdr_motd_detect_rf_chip)
+antsdr_motd_rootfs=$(awk '$2 == "/" { print $3; exit }' /proc/mounts 2>/dev/null || true)
+[ -n "$antsdr_motd_rootfs" ] || antsdr_motd_rootfs=unknown
+
+antsdr_motd_rf_device=$(antsdr_motd_find_rf_device || true)
+antsdr_motd_rf_name='not detected'
+antsdr_motd_rf_status=NOT\ READY
+if [ -n "$antsdr_motd_rf_device" ]; then
+    antsdr_motd_rf_name=$(antsdr_motd_read "$antsdr_motd_rf_device/name")
+    antsdr_motd_rf_status=OK
+fi
+
+antsdr_motd_soc_temp=$(antsdr_motd_find_temperature || true)
+antsdr_motd_rf_temp=
+if [ -n "$antsdr_motd_rf_device" ]; then
+    for attribute in in_temp0_input temp0_input; do
+        if [ -r "$antsdr_motd_rf_device/$attribute" ]; then
+            antsdr_motd_rf_temp=$(cat "$antsdr_motd_rf_device/$attribute" 2>/dev/null || true)
+            break
+        fi
+    done
+fi
+
+antsdr_motd_tx_state=unknown
+antsdr_motd_tx_detail='power state unavailable'
+if [ -n "$antsdr_motd_rf_device" ] && [ -r "$antsdr_motd_rf_device/out_altvoltage1_TX_LO_powerdown" ]; then
+    antsdr_motd_tx_powerdown=$(cat "$antsdr_motd_rf_device/out_altvoltage1_TX_LO_powerdown" 2>/dev/null || true)
+    case "$antsdr_motd_tx_powerdown" in
+        1) antsdr_motd_tx_state=DISABLED; antsdr_motd_tx_detail='TX LO powered down' ;;
+        0) antsdr_motd_tx_state=ENABLED; antsdr_motd_tx_detail='TX LO powered up' ;;
+    esac
+fi
+
+antsdr_motd_qspi_state=FAIL
+antsdr_motd_qspi_detail='qspi-nvmfs partition not found'
+if [ -r /sys/class/mtd/mtd2/name ]; then
+    antsdr_motd_qspi_name=$(antsdr_motd_read /sys/class/mtd/mtd2/name)
+    antsdr_motd_qspi_size=$(antsdr_motd_read /sys/class/mtd/mtd2/size)
+    if [ "$antsdr_motd_qspi_name" != 'qspi-nvmfs' ]; then
+        antsdr_motd_qspi_detail="mtd2 is ${antsdr_motd_qspi_name:-unknown}"
+    elif [ "$antsdr_motd_qspi_size" != '917504' ] &&
+         [ "$antsdr_motd_qspi_size" != '0xe0000' ] &&
+         [ "$antsdr_motd_qspi_size" != '0xE0000' ]; then
+        antsdr_motd_qspi_detail='qspi-nvmfs has an unexpected size'
+    elif grep -qs ' /mnt/antsdr-persist ' /proc/mounts; then
+        antsdr_motd_qspi_state=OK
+        antsdr_motd_qspi_detail='persistent storage mounted'
+    else
+        antsdr_motd_qspi_state=WARN
+        antsdr_motd_qspi_detail='layout mismatch or JFFS2 is not initialized'
+    fi
+fi
+
+if [ -r /proc/cpuinfo ]; then
+    antsdr_motd_cpu_state=OK
+else
+    antsdr_motd_cpu_state=FAIL
+fi
+
+printf 'Welcome to AntSDR OS\n\n'
+printf '%s%sDevice%s\n' "$antsdr_motd_bold" "$antsdr_motd_cyan" "$antsdr_motd_reset"
+antsdr_motd_value 'Board' "$antsdr_motd_board"
+antsdr_motd_value 'Firmware' "$antsdr_motd_firmware"
+antsdr_motd_value 'CPU' "$antsdr_motd_cpu"
+antsdr_motd_value 'SoC' "$antsdr_motd_soc"
+antsdr_motd_value 'RF chip' "$antsdr_motd_rf_chip"
+antsdr_motd_value 'Rootfs' "$antsdr_motd_rootfs"
+
+printf '\n%s%sStatus%s\n' "$antsdr_motd_bold" "$antsdr_motd_cyan" "$antsdr_motd_reset"
+antsdr_motd_status 'CPU' "$antsdr_motd_cpu_state" 'online'
+antsdr_motd_status 'RF device' "$antsdr_motd_rf_status" "$antsdr_motd_rf_name"
+if [ -n "$antsdr_motd_soc_temp" ]; then
+    antsdr_motd_status 'SoC temp' OK "$(antsdr_motd_format_temperature "$antsdr_motd_soc_temp")"
+else
+    antsdr_motd_status 'SoC temp' 'N/A' 'not available'
+fi
+if [ -n "$antsdr_motd_rf_temp" ]; then
+    antsdr_motd_status 'RF temp' OK "$(antsdr_motd_format_temperature "$antsdr_motd_rf_temp")"
+else
+    antsdr_motd_status 'RF temp' 'N/A' 'not available'
+fi
+antsdr_motd_status 'TX' "$antsdr_motd_tx_state" "$antsdr_motd_tx_detail"
+if [ "$antsdr_motd_qspi_state" != OK ]; then
+    antsdr_motd_qspi_notice
+fi
+
+printf '\n'

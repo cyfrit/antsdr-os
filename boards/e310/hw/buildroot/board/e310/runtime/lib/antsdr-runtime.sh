@@ -30,3 +30,42 @@ antsdr_pid_matches() {
     [ -n "$pid" ] || return 1
     [ "$(readlink "/proc/$pid/exe" 2>/dev/null || true)" = "$executable" ]
 }
+
+antsdr_persist_layout_status() {
+    [ -b /dev/mtdblock2 ] || {
+        printf '%s\n' 'mtdblock2 is unavailable'
+        return 1
+    }
+    [ -r /sys/class/mtd/mtd2/name ] || {
+        printf '%s\n' 'mtd2 metadata is unavailable'
+        return 1
+    }
+    name=$(cat /sys/class/mtd/mtd2/name)
+    [ "$name" = qspi-nvmfs ] || {
+        printf 'mtd2 is %s, expected qspi-nvmfs\n' "$name"
+        return 1
+    }
+    size=$(cat /sys/class/mtd/mtd2/size 2>/dev/null || true)
+    case "$size" in
+        917504|0xe0000|0xE0000) ;;
+        *)
+            printf 'qspi-nvmfs size is %s, expected 917504\n' "${size:-unknown}"
+            return 1
+            ;;
+    esac
+}
+
+antsdr_persist_media_status() {
+    if ! reason=$(antsdr_persist_layout_status); then
+        printf '%s\n' "$reason"
+        return 1
+    fi
+    signature=$(od -An -N2 -tx1 /dev/mtd2 2>/dev/null | tr -d ' \n')
+    case "$signature" in
+        8519|ffff) return 0 ;;
+        *)
+            printf 'qspi-nvmfs has an invalid JFFS2 header (%s)\n' "${signature:-unreadable}"
+            return 1
+            ;;
+    esac
+}

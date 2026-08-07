@@ -15,11 +15,6 @@ ipaddr_eth =
 netmask_eth = 255.255.255.0
 eth_gateway =
 
-[WLAN]
-ssid_wlan =
-pwd_wlan =
-ipaddr_wlan =
-
 [SYSTEM]
 xo_correction =
 udc_handle_suspend = 0
