@@ -1,6 +1,6 @@
 #!/bin/sh
 # SPDX-License-Identifier: MIT
-# Own the complete Pluto-compatible USB composite gadget and FunctionFS IIOD.
+# Own the complete ANTSDR USB composite gadget and FunctionFS IIOD.
 
 set -eu
 
@@ -14,15 +14,7 @@ IIOD_PID=/run/antsdr/iiod.pid
 SUSPEND_PID=/run/antsdr/udc-suspend.pid
 PERSIST_DIR=/mnt/antsdr-persist
 SERIAL_FILE=$PERSIST_DIR/etc/usb-serial
-
-find_udc() {
-    for candidate in /sys/class/udc/*; do
-        [ -d "$candidate" ] || continue
-        basename "$candidate"
-        return 0
-    done
-    return 1
-}
+UDC_NAME=ci_hdrc.0
 
 read_usb_mode() {
     case "$(/usr/sbin/antsdr-config get usb_ethernet_mode)" in
@@ -73,10 +65,7 @@ valid_serial() {
 }
 
 persist_serial() {
-    [ -b /dev/mtdblock2 ] || return 0
-    if ! antsdr_is_mounted "$PERSIST_DIR"; then
-        mount -t jffs2 -o rw,noatime /dev/mtdblock2 "$PERSIST_DIR" 2>/dev/null || return 0
-    fi
+    antsdr_is_mounted "$PERSIST_DIR" || return 0
     umask 077
     mkdir -p "$(dirname "$SERIAL_FILE")"
     printf '%s\n' "$1" > "$SERIAL_FILE" 2>/dev/null || true
@@ -131,6 +120,17 @@ remove_gadget() {
     rmdir "$GADGET/strings/0x409" "$GADGET" 2>/dev/null || true
 }
 
+wait_for_udc() {
+    attempt=0
+    while [ "$attempt" -lt 5 ]; do
+        [ -d "/sys/class/udc/$UDC_NAME" ] && return 0
+        attempt=$((attempt + 1))
+        sleep 1
+    done
+    echo "ANTSDR USB: UDC $UDC_NAME is unavailable" >&2
+    return 1
+}
+
 start() {
     mkdir -p /run/antsdr "$IIO_FFS"
     if ! antsdr_is_mounted /sys/kernel/config; then
@@ -151,10 +151,7 @@ start() {
     ethernet_function=$(read_usb_mode)
     host_addr=$(mac_from_serial 00:E0:22 0)
     device_addr=$(mac_from_serial 00:05:F7 6)
-    udc=$(find_udc) || {
-        echo "no USB device controller found" >&2
-        return 1
-    }
+    wait_for_udc
 
     mkdir -p "$GADGET"
     printf '%s\n' "$USB_VENDOR_ID" > "$GADGET/idVendor"
@@ -186,16 +183,14 @@ start() {
     write_libiio_context
     start-stop-daemon -S -b -q -o -m -p "$IIOD_PID" -x /usr/sbin/iiod -- \
         -D -n "$IIOD_ENDPOINTS" -F "$IIO_FFS"
-    sleep 1
+    sleep 0.2
     if ! antsdr_pid_matches "$IIOD_PID" /usr/sbin/iiod; then
-        echo "iiod failed to start" >&2
-        stop
-        return 1
+        echo "ANTSDR USB: iiod did not start; continuing without IIO" >&2
     fi
-    printf '%s\n' "$udc" > "$GADGET/UDC"
+    printf '%s\n' "$UDC_NAME" > "$GADGET/UDC"
 
-    if [ "$(/usr/sbin/antsdr-config get udc_handle_suspend)" = 1; then
-        start-stop-daemon -S -b -q -o -m -p "$SUSPEND_PID" -x /usr/sbin/antsdr-udc-suspend -- "$udc"
+    if [ "$(/usr/sbin/antsdr-config get udc_handle_suspend)" = 1 ]; then
+        start-stop-daemon -S -b -q -o -m -p "$SUSPEND_PID" -x /usr/sbin/antsdr-udc-suspend -- "$UDC_NAME"
     fi
 }
 
@@ -210,9 +205,22 @@ stop() {
 }
 
 case "${1:-}" in
-    start) start ;;
-    stop) stop ;;
-    restart) stop; start ;;
+    start)
+        printf 'Starting ANTSDR USB gadget: '
+        if start; then
+            printf 'OK\n'
+        else
+            printf 'FAIL\n' >&2
+            exit 1
+        fi
+        ;;
+    stop)
+        stop
+        ;;
+    restart)
+        stop
+        start
+        ;;
     *)
         echo "Usage: $0 {start|stop|restart}" >&2
         exit 2

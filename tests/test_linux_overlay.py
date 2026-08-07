@@ -63,10 +63,10 @@ class LinuxOverlayTest(unittest.TestCase):
         required = {
             "AD9361",
             "AD9361_EXT_BAND_CONTROL",
+            "ADI_AXI_TDD",
             "ANTSDR_E310_VCXO_CTRL",
             "AXI_DMAC",
             "CF_AXI_DDS",
-            "CF_AXI_TDD",
             "MACB",
             "MARVELL_PHY",
             "MMC_SDHCI_OF_ARASAN",
@@ -75,6 +75,21 @@ class LinuxOverlayTest(unittest.TestCase):
             "USB_ULPI",
         }
         self.assertFalse(required - enabled, f"missing kernel options: {required - enabled}")
+
+        self.assertIn("# CONFIG_SENSORS_JC42 is not set", config)
+        self.assertIn("# CONFIG_SENSORS_IIO_HWMON is not set", config)
+        for disabled in (
+            "# CONFIG_CF_AXI_TDD is not set",
+            "# CONFIG_CFG80211 is not set",
+            "# CONFIG_MODULES is not set",
+            "# CONFIG_SUSPEND is not set",
+            "# CONFIG_WLAN is not set",
+        ):
+            self.assertIn(disabled, config)
+        self.assertFalse(
+            [line for line in config if line.endswith("=m")],
+            "the initramfs build does not install loadable kernel modules",
+        )
 
         symbols = [
             match.group(1)
@@ -134,6 +149,10 @@ class LinuxOverlayTest(unittest.TestCase):
             f'xlnx,phy-reset-gpio = <&gpio0 {gpio_lines["usb-phy-reset"]} GPIO_ACTIVE_LOW>;',
             dtsi,
         )
+        self.assertIn('compatible = "adi,axi-tdd";', dtsi)
+        self.assertNotIn('compatible = "adi,axi-tdd-1.00";', dtsi)
+        self.assertIn('compatible = "adi,iio-fake-platform-device";', dtsi)
+        self.assertIn("adi,faked-dev = <&axi_tdd>;", dtsi)
 
         datapath = board["hardware"]["datapath"]
         for address in (

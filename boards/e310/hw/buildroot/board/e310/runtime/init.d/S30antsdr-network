@@ -9,30 +9,10 @@ set -eu
 CONFIG=/usr/sbin/antsdr-config
 INTERFACES=/etc/network/interfaces
 UDHCPD_CONF=/etc/udhcpd.conf
-WPA_CONF=/run/antsdr/wpa_supplicant.conf
 UDHCPD_PID=/run/antsdr/udhcpd.pid
 HTTPD_PID=/run/antsdr/httpd.pid
-WPA_PID=/run/antsdr/wpa_supplicant.pid
-
-write_wpa_config() {
-    ssid=$1
-    password=$2
-    ssid_hex=$(printf '%s' "$ssid" | od -An -tx1 | tr -d ' \n')
-    umask 077
-    if [ -n "$password" ]; then
-        wpa_passphrase "$ssid" "$password" | sed '/^[[:space:]]*#psk=/d' > "$WPA_CONF"
-    else
-        {
-            printf 'network={\n'
-            printf '\tssid=%s\n' "$ssid_hex"
-            printf '\tkey_mgmt=NONE\n'
-            printf '}\n'
-        } > "$WPA_CONF"
-    fi
-}
 
 write_network_files() {
-    rm -f "$WPA_CONF"
     hostname=$($CONFIG get hostname)
     usb_ipaddr=$($CONFIG get usb_ipaddr)
     usb_host=$($CONFIG get usb_ipaddr_host)
@@ -41,9 +21,6 @@ write_network_files() {
     network_ipaddr=$($CONFIG get network_ipaddr)
     network_netmask=$($CONFIG get network_netmask)
     network_gateway=$($CONFIG get network_gateway)
-    wlan_ssid=$($CONFIG get wlan_ssid)
-    wlan_password=$($CONFIG get wlan_password)
-    wlan_ipaddr=$($CONFIG get wlan_ipaddr)
 
     printf '%s\n' "$hostname" > /etc/hostname
     hostname "$hostname"
@@ -64,34 +41,7 @@ EOF
         else
             printf 'iface eth0 inet dhcp\n'
         fi
-        if [ -n "$wlan_ssid" ]; then
-            write_wpa_config "$wlan_ssid" "$wlan_password"
-            printf '\nauto wlan0\n'
-            if [ -n "$wlan_ipaddr" ]; then
-                printf 'iface wlan0 inet static\n\taddress %s\n\tnetmask 255.255.255.0\n' "$wlan_ipaddr"
-            else
-                printf 'iface wlan0 inet dhcp\n'
-            fi
-        fi
     } > "$INTERFACES"
-}
-
-start_wlan() {
-    interface=${1:-wlan0}
-    [ -s "$WPA_CONF" ] || return 0
-    if ! antsdr_pid_matches "$WPA_PID" /usr/sbin/wpa_supplicant; then
-        rm -f "$WPA_PID"
-        start-stop-daemon -S -b -q -o -m -p "$WPA_PID" -x /usr/sbin/wpa_supplicant -- \
-            -i "$interface" -c "$WPA_CONF"
-    fi
-    ifup "$interface" 2>/dev/null || true
-}
-
-stop_wlan() {
-    interface=${1:-wlan0}
-    ifdown "$interface" 2>/dev/null || true
-    start-stop-daemon -K -q -p "$WPA_PID" -x /usr/sbin/wpa_supplicant 2>/dev/null || true
-    rm -f "$WPA_PID"
 }
 
 start() {
@@ -100,9 +50,6 @@ start() {
     ifup lo 2>/dev/null || true
     ifup usb0 2>/dev/null || true
     ifup eth0 2>/dev/null || true
-    if [ -d /sys/class/net/wlan0 ]; then
-        start_wlan wlan0
-    fi
     start-stop-daemon -S -b -q -o -m -p "$UDHCPD_PID" -x /usr/sbin/udhcpd -- \
         -f "$UDHCPD_CONF"
     start-stop-daemon -S -b -q -o -m -p "$HTTPD_PID" -x /usr/sbin/httpd -- \
@@ -113,26 +60,15 @@ stop() {
     ifdown -a 2>/dev/null || true
     start-stop-daemon -K -q -p "$HTTPD_PID" -x /usr/sbin/httpd 2>/dev/null || true
     start-stop-daemon -K -q -p "$UDHCPD_PID" -x /usr/sbin/udhcpd 2>/dev/null || true
-    start-stop-daemon -K -q -p "$WPA_PID" -x /usr/sbin/wpa_supplicant 2>/dev/null || true
-    rm -f "$HTTPD_PID" "$UDHCPD_PID" "$WPA_PID" "$WPA_CONF"
+    rm -f "$HTTPD_PID" "$UDHCPD_PID"
 }
 
 case "${1:-}" in
     start) start ;;
     stop) stop ;;
     restart) stop; start ;;
-    wlan-add)
-        [ "$#" -eq 2 ] || exit 2
-        mkdir -p /run/network /run/antsdr
-        write_network_files
-        start_wlan "$2"
-        ;;
-    wlan-remove)
-        [ "$#" -eq 2 ] || exit 2
-        stop_wlan "$2"
-        ;;
     *)
-        echo "Usage: $0 {start|stop|restart|wlan-add IFACE|wlan-remove IFACE}" >&2
+        echo "Usage: $0 {start|stop|restart}" >&2
         exit 2
         ;;
 esac

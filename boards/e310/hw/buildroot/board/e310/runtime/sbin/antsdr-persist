@@ -52,10 +52,14 @@ case "${1:-}" in
             echo "refusing to erase persistent storage without --confirm" >&2
             exit 2
         }
+        if ! reason=$(antsdr_persist_layout_status); then
+            echo "refusing to erase persistent storage: $reason" >&2
+            exit 1
+        fi
         if antsdr_is_mounted "$PERSIST_DIR"; then
             umount "$PERSIST_DIR"
         fi
-        flash_erase /dev/mtd2 0 0
+        flash_erase -j /dev/mtd2 0 0
         mkdir -p "$PERSIST_DIR"
         mount_persist
         ;;
