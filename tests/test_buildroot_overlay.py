@@ -55,6 +55,7 @@ class BuildrootOverlayTest(unittest.TestCase):
             "BR2_PACKAGE_LIBIIO_IIOD_USBD=y",
             "BR2_PACKAGE_DROPBEAR=y",
             "BR2_PACKAGE_MTD_FLASH_ERASE=y",
+            "BR2_PACKAGE_HOST_BOOTGEN=y",
             "BR2_PACKAGE_HOST_GENIMAGE=y",
         }
         self.assertFalse(required - set(config.splitlines()))

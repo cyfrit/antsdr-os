@@ -31,7 +31,8 @@ class BuildPipelineTest(unittest.TestCase):
             self.assertIn("build U-Boot and mkimage", result.stdout)
             self.assertIn("select U-Boot uEnv mode", result.stdout)
             self.assertIn("build FPGA project", result.stdout)
-            self.assertIn("create FSBL and BOOT.BIN", result.stdout)
+            self.assertIn("create FSBL with XSCT", result.stdout)
+            self.assertIn("assemble BOOT.BIN with host bootgen", result.stdout)
             self.assertIn("assemble SD and QSPI delivery artifacts", result.stdout)
             self.assertIn("UIMAGE_LOADADDR=0x00008000", result.stdout)
 
@@ -77,7 +78,34 @@ class BuildPipelineTest(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("restore verified FPGA build bundle", result.stdout)
             self.assertNotIn("build FPGA project", result.stdout)
-            self.assertIn("create FSBL and BOOT.BIN", result.stdout)
+            self.assertIn("create FSBL with XSCT", result.stdout)
+            self.assertIn("assemble BOOT.BIN with host bootgen", result.stdout)
+
+    def test_verified_hardware_bundle_replaces_vivado_and_xsct(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(PIPELINE),
+                    "plan",
+                    "--workspace",
+                    str(base / "workspace"),
+                    "--hardware-cache-bundle",
+                    str(base / "bundle"),
+                    "--hardware-cache-identity",
+                    str(base / "identity.json"),
+                ],
+                cwd=ROOT,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("restore verified FPGA and FSBL bundle", result.stdout)
+            self.assertNotIn("build FPGA project", result.stdout)
+            self.assertNotIn("create FSBL with XSCT", result.stdout)
+            self.assertIn("assemble BOOT.BIN with host bootgen", result.stdout)
 
 
 if __name__ == "__main__":

@@ -14,6 +14,8 @@ import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
+from release_metadata import load_metadata
+
 
 class PackageError(RuntimeError):
     pass
@@ -49,8 +51,13 @@ def package(release: Path, output: Path) -> list[Path]:
     output = output.resolve()
     manifest = json.loads(require_file(release / "manifest.json").read_text(encoding="utf-8"))
     metadata = json.loads(require_file(release / "build-metadata.json").read_text(encoding="utf-8"))
-    if manifest.get("board") != "e310" or metadata.get("os_version") != "1.0":
-        raise PackageError("release metadata is not ANTSDR OS 1.0 for E310")
+    expected_version = str(load_metadata()["product"]["version"])
+    if manifest.get("board") != "e310":
+        raise PackageError("release manifest is not for E310")
+    if metadata.get("os_version") != expected_version:
+        raise PackageError(
+            f"release version {metadata.get('os_version')} does not match {expected_version}"
+        )
     if manifest.get("fit", {}).get("signed") is not True:
         raise PackageError("refusing to package an unsigned FIT release")
 
