@@ -13,12 +13,15 @@ sys.path.insert(0, str(ROOT / "tools"))
 import compare_reproducibility  # noqa: E402
 import generate_sbom  # noqa: E402
 import package_release  # noqa: E402
+import release_metadata  # noqa: E402
 import verify_release  # noqa: E402
 import write_checksums  # noqa: E402
 from board_data import load_board, load_profiles  # noqa: E402
 
 
 class ReleaseToolsTest(unittest.TestCase):
+    CURRENT_VERSION = str(release_metadata.load_metadata()["product"]["version"])
+
     def _fixture(self, root: Path) -> Path:
         board = load_board("e310")
         profiles = load_profiles("e310")
@@ -86,7 +89,7 @@ class ReleaseToolsTest(unittest.TestCase):
                 {
                     "board": "e310",
                     "os_name": "ANTSDR OS",
-                    "os_version": "1.0",
+                    "os_version": self.CURRENT_VERSION,
                     "hardware_revision": "revc",
                     "adi_baseline": "v0.39",
                     "source_date_epoch": "0",
@@ -111,16 +114,27 @@ class ReleaseToolsTest(unittest.TestCase):
             self.assertEqual(
                 {path.name for path in packages},
                 {
-                    "antsdr-e310-revc-os-1.0-adi-v0.39-ad9361-1r1t.zip",
-                    "antsdr-e310-revc-os-1.0-adi-v0.39-ad9361-2r2t.zip",
-                    "antsdr-e310-revc-os-1.0-adi-v0.39-ad9363-1r1t.zip",
-                    "antsdr-e310-revc-os-1.0-adi-v0.39-ad9363-2r2t.zip",
+                    f"antsdr-e310-revc-os-{self.CURRENT_VERSION}-adi-v0.39-ad9361-1r1t.zip",
+                    f"antsdr-e310-revc-os-{self.CURRENT_VERSION}-adi-v0.39-ad9361-2r2t.zip",
+                    f"antsdr-e310-revc-os-{self.CURRENT_VERSION}-adi-v0.39-ad9363-1r1t.zip",
+                    f"antsdr-e310-revc-os-{self.CURRENT_VERSION}-adi-v0.39-ad9363-2r2t.zip",
                 },
             )
             self.assertEqual(compare_reproducibility.compare(release, release), 0)
             shutil.copytree(release, root / "copy")
             (root / "copy" / "common" / "antsdr-e310.itb").write_bytes(b"changed")
             self.assertEqual(compare_reproducibility.compare(release, root / "copy"), 1)
+
+    def test_packaging_rejects_a_version_outside_the_release_manifest(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            release = self._fixture(root)
+            metadata_path = release / "build-metadata.json"
+            metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+            metadata["os_version"] = "999.0"
+            metadata_path.write_text(json.dumps(metadata) + "\n", encoding="utf-8")
+            with self.assertRaises(package_release.PackageError):
+                package_release.package(release, root / "packages")
 
 
 if __name__ == "__main__":

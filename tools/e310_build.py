@@ -23,6 +23,8 @@ PREPARE = ROOT / "tools" / "prepare_component.py"
 ASSEMBLE = ROOT / "tools" / "assemble_e310.py"
 SELECT_UENV = ROOT / "tools" / "select_uboot_uenv.py"
 FPGA_CACHE = ROOT / "tools" / "fpga_cache.py"
+HARDWARE_CACHE = ROOT / "tools" / "hardware_cache.py"
+CREATE_BOOT_BIN = ROOT / "tools" / "create_zynq_boot_bin.py"
 COMPONENTS = ("hdl", "linux", "u_boot", "buildroot")
 
 
@@ -63,7 +65,9 @@ def artifact_paths(workspace: Path, board: dict[str, object]) -> dict[str, Path]
         "u_boot_elf": output_dir(workspace, "u_boot") / "u-boot",
         "xsa": source_dir(workspace, "hdl") / "projects" / hdl_project / f"{hdl_project}.sdk" / "system_top.xsa",
         "bitstream": source_dir(workspace, "hdl") / "projects" / hdl_project / f"{hdl_project}.runs" / "impl_1" / "system_top.bit",
+        "fsbl_elf": workspace / "out" / "boot" / "fsbl.elf",
         "boot_bin": workspace / "out" / "boot" / str(firmware["boot_image"]),
+        "bootgen": buildroot_output / "host" / "bin" / "bootgen",
         "mkimage": output_dir(workspace, "u_boot") / "tools" / "mkimage",
         "mkenvimage": output_dir(workspace, "u_boot") / "tools" / "mkenvimage",
     }
@@ -91,23 +95,41 @@ def plan_commands(args: argparse.Namespace, board: dict[str, object]) -> list[tu
                     ],
                 )
             )
-        if action == "all" and args.fpga_cache_bundle:
-            commands.append(
-                (
-                    "restore verified FPGA build bundle",
-                    [
-                        sys.executable,
-                        str(FPGA_CACHE),
-                        "restore",
-                        "--bundle",
-                        str(args.fpga_cache_bundle),
-                        "--identity",
-                        str(args.fpga_cache_identity),
-                        "--workspace",
-                        str(workspace),
-                    ],
+        if action == "all":
+            if args.hardware_cache_bundle:
+                commands.append(
+                    (
+                        "restore verified FPGA and FSBL bundle",
+                        [
+                            sys.executable,
+                            str(HARDWARE_CACHE),
+                            "restore",
+                            "--bundle",
+                            str(args.hardware_cache_bundle),
+                            "--identity",
+                            str(args.hardware_cache_identity),
+                            "--workspace",
+                            str(workspace),
+                        ],
+                    )
                 )
-            )
+            elif args.fpga_cache_bundle:
+                commands.append(
+                    (
+                        "restore verified FPGA build bundle",
+                        [
+                            sys.executable,
+                            str(FPGA_CACHE),
+                            "restore",
+                            "--bundle",
+                            str(args.fpga_cache_bundle),
+                            "--identity",
+                            str(args.fpga_cache_identity),
+                            "--workspace",
+                            str(workspace),
+                        ],
+                    )
+                )
     if action in ("rootfs", "all"):
         source = source_dir(workspace, "buildroot")
         output = output_dir(workspace, "buildroot")
@@ -151,7 +173,25 @@ def plan_commands(args: argparse.Namespace, board: dict[str, object]) -> list[tu
             ]
         )
     if action in ("hdl", "all"):
-        if args.fpga_cache_bundle:
+        if args.hardware_cache_bundle:
+            if action == "hdl":
+                commands.append(
+                    (
+                        "restore verified FPGA and FSBL bundle",
+                        [
+                            sys.executable,
+                            str(HARDWARE_CACHE),
+                            "restore",
+                            "--bundle",
+                            str(args.hardware_cache_bundle),
+                            "--identity",
+                            str(args.hardware_cache_identity),
+                            "--workspace",
+                            str(workspace),
+                        ],
+                    )
+                )
+        elif args.fpga_cache_bundle:
             if action == "hdl":
                 commands.append(
                     (
@@ -174,10 +214,36 @@ def plan_commands(args: argparse.Namespace, board: dict[str, object]) -> list[tu
             commands.append(("build FPGA project", [args.make, "-C", str(project), f"-j{args.jobs}"]))
     if action in ("boot_bin", "all"):
         artifacts = artifact_paths(workspace, board)
+        if not args.hardware_cache_bundle:
+            commands.append(
+                (
+                    "create FSBL with XSCT",
+                    [
+                        args.xsct,
+                        str(source_dir(workspace, "hdl") / "projects" / "scripts" / "adi_make_boot_bin.tcl"),
+                        str(artifacts["xsa"]),
+                        str(artifacts["u_boot_elf"]),
+                        str(artifacts["boot_bin"].parent),
+                    ],
+                )
+            )
         commands.append(
             (
-                "create FSBL and BOOT.BIN",
-                [args.xsct, str(source_dir(workspace, "hdl") / "projects" / "scripts" / "adi_make_boot_bin.tcl"), str(artifacts["xsa"]), str(artifacts["u_boot_elf"]), str(artifacts["boot_bin"].parent)],
+                "assemble BOOT.BIN with host bootgen",
+                [
+                    sys.executable,
+                    str(CREATE_BOOT_BIN),
+                    "--fsbl",
+                    str(artifacts["fsbl_elf"]),
+                    "--bitstream",
+                    str(artifacts["bitstream"]),
+                    "--u-boot",
+                    str(artifacts["u_boot_elf"]),
+                    "--bootgen",
+                    str(artifacts["bootgen"]),
+                    "--output",
+                    str(artifacts["boot_bin"]),
+                ],
             )
         )
     if action in ("assemble", "all"):
@@ -237,7 +303,7 @@ def run_commands(commands: list[tuple[str, list[str]]], workspace: Path, action:
         "linux": ("linux",),
         "u_boot": ("u_boot",),
         "hdl": ("hdl",),
-        "boot_bin": ("hdl", "u_boot"),
+        "boot_bin": ("hdl", "u_boot", "buildroot"),
         "assemble": (),
         "all": COMPONENTS,
     }.get(action, ())
@@ -261,6 +327,8 @@ def parser() -> argparse.ArgumentParser:
         command.add_argument("--xsct", default="xsct")
         command.add_argument("--release", type=Path)
         command.add_argument("--fit-signing-key-dir", type=Path)
+        command.add_argument("--hardware-cache-bundle", type=Path)
+        command.add_argument("--hardware-cache-identity", type=Path)
         command.add_argument("--fpga-cache-bundle", type=Path)
         command.add_argument("--fpga-cache-identity", type=Path)
         if name == "prepare":
@@ -276,8 +344,14 @@ def main() -> int:
         print("--jobs must be positive", file=sys.stderr)
         return 2
     try:
+        if bool(args.hardware_cache_bundle) != bool(args.hardware_cache_identity):
+            raise BuildError(
+                "--hardware-cache-bundle and --hardware-cache-identity must be provided together"
+            )
         if bool(args.fpga_cache_bundle) != bool(args.fpga_cache_identity):
             raise BuildError("--fpga-cache-bundle and --fpga-cache-identity must be provided together")
+        if args.hardware_cache_bundle and args.fpga_cache_bundle:
+            raise BuildError("hardware and legacy FPGA cache bundles are mutually exclusive")
         board = load_board()
         workspace = external_workspace(args.workspace)
         commands = plan_commands(args, board)
