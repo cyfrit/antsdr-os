@@ -2,6 +2,8 @@
 schema_version: 1
 component: linux
 files:
+  - source: .scmversion
+    destination: .scmversion
   - source: dts/zynq-antsdr-e310-ad9361-1r1t.dts
     destination: arch/arm/boot/dts/zynq-antsdr-e310-ad9361-1r1t.dts
   - source: dts/zynq-antsdr-e310-ad9361-2r2t.dts

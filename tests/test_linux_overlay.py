@@ -15,6 +15,7 @@ BOARD = ROOT / "boards" / "e310"
 LINUX = BOARD / "hw" / "linux"
 DTSI = LINUX / "dts" / "zynq-antsdr-e310.dtsi"
 DEFCONFIG = LINUX / "configs" / "zynq_antsdr_e310_defconfig"
+SCMVERSION = LINUX / ".scmversion"
 WINBOND_EAR_PATCH = BOARD / "patches" / "linux" / "0002-spi-nor-handle-winbond-ear.patch"
 UPSTREAM = ROOT / "upstream" / "adi-plutosdr-fw" / "linux"
 DTBS = {
@@ -57,6 +58,27 @@ class LinuxOverlayTest(unittest.TestCase):
             text=True,
         )
         self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_kernel_release_uses_product_scm_version(self) -> None:
+        overlay = yaml.safe_load((LINUX / "overlay.yaml").read_text(encoding="utf-8"))
+        result = subprocess.run(
+            ["git", "show", "HEAD:scripts/setlocalversion"],
+            cwd=UPSTREAM,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertEqual(SCMVERSION.read_text(encoding="utf-8"), "-antsdr-os\n")
+        self.assertIn(
+            {"source": ".scmversion", "destination": ".scmversion"},
+            overlay["files"],
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertLess(
+            result.stdout.index("if test -e .scmversion; then"),
+            result.stdout.index("git --no-optional-locks status -uno --porcelain"),
+        )
 
     def test_defconfig_enables_e310_hardware(self) -> None:
         config = DEFCONFIG.read_text(encoding="utf-8").splitlines()
