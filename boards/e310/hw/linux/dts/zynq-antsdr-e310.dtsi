@@ -33,6 +33,22 @@
 		stdout-path = "serial0:115200n8";
 	};
 
+	thermal-zones {
+		ethernet-phy-thermal {
+			polling-delay = <5000>;
+			polling-delay-passive = <0>;
+			thermal-sensors = <&ethernet_phy>;
+
+			trips {
+				ethernet_phy_critical: critical {
+					temperature = <100000>;
+					hysteresis = <5000>;
+					type = "critical";
+				};
+			};
+		};
+	};
+
 	clocks {
 		ad9361_clkin: ad9361-refclk {
 			#clock-cells = <0>;
@@ -182,6 +198,7 @@
 	ethernet_phy: ethernet-phy@0 {
 		compatible = "ethernet-phy-ieee802.3-c22";
 		reg = <0>;
+		#thermal-sensor-cells = <0>;
 		reset-gpios = <&gpio0 46 GPIO_ACTIVE_LOW>;
 	};
 };

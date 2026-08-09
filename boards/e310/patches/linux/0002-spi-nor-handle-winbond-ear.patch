@@ -1,0 +1,42 @@
+From: Cyfrit <i@cli.tf>
+Subject: [PATCH] mtd: spi-nor: handle Winbond extended address register
+SPDX-License-Identifier: GPL-2.0-only
+
+The Zynq QSPI controller uses three-byte addressing with the extended address
+register for flashes larger than 16 MiB.  Winbond W25Q256 parts implement the
+standard RDEAR and WREAR commands, but the pinned ADI tree omits Winbond from
+the manufacturer checks.  This leaves the initial bank unknown and emits a
+probe warning.
+
+Match the MicroPhase E310 fix: enable Winbond EAR reads and writes and clear
+its status register during SPI NOR initialization.
+
+diff --git a/drivers/mtd/spi-nor/core.c b/drivers/mtd/spi-nor/core.c
+--- a/drivers/mtd/spi-nor/core.c
++++ b/drivers/mtd/spi-nor/core.c
+@@ -622,6 +622,7 @@ static int spi_nor_write_ear(struct spi_nor *nor, u32 addr)
+ 	if (nor->info->id[0] == CFI_MFR_ST ||
+ 	    nor->info->id[0] == CFI_MFR_MACRONIX ||
+-	    nor->info->id[0] == CFI_MFR_PMC) {
++	    nor->info->id[0] == CFI_MFR_PMC ||
++	    nor->info->id[0] == CFI_MFR_WINBND) {
+ 		spi_nor_write_enable(nor);
+ 		code = SPINOR_OP_WREAR;
+ 	}
+@@ -668,6 +669,7 @@ static int read_ear(struct spi_nor *nor, struct flash_info *info)
+ 	else if (nor->info->id[0] == CFI_MFR_ST ||
+ 		 nor->info->id[0] == CFI_MFR_MACRONIX ||
+-		 nor->info->id[0] == CFI_MFR_PMC)
++		 nor->info->id[0] == CFI_MFR_PMC ||
++		 nor->info->id[0] == CFI_MFR_WINBND)
+ 		code = SPINOR_OP_RDEAR;
+ 	else
+ 		return -EINVAL;
+@@ -3452,6 +3454,7 @@ static int spi_nor_init(struct spi_nor *nor)
+ 	if (nor->info->id[0] == CFI_MFR_ATMEL ||
+ 	    nor->info->id[0] == CFI_MFR_INTEL ||
+ 	    nor->info->id[0] == CFI_MFR_SST ||
++	    nor->info->id[0] == CFI_MFR_WINBND ||
+ 	    nor->info->id[0] & SNOR_F_HAS_LOCK) {
+ 		spi_nor_write_enable(nor);
+ 		nor->bouncebuf[0] = 0;

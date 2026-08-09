@@ -99,6 +99,35 @@ def patch_files(board_id: str, component: str) -> list[Path]:
     return sorted(directory.glob("*.patch"))
 
 
+def materialize_patch_targets(patch: Path, destination: Path) -> None:
+    stats = run(["git", "apply", "--numstat", str(patch)], destination, capture=True)
+    for line in stats.splitlines():
+        fields = line.split("\t", 2)
+        if len(fields) != 3:
+            raise PrepareError(f"cannot parse patch target: {line}")
+        target = safe_relative(fields[2], "patch target")
+        if (destination / target).exists():
+            continue
+        target_posix = target.as_posix()
+        tracked = run(
+            ["git", "ls-tree", "--name-only", "HEAD", "--", target_posix],
+            destination,
+            capture=True,
+        )
+        if tracked:
+            run(
+                [
+                    "git",
+                    "checkout",
+                    "--ignore-skip-worktree-bits",
+                    "HEAD",
+                    "--",
+                    target_posix,
+                ],
+                destination,
+            )
+
+
 def verify_upstream(upstream: Path, expected_commit: str) -> None:
     if not (upstream / ".git").exists():
         raise PrepareError(f"upstream component is not initialized: {upstream}")
@@ -125,6 +154,7 @@ def apply_component(
 
     try:
         for patch in patch_files(board_id, component):
+            materialize_patch_targets(patch, destination)
             run(["git", "apply", "--check", str(patch)], destination)
             run(["git", "apply", str(patch)], destination)
         for entry in overlay["files"]:

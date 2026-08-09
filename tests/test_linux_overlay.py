@@ -15,6 +15,7 @@ BOARD = ROOT / "boards" / "e310"
 LINUX = BOARD / "hw" / "linux"
 DTSI = LINUX / "dts" / "zynq-antsdr-e310.dtsi"
 DEFCONFIG = LINUX / "configs" / "zynq_antsdr_e310_defconfig"
+WINBOND_EAR_PATCH = BOARD / "patches" / "linux" / "0002-spi-nor-handle-winbond-ear.patch"
 UPSTREAM = ROOT / "upstream" / "adi-plutosdr-fw" / "linux"
 DTBS = {
     "ad9363-1r1t": (
@@ -154,6 +155,12 @@ class LinuxOverlayTest(unittest.TestCase):
         self.assertIn('compatible = "adi,iio-fake-platform-device";', dtsi)
         self.assertIn("adi,faked-dev = <&axi_tdd>;", dtsi)
 
+        self.assertIn("ethernet-phy-thermal", dtsi)
+        self.assertIn("thermal-sensors = <&ethernet_phy>;", dtsi)
+        self.assertIn("#thermal-sensor-cells = <0>;", dtsi)
+        self.assertIn("temperature = <100000>;", dtsi)
+        self.assertIn('type = "critical";', dtsi)
+
         datapath = board["hardware"]["datapath"]
         for address in (
             datapath["ad936x_core_address"],
@@ -186,6 +193,17 @@ class LinuxOverlayTest(unittest.TestCase):
                     self.assertIn("adi,1rx-1tx-mode-use-rx-num = <1>;", dts)
                     self.assertIn("adi,1rx-1tx-mode-use-tx-num = <1>;", dts)
                     self.assertIn('compatible = "adi,axi-ad9364-dds-6.00.a";', dts)
+
+    def test_winbond_extended_address_register_fix_matches_board_flash(self) -> None:
+        patch = WINBOND_EAR_PATCH.read_text(encoding="utf-8")
+
+        self.assertIn("static int spi_nor_write_ear", patch)
+        self.assertIn("static int read_ear", patch)
+        self.assertIn("static int spi_nor_init", patch)
+        self.assertEqual(patch.count("+\t    nor->info->id[0] == CFI_MFR_WINBND"), 2)
+        self.assertIn("+\t    nor->info->id[0] == CFI_MFR_WINBND ||", patch)
+        self.assertIn("SPINOR_OP_WREAR", patch)
+        self.assertIn("SPINOR_OP_RDEAR", patch)
 
     def test_vcxo_driver_uses_managed_resources(self) -> None:
         driver = (LINUX / "drivers" / "antsdr-e310-vcxo.c").read_text(encoding="utf-8")
