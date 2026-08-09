@@ -12,6 +12,10 @@ import validate_workflows  # noqa: E402
 
 
 class ReleaseWorkflowTest(unittest.TestCase):
+    def test_release_trigger_is_os_scoped(self) -> None:
+        workflow = validate_workflows.load_workflow(ROOT / ".github" / "workflows" / "release.yml")
+        self.assertEqual(workflow["on"]["push"]["tags"], ["antsdr-os-*"])
+
     def test_release_preflight_blocks_the_build_job(self) -> None:
         workflow = validate_workflows.load_workflow(ROOT / ".github" / "workflows" / "release.yml")
         jobs = workflow["jobs"]
@@ -47,8 +51,12 @@ class ReleaseWorkflowTest(unittest.TestCase):
         ]
         release_command = next(command for command in commands if "gh release create" in command)
 
-        self.assertIn('--title "AntSDR OS $version"', release_command)
-        self.assertNotIn('--title "AntSDR OS $version (', release_command)
+        title_lines = [
+            line.strip().removesuffix(" \\")
+            for line in release_command.splitlines()
+            if "--title" in line
+        ]
+        self.assertEqual(title_lines, ['--title "AntSDR OS $version"'])
 
 
 if __name__ == "__main__":

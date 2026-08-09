@@ -158,9 +158,9 @@ jobs:
         run: |
           set -euo pipefail
           version="$INPUT_VERSION"
-          if [[ "$GITHUB_REF_NAME" == e310-revc-os-* ]]; then
+          if [[ "$GITHUB_REF_NAME" == antsdr-os-* ]]; then
             python tools/release_metadata.py check --tag "$GITHUB_REF_NAME"
-            version="${GITHUB_REF_NAME##*-os-}"
+            version="${GITHUB_REF_NAME#antsdr-os-}"
           elif [ -z "$version" ]; then
             version="$(python tools/release_metadata.py show --board e310 --format github | sed -n 's/^os_version=//p')"
           fi
@@ -513,7 +513,8 @@ jobs:
             python tools/verify_fit_profiles.py \
               --fit "$RUNNER_TEMP/antsdr-e310-release/common/antsdr-e310.itb" \
               --control-dtb "$workspace/out/u-boot/dts/dt.dtb" \
-              --fit-check-sign "$workspace/out/u-boot/tools/fit_check_sign"
+              --fit-check-sign "$workspace/out/u-boot/tools/fit_check_sign" \
+              --board e310
           fi
       - name: Pack FPGA and FSBL bundle
         if: >-

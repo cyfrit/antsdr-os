@@ -6,6 +6,7 @@ schema_version: 1
 # separately in generated build metadata.
 product:
   name: AntSDR OS
+  slug: antsdr-os
   major: 1
   point: 2
   version: "1.2"
@@ -15,7 +16,7 @@ product:
 supported_boards:
   - id: e310
     hardware_revision: revc
-    stream: e310-revc
+    artifact_id: e310-revc
 
 compatibility:
   boot_abi: 1
@@ -27,5 +28,5 @@ upstream:
   adi_release: v0.39
 
 artifacts:
-  name_template: antsdr-{board}-{hardware_revision}-os-{version}-adi-{adi_release}
-  tag_template: "{stream}-os-{version}"
+  name_template: "{product}-{version}-{target}-adi-{adi_release}"
+  tag_template: "{product}-{version}"

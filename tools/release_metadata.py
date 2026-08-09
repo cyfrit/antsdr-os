@@ -26,7 +26,7 @@ from board_data import REPOSITORY_ROOT, load_board
 METADATA = REPOSITORY_ROOT / "release" / "antsdr-os.yaml"
 HEX40 = re.compile(r"^[0-9a-f]{40}$")
 VERSION = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$")
-TAG = re.compile(r"^(?P<stream>[a-z0-9-]+)-os-(?P<version>\d+\.\d+)$")
+SLUG = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
 
 class ReleaseMetadataError(RuntimeError):
@@ -56,13 +56,41 @@ def load_metadata(path: Path = METADATA) -> dict[str, Any]:
         raise ReleaseMetadataError("product version must match major.point")
     if not isinstance(product.get("name"), str) or not product["name"]:
         raise ReleaseMetadataError("product.name must be non-empty")
+    if not isinstance(product.get("slug"), str) or not SLUG.fullmatch(product["slug"]):
+        raise ReleaseMetadataError("product.slug must be a lowercase, hyphenated identifier")
     if not isinstance(data.get("supported_boards"), list) or not data["supported_boards"]:
         raise ReleaseMetadataError("supported_boards must be non-empty")
+    board_ids: set[str] = set()
+    artifact_ids: set[str] = set()
     for entry in data["supported_boards"]:
         board = _mapping(entry, "supported_boards entry")
-        for key in ("id", "hardware_revision", "stream"):
+        for key in ("id", "hardware_revision", "artifact_id"):
             if not isinstance(board.get(key), str) or not board[key]:
                 raise ReleaseMetadataError(f"supported board lacks {key}")
+        if not SLUG.fullmatch(board["artifact_id"]):
+            raise ReleaseMetadataError("supported board artifact_id must be a lowercase, hyphenated identifier")
+        if board["id"] in board_ids or board["artifact_id"] in artifact_ids:
+            raise ReleaseMetadataError("supported board ids and artifact ids must be unique")
+        board_ids.add(board["id"])
+        artifact_ids.add(board["artifact_id"])
+    artifacts = _mapping(data.get("artifacts"), "artifacts")
+    for key in ("name_template", "tag_template"):
+        if not isinstance(artifacts.get(key), str) or not artifacts[key]:
+            raise ReleaseMetadataError(f"artifacts.{key} must be non-empty")
+    try:
+        tag = artifacts["tag_template"].format(product=product["slug"], version=version)
+        name = artifacts["name_template"].format(
+            product=product["slug"],
+            version=version,
+            target="target",
+            adi_release="upstream",
+        )
+    except (KeyError, ValueError) as error:
+        raise ReleaseMetadataError(f"invalid artifact template: {error}") from error
+    if tag != f"{product['slug']}-{version}":
+        raise ReleaseMetadataError("release tag template must contain only the product slug and version")
+    if not SLUG.fullmatch(name.replace(".", "-")):
+        raise ReleaseMetadataError("artifact name template produces an invalid identifier")
     return data
 
 
@@ -111,7 +139,7 @@ def build_metadata(
         "channel": channel or product.get("channel", "development"),
         "board": board_id,
         "hardware_revision": board_entry["hardware_revision"],
-        "board_stream": board_entry["stream"],
+        "hardware_target": board_entry["artifact_id"],
         "adi_baseline": data["upstream"]["adi_release"],
         "adi_plutosdr_fw_commit": pluto_commit,
         "component_commits": component_commits,
@@ -127,36 +155,39 @@ def build_metadata(
             raise ReleaseMetadataError("git_commit must be a full commit SHA")
     if not str(result["source_date_epoch"]).isdigit():
         raise ReleaseMetadataError("source_date_epoch must be an integer")
-    result["artifact_stem"] = (
-        f"antsdr-{board_id}-{board_entry['hardware_revision']}-os-{release_version}"
-        f"-adi-{data['upstream']['adi_release']}"
+    result["artifact_stem"] = data["artifacts"]["name_template"].format(
+        product=product["slug"],
+        version=release_version,
+        target=board_entry["artifact_id"],
+        adi_release=data["upstream"]["adi_release"],
     )
-    result["release_tag"] = f"{board_entry['stream']}-os-{release_version}"
+    result["release_tag"] = data["artifacts"]["tag_template"].format(
+        product=product["slug"],
+        version=release_version,
+    )
     return result
 
 
-def validate_tag(value: str) -> tuple[str, str]:
+def validate_tag(value: str) -> str:
     data = load_metadata()
-    match = TAG.fullmatch(value)
-    if not match:
-        raise ReleaseMetadataError("tag must match <board-stream>-os-<major>.<point>")
-    supported = {entry["stream"]: entry for entry in data["supported_boards"]}
-    stream = match.group("stream")
-    version = match.group("version")
-    if stream not in supported:
-        raise ReleaseMetadataError(f"tag stream is not supported: {stream}")
-    if version != data["product"]["version"]:
+    product = data["product"]
+    version = str(product["version"])
+    expected = data["artifacts"]["tag_template"].format(
+        product=product["slug"],
+        version=version,
+    )
+    if value != expected:
         raise ReleaseMetadataError(
-            f"tag version {version} does not match manifest version {data['product']['version']}"
+            f"tag must be {expected} for the current release manifest"
         )
-    return stream, version
+    return version
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="action", required=True)
     show = subparsers.add_parser("show")
-    show.add_argument("--board", default="e310")
+    show.add_argument("--board", required=True)
     show.add_argument("--format", choices=("json", "github"), default="json")
     show.add_argument("--version")
     show.add_argument("--channel")
@@ -165,8 +196,8 @@ def main() -> int:
     args = parser.parse_args()
     try:
         if args.action == "check":
-            stream, version = validate_tag(args.tag)
-            print(f"valid tag: {stream}-os-{version}")
+            validate_tag(args.tag)
+            print(f"valid tag: {args.tag}")
         else:
             payload = build_metadata(args.board, version=args.version, channel=args.channel)
             if args.format == "json":

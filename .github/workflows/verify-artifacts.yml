@@ -7,6 +7,9 @@ on:
       artifact_name:
         required: true
         type: string
+      board:
+        required: true
+        type: string
     outputs:
       verified_artifact_name:
         description: Name of the verified artifact bundle
@@ -15,6 +18,10 @@ on:
     inputs:
       artifact_name:
         description: Build artifact to verify
+        required: true
+        type: string
+      board:
+        description: Hardware board identifier recorded in the artifact manifest
         required: true
         type: string
 
@@ -27,7 +34,7 @@ concurrency:
 
 jobs:
   verify:
-    name: Verify E310 release artifacts
+    name: Verify release artifacts
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     outputs:
@@ -53,11 +60,12 @@ jobs:
         shell: bash
         env:
           ARTIFACT_NAME: ${{ inputs.artifact_name }}
+          BOARD: ${{ inputs.board }}
         run: |
           set -euo pipefail
           release="$RUNNER_TEMP/input/release"
           test -d "$release"
-          python tools/verify_release.py --release "$release" --board e310
+          python tools/verify_release.py --release "$release" --board "$BOARD"
           mkdir -p "$RUNNER_TEMP/verified"
           python tools/package_release.py --release "$release" --output "$RUNNER_TEMP/verified"
           python tools/generate_sbom.py --release "$release" --output "$RUNNER_TEMP/verified/sbom.spdx.json"

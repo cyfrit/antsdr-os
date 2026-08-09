@@ -14,7 +14,8 @@ import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-from release_metadata import load_metadata
+from board_data import BoardDataError, load_board
+from release_metadata import ReleaseMetadataError, load_metadata
 
 
 class PackageError(RuntimeError):
@@ -51,16 +52,37 @@ def package(release: Path, output: Path) -> list[Path]:
     output = output.resolve()
     manifest = json.loads(require_file(release / "manifest.json").read_text(encoding="utf-8"))
     metadata = json.loads(require_file(release / "build-metadata.json").read_text(encoding="utf-8"))
-    expected_version = str(load_metadata()["product"]["version"])
-    if manifest.get("board") != "e310":
-        raise PackageError("release manifest is not for E310")
+    release_metadata = load_metadata()
+    product_name = str(release_metadata["product"]["name"])
+    expected_version = str(release_metadata["product"]["version"])
+    board_id = manifest.get("board")
+    if not isinstance(board_id, str) or metadata.get("board") != board_id:
+        raise PackageError("release manifest and build metadata disagree on the hardware board")
+    board_entry = next(
+        (entry for entry in release_metadata["supported_boards"] if entry["id"] == board_id),
+        None,
+    )
+    if board_entry is None:
+        raise PackageError(f"release board is not supported: {board_id}")
+    if metadata.get("hardware_target") != board_entry["artifact_id"]:
+        raise PackageError("build metadata does not identify the expected hardware target")
+    if metadata.get("os_name") != product_name:
+        raise PackageError("build metadata does not identify the expected OS product")
     if metadata.get("os_version") != expected_version:
         raise PackageError(
             f"release version {metadata.get('os_version')} does not match {expected_version}"
         )
+    expected_tag = release_metadata["artifacts"]["tag_template"].format(
+        product=release_metadata["product"]["slug"],
+        version=expected_version,
+    )
+    if metadata.get("release_tag") != expected_tag:
+        raise PackageError("build metadata does not identify the OS release tag")
     if manifest.get("fit", {}).get("signed") is not True:
         raise PackageError("refusing to package an unsigned FIT release")
 
+    board = load_board(board_id)
+    firmware = board["build"]["firmware"]
     output.mkdir(parents=True, exist_ok=True)
     epoch = int(metadata["source_date_epoch"])
     common = release / "common"
@@ -70,7 +92,7 @@ def package(release: Path, output: Path) -> list[Path]:
         profile_dir = release / profile["profile_directory"]
         with tempfile.TemporaryDirectory() as temporary:
             staging = Path(temporary)
-            for name in ("BOOT.BIN", "antsdr-e310.itb"):
+            for name in (firmware["boot_image"], firmware["fit_image"]):
                 shutil.copy2(require_file(common / name), staging / name)
             for name in ("uEnv.txt", "qspi-boot.bin", "qspi-extra-env.bin", "firmware-update.conf"):
                 shutil.copy2(require_file(profile_dir / name), staging / name)
@@ -80,10 +102,11 @@ def package(release: Path, output: Path) -> list[Path]:
             }
             package_manifest = {
                 "schema_version": 1,
-                "product": "AntSDR OS",
+                "product": product_name,
                 "version": metadata["os_version"],
-                "board": "e310",
+                "board": board_id,
                 "hardware_revision": metadata["hardware_revision"],
+                "hardware_target": metadata["hardware_target"],
                 "adi_baseline": metadata["adi_baseline"],
                 "profile": profile_id,
                 "fit_configuration": profile["fit_configuration"],
@@ -94,10 +117,7 @@ def package(release: Path, output: Path) -> list[Path]:
                 json.dumps(package_manifest, indent=2, sort_keys=True) + "\n",
                 encoding="utf-8",
             )
-            name = (
-                f"antsdr-e310-revc-os-{metadata['os_version']}-adi-{metadata['adi_baseline']}-"
-                f"{profile_id}.zip"
-            )
+            name = f"{metadata['artifact_stem']}-{profile_id}.zip"
             archive = output / name
             write_zip(staging, archive, epoch)
             archives.append(archive)
@@ -113,7 +133,15 @@ def main() -> int:
         for archive in package(args.release, args.output):
             print(archive)
         return 0
-    except (OSError, ValueError, KeyError, json.JSONDecodeError, PackageError) as error:
+    except (
+        BoardDataError,
+        ReleaseMetadataError,
+        OSError,
+        ValueError,
+        KeyError,
+        json.JSONDecodeError,
+        PackageError,
+    ) as error:
         print(error, file=sys.stderr)
         return 1
 

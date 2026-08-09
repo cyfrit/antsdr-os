@@ -91,7 +91,10 @@ class ReleaseToolsTest(unittest.TestCase):
                     "os_name": "AntSDR OS",
                     "os_version": self.CURRENT_VERSION,
                     "hardware_revision": "revc",
+                    "hardware_target": "e310-revc",
                     "adi_baseline": "v0.39",
+                    "artifact_stem": f"antsdr-os-{self.CURRENT_VERSION}-e310-revc-adi-v0.39",
+                    "release_tag": f"antsdr-os-{self.CURRENT_VERSION}",
                     "source_date_epoch": "0",
                 }
             ),
@@ -114,10 +117,10 @@ class ReleaseToolsTest(unittest.TestCase):
             self.assertEqual(
                 {path.name for path in packages},
                 {
-                    f"antsdr-e310-revc-os-{self.CURRENT_VERSION}-adi-v0.39-ad9361-1r1t.zip",
-                    f"antsdr-e310-revc-os-{self.CURRENT_VERSION}-adi-v0.39-ad9361-2r2t.zip",
-                    f"antsdr-e310-revc-os-{self.CURRENT_VERSION}-adi-v0.39-ad9363-1r1t.zip",
-                    f"antsdr-e310-revc-os-{self.CURRENT_VERSION}-adi-v0.39-ad9363-2r2t.zip",
+                    f"antsdr-os-{self.CURRENT_VERSION}-e310-revc-adi-v0.39-ad9361-1r1t.zip",
+                    f"antsdr-os-{self.CURRENT_VERSION}-e310-revc-adi-v0.39-ad9361-2r2t.zip",
+                    f"antsdr-os-{self.CURRENT_VERSION}-e310-revc-adi-v0.39-ad9363-1r1t.zip",
+                    f"antsdr-os-{self.CURRENT_VERSION}-e310-revc-adi-v0.39-ad9363-2r2t.zip",
                 },
             )
             self.assertEqual(compare_reproducibility.compare(release, release), 0)

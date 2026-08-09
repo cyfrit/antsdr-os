@@ -125,14 +125,14 @@ def verify(release: Path, board_id: str) -> dict[str, Any]:
         except (OSError, json.JSONDecodeError) as error:
             raise ReleaseVerificationError(f"invalid build-metadata.json: {error}") from error
         if build_metadata.get("board") != board_id or build_metadata.get("os_name") != "AntSDR OS":
-            raise ReleaseVerificationError("build metadata does not identify AntSDR OS E310")
+            raise ReleaseVerificationError(f"build metadata does not identify AntSDR OS for {board_id}")
     return manifest
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--release", required=True, type=Path)
-    parser.add_argument("--board", default="e310")
+    parser.add_argument("--board", required=True)
     args = parser.parse_args()
     try:
         manifest = verify(args.release, args.board)

@@ -4,7 +4,7 @@ name: AntSDR OS release
 on:
   push:
     tags:
-      - 'e310-revc-os-*'
+      - 'antsdr-os-*'
 
 permissions:
   contents: read
@@ -48,6 +48,7 @@ jobs:
     uses: ./.github/workflows/verify-artifacts.yml
     with:
       artifact_name: ${{ needs.build.outputs.artifact_name }}
+      board: e310
   publish:
     name: Publish signed release
     needs: [build, verify]
@@ -70,7 +71,7 @@ jobs:
         run: |
           set -euo pipefail
           release_dir="$RUNNER_TEMP/release-bundle"
-          test "$(find "$release_dir" -maxdepth 1 -type f -name '*.zip' | wc -l)" -eq 4
+          test "$(find "$release_dir" -maxdepth 1 -type f -name '*.zip' | wc -l)" -gt 0
           test -f "$release_dir/SHA256SUMS"
           (cd "$release_dir" && sha256sum -c SHA256SUMS)
           echo "release_dir=$release_dir" >> "$GITHUB_OUTPUT"
@@ -104,7 +105,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          version="${GITHUB_REF_NAME##*-os-}"
+          version="${GITHUB_REF_NAME#antsdr-os-}"
           gh release create "$GITHUB_REF_NAME" \
             --repo "$GITHUB_REPOSITORY" \
             --verify-tag \

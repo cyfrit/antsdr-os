@@ -73,7 +73,7 @@ def main() -> int:
     parser.add_argument("--control-dtb", required=True, type=Path)
     parser.add_argument("--fit-check-sign", required=True, type=Path)
     parser.add_argument("--fdtput", default="fdtput")
-    parser.add_argument("--board", default="e310")
+    parser.add_argument("--board", required=True)
     args = parser.parse_args()
     try:
         configurations = verify_profiles(
