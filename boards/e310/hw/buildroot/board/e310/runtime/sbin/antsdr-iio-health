@@ -1,6 +1,6 @@
 #!/bin/sh
 # SPDX-License-Identifier: MIT
-# Check required ANTSDR IIO devices without reading command-only attributes.
+# Check required AntSDR IIO devices without reading command-only attributes.
 
 set -eu
 

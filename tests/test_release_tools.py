@@ -88,7 +88,7 @@ class ReleaseToolsTest(unittest.TestCase):
             json.dumps(
                 {
                     "board": "e310",
-                    "os_name": "ANTSDR OS",
+                    "os_name": "AntSDR OS",
                     "os_version": self.CURRENT_VERSION,
                     "hardware_revision": "revc",
                     "adi_baseline": "v0.39",

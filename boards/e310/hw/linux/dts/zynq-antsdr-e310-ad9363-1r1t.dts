@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * ANTSDR E310 Rev.C AD9363 1R1T profile using RX1 and TX1.
+ * AntSDR E310 Rev.C AD9363 1R1T profile using RX1 and TX1.
  *
  * Copyright (C) 2026 Cyfrit <i@cli.tf>
  */

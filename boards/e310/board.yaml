@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: MIT
 schema_version: 1
 id: e310
-name: ANTSDR E310
+name: AntSDR E310
 vendor: MicroPhase
 aliases:
   - ant
-  - ANTSDR Rev.C
+  - AntSDR Rev.C
 
 upstream:
   plutosdr_fw:

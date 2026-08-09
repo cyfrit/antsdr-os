@@ -38,6 +38,18 @@ class ReleaseWorkflowTest(unittest.TestCase):
         self.assertLess(version, host)
         self.assertLess(version, toolchain)
 
+    def test_release_title_contains_only_product_and_version(self) -> None:
+        workflow = validate_workflows.load_workflow(ROOT / ".github" / "workflows" / "release.yml")
+        commands = [
+            step.get("run", "")
+            for step in workflow["jobs"]["publish"]["steps"]
+            if isinstance(step, dict)
+        ]
+        release_command = next(command for command in commands if "gh release create" in command)
+
+        self.assertIn('--title "AntSDR OS $version"', release_command)
+        self.assertNotIn('--title "AntSDR OS $version (', release_command)
+
 
 if __name__ == "__main__":
     unittest.main()

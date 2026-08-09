@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-name: ANTSDR OS artifact verification
+name: AntSDR OS artifact verification
 
 on:
   workflow_call:

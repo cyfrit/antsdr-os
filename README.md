@@ -1,6 +1,6 @@
-# ANTSDR OS
+# AntSDR OS
 
-Community-maintained firmware for MicroPhase ANTSDR software-defined radios.
+Community-maintained firmware for MicroPhase AntSDR software-defined radios.
 
 ## Supported Hardware
 

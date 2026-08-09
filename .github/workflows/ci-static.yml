@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-name: ANTSDR OS static CI
+name: AntSDR OS static CI
 
 on:
   pull_request:

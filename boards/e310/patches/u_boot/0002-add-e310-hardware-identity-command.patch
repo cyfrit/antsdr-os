@@ -1,5 +1,5 @@
 From: Cyfrit <i@cli.tf>
-Subject: [PATCH] cmd: add ANTSDR E310 hardware identity command
+Subject: [PATCH] cmd: add AntSDR E310 hardware identity command
 SPDX-License-Identifier: GPL-2.0-or-later
 
 Build the board-owned command that publishes a stable serial number and
@@ -13,7 +13,7 @@ diff --git a/cmd/Kconfig b/cmd/Kconfig
  	  Enable this only for signed release builds.
  
 +config CMD_ANTSDR_IDENTITY
-+	bool "ANTSDR hardware identity"
++	bool "AntSDR hardware identity"
 +	depends on ZYNQ_QSPI
 +	select SHA256
 +	help

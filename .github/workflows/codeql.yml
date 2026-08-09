@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-name: ANTSDR OS code scanning
+name: AntSDR OS code scanning
 
 on:
   push:

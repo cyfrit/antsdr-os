@@ -43,7 +43,7 @@ def quoted(value: str) -> str:
 def profile_description(profile: dict[str, Any]) -> str:
     transceiver = profile["transceiver"]["physical_marking"]
     topology = profile["datapath"]["mode"].upper()
-    return f"ANTSDR E310 {transceiver} {topology}"
+    return f"AntSDR E310 {transceiver} {topology}"
 
 
 def render_its(
@@ -64,13 +64,13 @@ def render_its(
 
     bitstream = next(iter(bitstreams))
     fpga_image = fit_image_name("fpga", bitstream)
-    description = f"ANTSDR {board['name']} multi-profile firmware"
+    description = f"{board['name']} multi-profile firmware"
     lines = [
         "/dts-v1/;",
         "",
         "/ {",
         f"\tdescription = {quoted(description)};",
-        '\tmagic = "ITB ANTSDR";',
+        '\tmagic = "ITB AntSDR";',
         "\t#address-cells = <1>;",
         "",
         "\timages {",

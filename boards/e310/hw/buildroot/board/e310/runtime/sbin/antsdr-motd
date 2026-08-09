@@ -1,6 +1,6 @@
 #!/bin/sh
 # SPDX-License-Identifier: MIT
-# Render the interactive ANTSDR status banner.
+# Render the interactive AntSDR status banner.
 
 set -u
 
@@ -185,7 +185,7 @@ if [ -r /etc/antsdr/release ]; then
     [ -n "$antsdr_motd_firmware" ] || antsdr_motd_firmware=development
 fi
 
-antsdr_motd_board=$(antsdr_motd_read /sys/firmware/devicetree/base/model 'ANTSDR E310 Rev.C')
+antsdr_motd_board=$(antsdr_motd_read /sys/firmware/devicetree/base/model 'AntSDR E310 Rev.C')
 antsdr_motd_cpu=$(awk -F: '
     /^Processor[[:space:]]*:/ { sub(/^[[:space:]]+/, "", $2); print $2; exit }
     /^model name[[:space:]]*:/ { sub(/^[[:space:]]+/, "", $2); print $2; exit }

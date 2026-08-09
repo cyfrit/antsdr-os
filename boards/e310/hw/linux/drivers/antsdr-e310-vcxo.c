@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * ANTSDR E310 FPGA VCXO control
+ * AntSDR E310 FPGA VCXO control
  *
  * Copyright (C) 2023 MicroPhase Inc.
  * Copyright (C) 2026 Cyfrit <i@cli.tf>
@@ -248,5 +248,5 @@ static struct platform_driver e310_vcxo_driver = {
 module_platform_driver(e310_vcxo_driver);
 
 MODULE_AUTHOR("Cyfrit <i@cli.tf>");
-MODULE_DESCRIPTION("ANTSDR E310 FPGA VCXO control");
+MODULE_DESCRIPTION("AntSDR E310 FPGA VCXO control");
 MODULE_LICENSE("GPL");

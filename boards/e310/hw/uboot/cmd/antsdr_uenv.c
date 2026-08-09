@@ -84,7 +84,7 @@ static int antsdr_uenv_import(const char *data, size_t size)
 		value_end = line_end;
 		antsdr_uenv_trim(&value, &value_end);
 		if (value_end - value >= sizeof(value_buffer)) {
-			printf("ANTSDR: rejected oversized %.*s value\n",
+			printf("AntSDR: rejected oversized %.*s value\n",
 			       (int)(key_end - key), key);
 			return CMD_RET_FAILURE;
 		}
@@ -92,14 +92,14 @@ static int antsdr_uenv_import(const char *data, size_t size)
 		memcpy(value_buffer, value, value_end - value);
 		value_buffer[value_end - value] = '\0';
 		if (setenv(key_buffer, value_buffer)) {
-			printf("ANTSDR: cannot set %.*s\n",
+			printf("AntSDR: cannot set %.*s\n",
 			       (int)(key_end - key), key);
 			return CMD_RET_FAILURE;
 		}
 		imported++;
 	}
 
-	printf("ANTSDR: imported %u locked uEnv value(s)\n", imported);
+	printf("AntSDR: imported %u locked uEnv value(s)\n", imported);
 	return CMD_RET_SUCCESS;
 }
 
@@ -115,7 +115,7 @@ static int do_antsdr_uenv(cmd_tbl_t *cmdtp, int flag, int argc,
 	address = simple_strtoul(argv[1], NULL, 16);
 	size = simple_strtoul(argv[2], NULL, 16);
 	if (!address || !size || size > ANTSDR_UENV_MAX_SIZE) {
-		printf("ANTSDR: invalid uEnv buffer\n");
+		printf("AntSDR: invalid uEnv buffer\n");
 		return CMD_RET_FAILURE;
 	}
 
@@ -124,7 +124,7 @@ static int do_antsdr_uenv(cmd_tbl_t *cmdtp, int flag, int argc,
 
 U_BOOT_CMD(
 	antsdr_uenv, 3, 0, do_antsdr_uenv,
-	"import approved ANTSDR uEnv variables",
+	"import approved AntSDR uEnv variables",
 	"<address> <size>\n"
 	"    - imports only rf_model and rf_topology"
 );

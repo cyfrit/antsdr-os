@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-name: ANTSDR OS policy CI
+name: AntSDR OS policy CI
 
 on:
   pull_request:

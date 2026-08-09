@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: MIT
-"""Resolve and validate ANTSDR OS release metadata.
+"""Resolve and validate AntSDR OS release metadata.
 
 The public release number is intentionally separate from board and upstream
 coordinates.  A release artifact must therefore carry both the OS ABI version

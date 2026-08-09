@@ -39,7 +39,7 @@ class LicenseAuditTest(unittest.TestCase):
 
     def test_contributor_identity_has_no_placeholder(self) -> None:
         matches = []
-        placeholder = "ANTSDR Firmware " + "contributors"
+        placeholder = "AntSDR Firmware " + "contributors"
         for mode, relative in license_audit.git_entries(ROOT):
             if mode == "160000" or relative.startswith("LICENSES/"):
                 continue

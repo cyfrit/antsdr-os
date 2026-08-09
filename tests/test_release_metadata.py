@@ -18,7 +18,7 @@ class ReleaseMetadataTest(unittest.TestCase):
             source_date_epoch="123",
             version="7.42",
         )
-        self.assertEqual(payload["os_name"], "ANTSDR OS")
+        self.assertEqual(payload["os_name"], "AntSDR OS")
         self.assertEqual(payload["os_version"], "7.42")
         self.assertEqual(payload["board_stream"], "e310-revc")
         self.assertEqual(payload["adi_baseline"], "v0.39")

@@ -1,5 +1,5 @@
 From: Cyfrit <i@cli.tf>
-Subject: [PATCH] ARM: add ANTSDR E310 Linux integration
+Subject: [PATCH] ARM: add AntSDR E310 Linux integration
 SPDX-License-Identifier: GPL-2.0-only
 
 Keep the board implementation in the downstream overlay and only add the
@@ -27,10 +27,10 @@ diff --git a/drivers/iio/frequency/Kconfig b/drivers/iio/frequency/Kconfig
  	  module will be called ad9517.
  
 +config ANTSDR_E310_VCXO_CTRL
-+	tristate "ANTSDR E310 VCXO control"
++	tristate "AntSDR E310 VCXO control"
 +	depends on OF && HAS_IOMEM
 +	help
-+	  Enable the register interface for the ANTSDR E310 FPGA VCXO
++	  Enable the register interface for the AntSDR E310 FPGA VCXO
 +	  discipline block. The driver exposes the manual DAC value,
 +	  active DAC value, reference selection and lock status through IIO.
 +

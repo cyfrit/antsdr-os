@@ -17,6 +17,6 @@ adi_ip_files axi_e310_vcxo_ctrl [list \
 adi_ip_properties axi_e310_vcxo_ctrl
 
 set core [ipx::current_core]
-set_property display_name "ANTSDR E310 VCXO Control" $core
+set_property display_name "AntSDR E310 VCXO Control" $core
 set_property description "E310 40 MHz VCXO discipline and LTC2630 control" $core
 ipx::save_core $core

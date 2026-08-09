@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-name: ANTSDR OS maintenance
+name: AntSDR OS maintenance
 
 on:
   schedule:

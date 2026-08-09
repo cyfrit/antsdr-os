@@ -1,5 +1,5 @@
 From: Cyfrit <i@cli.tf>
-Subject: [PATCH] ARM: dts: add ANTSDR E310 bootloader integration
+Subject: [PATCH] ARM: dts: add AntSDR E310 bootloader integration
 SPDX-License-Identifier: GPL-2.0-or-later
 
 Keep the E310 implementation in the downstream overlay and add only the
@@ -27,21 +27,21 @@ diff --git a/cmd/Kconfig b/cmd/Kconfig
  	  shell scripting.
  
 +config CMD_ANTSDR_UENV
-+	bool "ANTSDR restricted uEnv import"
++	bool "AntSDR restricted uEnv import"
 +	depends on CMD_IMPORTENV
 +	help
 +	  Import only the board-approved RF profile selectors from a
 +	  text-formatted uEnv file.
 +
 +config ANTSDR_UENV_COMPAT
-+	bool "Allow unrestricted ANTSDR uEnv compatibility mode"
++	bool "Allow unrestricted AntSDR uEnv compatibility mode"
 +	depends on CMD_ANTSDR_UENV
 +	help
 +	  Use the conventional env import and uenvcmd ABI. Disable this for
 +	  a locked build that imports only rf_model and rf_topology.
 +
 +config ANTSDR_FIT_SIGNATURE_REQUIRED
-+	bool "Require ANTSDR OS FIT configuration signatures"
++	bool "Require AntSDR OS FIT configuration signatures"
 +	depends on FIT_SIGNATURE
 +	help
 +	  Enforce the release signing key for every selected FIT configuration.

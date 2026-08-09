@@ -65,7 +65,7 @@ def main() -> int:
     args = parser.parse_args()
     try:
         verify(args.certificate, args.dtsi)
-        print("verified ANTSDR OS FIT release key")
+        print("verified AntSDR OS FIT release key")
         return 0
     except (OSError, ValueError, KeyVerificationError) as error:
         print(error, file=sys.stderr)

@@ -208,7 +208,7 @@ import_config() {
 export_config() {
     load_values
     cat <<EOF
-# ANTSDR E310 configuration file
+# AntSDR E310 configuration file
 # Save and eject the USB configuration volume. Changes are persisted for the
 # next boot; no update, flash, or reboot action is executed automatically.
 
@@ -258,7 +258,7 @@ EOF
 
 action_value() {
     [ "$2" = diagnostic_report ] || {
-        echo "unknown ANTSDR action: $2" >&2
+        echo "unknown AntSDR action: $2" >&2
         return 1
     }
     [ -r "$1" ] || {
@@ -290,7 +290,7 @@ get_value() {
         network_gateway) printf '%s\n' "$NETWORK_GATEWAY" ;;
         xo_correction) printf '%s\n' "$XO_CORRECTION" ;;
         udc_handle_suspend) printf '%s\n' "$UDC_HANDLE_SUSPEND" ;;
-        *) echo "unknown ANTSDR setting: $1" >&2; return 1 ;;
+        *) echo "unknown AntSDR setting: $1" >&2; return 1 ;;
     esac
 }
 

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-name: ANTSDR OS release
+name: AntSDR OS release
 
 on:
   push:
@@ -108,7 +108,7 @@ jobs:
           gh release create "$GITHUB_REF_NAME" \
             --repo "$GITHUB_REPOSITORY" \
             --verify-tag \
-            --title "ANTSDR OS $version (E310 Rev.C)" \
+            --title "AntSDR OS $version" \
             --generate-notes \
             "$RELEASE_DIR"/*.zip \
             "$RELEASE_DIR/manifest.json" \

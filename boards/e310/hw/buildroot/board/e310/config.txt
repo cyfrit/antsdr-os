@@ -1,4 +1,4 @@
-# ANTSDR E310 configuration file
+# AntSDR E310 configuration file
 # Save and eject the USB configuration volume. Changes are persisted for the
 # next boot; no update, flash, or reboot action is executed automatically.
 

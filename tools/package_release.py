@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: MIT
-"""Create deterministic, profile-specific ANTSDR OS release archives."""
+"""Create deterministic, profile-specific AntSDR OS release archives."""
 
 from __future__ import annotations
 
@@ -80,7 +80,7 @@ def package(release: Path, output: Path) -> list[Path]:
             }
             package_manifest = {
                 "schema_version": 1,
-                "product": "ANTSDR OS",
+                "product": "AntSDR OS",
                 "version": metadata["os_version"],
                 "board": "e310",
                 "hardware_revision": metadata["hardware_revision"],

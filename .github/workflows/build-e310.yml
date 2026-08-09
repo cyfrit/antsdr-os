@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-name: ANTSDR OS E310 build
+name: AntSDR OS E310 build
 
 on:
   workflow_call:
@@ -59,7 +59,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: ANTSDR OS major.point version
+        description: AntSDR OS major.point version
         required: true
         type: string
       source_date_epoch:
@@ -95,7 +95,7 @@ on:
         type: choice
         options: [hosted, release-hosted, aliyun-persistent]
       release_signing:
-        description: Require and apply the ANTSDR OS release FIT signature
+        description: Require and apply the AntSDR OS release FIT signature
         required: true
         default: false
         type: boolean

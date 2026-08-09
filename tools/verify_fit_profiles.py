@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: MIT
-"""Verify every explicit ANTSDR FIT profile with U-Boot's host verifier."""
+"""Verify every explicit AntSDR FIT profile with U-Boot's host verifier."""
 
 from __future__ import annotations
 

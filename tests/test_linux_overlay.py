@@ -157,6 +157,10 @@ class LinuxOverlayTest(unittest.TestCase):
             {path.with_suffix(".dtb").name for path, _, _ in dtbs.values()},
         )
         self.assertIn("ad936x_phy: ad936x-phy@0", dtsi)
+        self.assertIn(
+            'model = "MicroPhase AntSDR E310 Rev.C (Z7020/AD9361/AD9363)";',
+            dtsi,
+        )
         self.assertNotIn('compatible = "adi,ad936', dtsi)
         self.assertNotIn("adi,2rx-2tx-mode-enable;", dtsi)
         self.assertIn("adi,tx-lo-powerdown-managed-enable;", dtsi)

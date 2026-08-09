@@ -111,7 +111,7 @@ static int antsdr_set_serial(const u8 uid[ANTSDR_UNIQUE_ID_SIZE])
 
 static int antsdr_set_mac(const u8 uid[ANTSDR_UNIQUE_ID_SIZE])
 {
-	static const u8 domain[] = "ANTSDR E310 Ethernet MAC";
+	static const u8 domain[] = "AntSDR E310 Ethernet MAC";
 	u8 input[sizeof(domain) - 1 + ANTSDR_UNIQUE_ID_SIZE];
 	u8 digest[SHA256_SUM_LEN];
 	u8 address[6];
@@ -146,12 +146,12 @@ static int do_antsdr_identity(cmd_tbl_t *cmdtp, int flag, int argc,
 
 	ret = antsdr_read_unique_id(uid);
 	if (ret || !antsdr_uid_valid(uid)) {
-		printf("ANTSDR: SPI NOR hardware identity unavailable\n");
+		printf("AntSDR: SPI NOR hardware identity unavailable\n");
 		return CMD_RET_SUCCESS;
 	}
 
 	if (antsdr_set_serial(uid) || antsdr_set_mac(uid)) {
-		printf("ANTSDR: cannot publish hardware identity\n");
+		printf("AntSDR: cannot publish hardware identity\n");
 		return CMD_RET_FAILURE;
 	}
 
@@ -160,7 +160,7 @@ static int do_antsdr_identity(cmd_tbl_t *cmdtp, int flag, int argc,
 
 U_BOOT_CMD(
 	antsdr_identity, 1, 0, do_antsdr_identity,
-	"publish stable ANTSDR hardware identity",
+	"publish stable AntSDR hardware identity",
 	"\n"
 	"    - derives serial# and ethaddr from the SPI NOR unique ID"
 );

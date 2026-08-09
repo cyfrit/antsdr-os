@@ -150,7 +150,7 @@ CONFIG_I2C_CHARDEV=y
 CONFIG_I2C_CADENCE=y
 CONFIG_I2C_GPIO=y
 CONFIG_I2C_XILINX=y
-# The ANTSDR E310 device tree has no board hwmon temperature device.
+# The AntSDR E310 device tree has no board hwmon temperature device.
 # CONFIG_SENSORS_JC42 is not set
 # CONFIG_SENSORS_IIO_HWMON is not set
 CONFIG_SPI=y

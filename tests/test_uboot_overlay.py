@@ -81,7 +81,7 @@ class UbootOverlayTest(unittest.TestCase):
         dts = DTS.read_text(encoding="utf-8")
         boot = board["hardware"]["boot"]
 
-        self.assertIn('model = "ANTSDR E310 Rev.C";', dts)
+        self.assertIn('model = "AntSDR E310 Rev.C";', dts)
         self.assertIn('"microphase,antsdr-e310-revc"', dts)
         self.assertIn("reg = <0x0 0x40000000>;", dts)
         self.assertIn('compatible = "jedec,spi-nor", "spi-flash";', dts)
@@ -205,7 +205,7 @@ class UbootOverlayTest(unittest.TestCase):
         self.assertIn("#define ANTSDR_WINBOND_MANUFACTURER_ID 0xef", command)
         self.assertIn("#define ANTSDR_READ_UNIQUE_ID 0x4b", command)
         self.assertIn("#define ANTSDR_UNIQUE_ID_SIZE 8", command)
-        self.assertIn('static const u8 domain[] = "ANTSDR E310 Ethernet MAC";', command)
+        self.assertIn('static const u8 domain[] = "AntSDR E310 Ethernet MAC";', command)
         self.assertIn("sha256_csum_wd", command)
         self.assertIn("address[0] = (address[0] & 0xfc) | 0x02;", command)
         self.assertIn('antsdr_mac_valid(getenv("ethaddr"))', command)

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * ANTSDR E310 Rev.C U-Boot device tree.
+ * AntSDR E310 Rev.C U-Boot device tree.
  *
  * Copyright (C) 2026 Cyfrit <i@cli.tf>
  */
@@ -11,7 +11,7 @@
 #include "antsdr-os-release-key.dtsi"
 
 / {
-	model = "ANTSDR E310 Rev.C";
+	model = "AntSDR E310 Rev.C";
 	compatible = "microphase,antsdr-e310-revc", "microphase,antsdr-e310",
 		     "xlnx,zynq-7000";
 

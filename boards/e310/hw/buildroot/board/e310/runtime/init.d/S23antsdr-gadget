@@ -1,6 +1,6 @@
 #!/bin/sh
 # SPDX-License-Identifier: MIT
-# Own the complete ANTSDR USB composite gadget and FunctionFS IIOD.
+# Own the complete AntSDR USB composite gadget and FunctionFS IIOD.
 
 set -eu
 
@@ -127,7 +127,7 @@ wait_for_udc() {
         attempt=$((attempt + 1))
         sleep 1
     done
-    echo "ANTSDR USB: UDC $UDC_NAME is unavailable" >&2
+    echo "AntSDR USB: UDC $UDC_NAME is unavailable" >&2
     return 1
 }
 
@@ -185,7 +185,7 @@ start() {
         -D -n "$IIOD_ENDPOINTS" -F "$IIO_FFS"
     sleep 0.2
     if ! antsdr_pid_matches "$IIOD_PID" /usr/sbin/iiod; then
-        echo "ANTSDR USB: iiod did not start; continuing without IIO" >&2
+        echo "AntSDR USB: iiod did not start; continuing without IIO" >&2
     fi
     printf '%s\n' "$UDC_NAME" > "$GADGET/UDC"
 
@@ -206,7 +206,7 @@ stop() {
 
 case "${1:-}" in
     start)
-        printf 'Starting ANTSDR USB gadget: '
+        printf 'Starting AntSDR USB gadget: '
         if start; then
             printf 'OK\n'
         else

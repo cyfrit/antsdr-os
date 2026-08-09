@@ -37,6 +37,9 @@ class FitGenerationTest(unittest.TestCase):
             for path in sorted((BOARD / "profiles").glob("*.yaml"))
         ]
         self.assertNotIn("md5", its.lower())
+        self.assertIn('description = "AntSDR E310 multi-profile firmware";', its)
+        self.assertIn('magic = "ITB AntSDR";', its)
+        self.assertNotIn("ANTSDR ANTSDR", its)
         self.assertGreaterEqual(its.count('algo = "sha256"'), len(profiles) + 3)
         self.assertEqual(its.count('fpga = "fpga-system_top";'), len(profiles))
 

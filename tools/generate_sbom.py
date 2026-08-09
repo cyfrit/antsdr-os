@@ -30,7 +30,7 @@ def generate(release: Path) -> dict[str, object]:
     metadata = json.loads(metadata_path.read_text(encoding="utf-8")) if metadata_path.is_file() else {}
     board = str(metadata.get("board", "unknown"))
     version = str(metadata.get("os_version", "unknown"))
-    namespace_seed = hashlib.sha256(f"ANTSDR OS:{board}:{version}".encode("utf-8")).hexdigest()
+    namespace_seed = hashlib.sha256(f"AntSDR OS:{board}:{version}".encode("utf-8")).hexdigest()
     files = []
     for path in sorted(item for item in release.rglob("*") if item.is_file() and item.name != "SHA256SUMS"):
         relative = path.relative_to(release).as_posix()
@@ -49,11 +49,11 @@ def generate(release: Path) -> dict[str, object]:
         "spdxVersion": "SPDX-2.3",
         "dataLicense": "CC0-1.0",
         "SPDXID": "SPDXRef-DOCUMENT",
-        "name": f"ANTSDR OS {board} {version} release inventory",
+        "name": f"AntSDR OS {board} {version} release inventory",
         "documentNamespace": f"https://github.com/cyfrit/antsdr-os/releases/{namespace_seed}",
         "creationInfo": {
             "created": created_time(metadata),
-            "creators": ["Tool: ANTSDR OS release tooling"],
+            "creators": ["Tool: AntSDR OS release tooling"],
         },
         "comment": "File-level release inventory. Source dependency coordinates are recorded in build-metadata.json.",
         "files": files,

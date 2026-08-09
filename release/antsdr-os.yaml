@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: MIT
 schema_version: 1
 
-# ANTSDR OS uses a Debian-style public release number.  The OS generation is
+# AntSDR OS uses a Debian-style public release number.  The OS generation is
 # the compatibility boundary; board and upstream coordinates are recorded
 # separately in generated build metadata.
 product:
-  name: ANTSDR OS
+  name: AntSDR OS
   major: 1
   point: 1
   version: "1.1"

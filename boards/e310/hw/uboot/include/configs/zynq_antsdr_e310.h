@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * ANTSDR E310 Rev.C configuration.
+ * AntSDR E310 Rev.C configuration.
  *
  * Copyright (C) 2026 Cyfrit <i@cli.tf>
  */

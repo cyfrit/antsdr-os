@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: MIT
-"""Verify an assembled ANTSDR OS release without programming hardware."""
+"""Verify an assembled AntSDR OS release without programming hardware."""
 
 from __future__ import annotations
 
@@ -124,8 +124,8 @@ def verify(release: Path, board_id: str) -> dict[str, Any]:
             build_metadata = json.loads(metadata.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as error:
             raise ReleaseVerificationError(f"invalid build-metadata.json: {error}") from error
-        if build_metadata.get("board") != board_id or build_metadata.get("os_name") != "ANTSDR OS":
-            raise ReleaseVerificationError("build metadata does not identify ANTSDR OS E310")
+        if build_metadata.get("board") != board_id or build_metadata.get("os_name") != "AntSDR OS":
+            raise ReleaseVerificationError("build metadata does not identify AntSDR OS E310")
     return manifest
 
 

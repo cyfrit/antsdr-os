@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: MIT
-"""Compare two ANTSDR OS release directories for reproducibility."""
+"""Compare two AntSDR OS release directories for reproducibility."""
 
 from __future__ import annotations
 
