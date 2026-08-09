@@ -48,7 +48,7 @@ restore_keys() {
 restore_xo_correction() {
     value=$(/usr/sbin/antsdr-config get xo_correction)
     [ -n "$value" ] || return 0
-    candidate=$(antsdr_find_iio_device ad9361-phy) || return 0
+    candidate=$(antsdr_find_iio_device ad936x-phy ad9361-phy) || return 0
     [ -w "$candidate/xo_correction" ] || return 0
     printf '%s\n' "$value" > "$candidate/xo_correction"
 }

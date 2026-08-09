@@ -7,7 +7,7 @@ set -eu
 . /usr/lib/antsdr/runtime.sh
 
 udc=${1:?UDC name is required}
-iio_dir=$(antsdr_find_iio_device ad9361-phy) || exit 0
+iio_dir=$(antsdr_find_iio_device ad936x-phy ad9361-phy) || exit 0
 previous=$(cat "$iio_dir/ensm_mode")
 suspended=0
 

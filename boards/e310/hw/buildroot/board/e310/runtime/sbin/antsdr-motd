@@ -97,7 +97,7 @@ antsdr_motd_format_temperature() {
     esac
 }
 
-antsdr_motd_find_temperature() {
+antsdr_motd_find_soc_temperature() {
     for zone in /sys/class/thermal/thermal_zone*; do
         [ -r "$zone/temp" ] || continue
         type=$(antsdr_motd_read "$zone/type")
@@ -108,10 +108,49 @@ antsdr_motd_find_temperature() {
                 ;;
         esac
     done
+
+    for device in /sys/bus/iio/devices/iio:device*; do
+        [ -r "$device/name" ] || continue
+        [ "$(antsdr_motd_read "$device/name")" = xadc ] || continue
+        if [ -r "$device/in_temp0_input" ]; then
+            cat "$device/in_temp0_input" 2>/dev/null
+            return 0
+        fi
+        if [ -r "$device/in_temp0_raw" ] &&
+           [ -r "$device/in_temp0_offset" ] &&
+           [ -r "$device/in_temp0_scale" ]; then
+            raw=$(antsdr_motd_read "$device/in_temp0_raw")
+            offset=$(antsdr_motd_read "$device/in_temp0_offset")
+            scale=$(antsdr_motd_read "$device/in_temp0_scale")
+            awk -v raw="$raw" -v offset="$offset" -v scale="$scale" \
+                'BEGIN { printf "%.0f\n", (raw + offset) * scale }'
+            return 0
+        fi
+    done
+    return 1
+}
+
+antsdr_motd_find_phy_temperature() {
+    for zone in /sys/class/thermal/thermal_zone*; do
+        [ -r "$zone/temp" ] || continue
+        type=$(antsdr_motd_read "$zone/type")
+        case "$type" in
+            *ethernet*phy*)
+                cat "$zone/temp" 2>/dev/null
+                return 0
+                ;;
+        esac
+    done
+
     for sensor in /sys/class/hwmon/hwmon*/temp*_input; do
         [ -r "$sensor" ] || continue
-        cat "$sensor" 2>/dev/null
-        return 0
+        name=$(antsdr_motd_read "$(dirname "$sensor")/name")
+        case "$name" in
+            *ethernet*)
+                cat "$sensor" 2>/dev/null
+                return 0
+                ;;
+        esac
     done
     return 1
 }
@@ -166,7 +205,8 @@ if [ -n "$antsdr_motd_rf_device" ]; then
     antsdr_motd_rf_status=OK
 fi
 
-antsdr_motd_soc_temp=$(antsdr_motd_find_temperature || true)
+antsdr_motd_soc_temp=$(antsdr_motd_find_soc_temperature || true)
+antsdr_motd_phy_temp=$(antsdr_motd_find_phy_temperature || true)
 antsdr_motd_rf_temp=
 if [ -n "$antsdr_motd_rf_device" ]; then
     for attribute in in_temp0_input temp0_input; do
@@ -213,7 +253,9 @@ else
     antsdr_motd_cpu_state=FAIL
 fi
 
-printf 'Welcome to AntSDR OS\n\n'
+printf 'Welcome to AntSDR OS\n'
+printf '%sCommunity-maintained firmware for AntSDR hardware%s\n\n' \
+    "$antsdr_motd_dim" "$antsdr_motd_reset"
 printf '%s%sDevice%s\n' "$antsdr_motd_bold" "$antsdr_motd_cyan" "$antsdr_motd_reset"
 antsdr_motd_value 'Board' "$antsdr_motd_board"
 antsdr_motd_value 'Firmware' "$antsdr_motd_firmware"
@@ -234,6 +276,11 @@ if [ -n "$antsdr_motd_rf_temp" ]; then
     antsdr_motd_status 'RF temp' OK "$(antsdr_motd_format_temperature "$antsdr_motd_rf_temp")"
 else
     antsdr_motd_status 'RF temp' 'N/A' 'not available'
+fi
+if [ -n "$antsdr_motd_phy_temp" ]; then
+    antsdr_motd_status 'PHY temp' OK "$(antsdr_motd_format_temperature "$antsdr_motd_phy_temp")"
+else
+    antsdr_motd_status 'PHY temp' 'N/A' 'not available'
 fi
 antsdr_motd_status 'TX' "$antsdr_motd_tx_state" "$antsdr_motd_tx_detail"
 if [ "$antsdr_motd_qspi_state" != OK ]; then

@@ -7,13 +7,15 @@ antsdr_is_mounted() {
 }
 
 antsdr_find_iio_device() {
-    expected_name=$1
     for candidate in /sys/bus/iio/devices/iio:device*; do
         [ -r "$candidate/name" ] || continue
-        if [ "$(cat "$candidate/name")" = "$expected_name" ]; then
-            printf '%s\n' "$candidate"
-            return 0
-        fi
+        candidate_name=$(cat "$candidate/name")
+        for expected_name do
+            if [ "$candidate_name" = "$expected_name" ]; then
+                printf '%s\n' "$candidate"
+                return 0
+            fi
+        done
     done
     return 1
 }

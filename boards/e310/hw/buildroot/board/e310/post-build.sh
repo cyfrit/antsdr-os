@@ -20,7 +20,7 @@ install -m 0644 "$BOARD_DIR/input-event-daemon.conf" "$TARGET_DIR/etc/input-even
 install -m 0644 "$BOARD_DIR/mdev.conf" "$TARGET_DIR/etc/mdev.conf"
 install -m 0644 "$BOARD_DIR/index.html" "$TARGET_DIR/www/index.html"
 
-for program in antsdr-config antsdr-diagnostic antsdr-motd antsdr-persist antsdr-update antsdr-udc-suspend; do
+for program in antsdr-config antsdr-diagnostic antsdr-iio-health antsdr-motd antsdr-persist antsdr-update antsdr-udc-suspend; do
     install -m 0755 "$RUNTIME_DIR/sbin/$program" "$TARGET_DIR/usr/sbin/$program"
 done
 install -m 0644 "$RUNTIME_DIR/profile.d/antsdr-motd.sh" "$TARGET_DIR/etc/profile.d/antsdr-motd.sh"

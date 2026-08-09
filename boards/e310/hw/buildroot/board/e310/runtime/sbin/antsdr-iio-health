@@ -1,0 +1,34 @@
+#!/bin/sh
+# SPDX-License-Identifier: MIT
+# Check required ANTSDR IIO devices without reading command-only attributes.
+
+set -eu
+
+. /usr/lib/antsdr/runtime.sh
+
+antsdr_iio_status=ok
+
+antsdr_iio_check_device() {
+    label=$1
+    shift
+    if device=$(antsdr_find_iio_device "$@"); then
+        printf '%s=ok:%s\n' "$label" "$(basename "$device")"
+    else
+        printf '%s=missing\n' "$label"
+        antsdr_iio_status=fail
+    fi
+}
+
+antsdr_iio_check_device rf ad936x-phy ad9361-phy
+antsdr_iio_check_device rx_dma cf-ad9361-lpc
+antsdr_iio_check_device tx_dma cf-ad9361-dds-core-lpc
+
+if pidof iiod >/dev/null 2>&1; then
+    printf 'iiod=ok\n'
+else
+    printf 'iiod=missing\n'
+    antsdr_iio_status=fail
+fi
+
+printf 'status=%s\n' "$antsdr_iio_status"
+[ "$antsdr_iio_status" = ok ]

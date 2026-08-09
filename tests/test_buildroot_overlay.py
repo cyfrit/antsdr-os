@@ -272,6 +272,7 @@ class BuildrootOverlayTest(unittest.TestCase):
         overlay = (BUILDROOT / "overlay.yaml").read_text(encoding="utf-8")
 
         self.assertIn("Welcome to AntSDR OS", motd)
+        self.assertIn("Community-maintained firmware for AntSDR hardware", motd)
         self.assertIn("Device", motd)
         self.assertIn("Status", motd)
         self.assertIn("qspi-nvmfs", motd)
@@ -280,9 +281,34 @@ class BuildrootOverlayTest(unittest.TestCase):
         self.assertIn("antsdr-persist init --confirm", motd)
         self.assertIn("No QSPI operation is performed automatically", motd)
         self.assertIn('if [ "$antsdr_motd_qspi_state" != OK ]; then', motd)
+        self.assertIn("antsdr_motd_find_soc_temperature", motd)
+        self.assertIn('= xadc ]', motd)
+        self.assertIn("antsdr_motd_find_phy_temperature", motd)
+        self.assertIn("*ethernet*phy*", motd)
+        self.assertIn("'SoC temp'", motd)
+        self.assertIn("'PHY temp'", motd)
         self.assertIn("/usr/sbin/antsdr-motd", profile)
         self.assertIn("antsdr-motd", post_build)
         self.assertIn("profile.d/antsdr-motd.sh", overlay)
+
+    def test_iio_health_check_is_targeted_and_installed(self) -> None:
+        health = (RUNTIME / "sbin" / "antsdr-iio-health").read_text(encoding="utf-8")
+        runtime = (RUNTIME / "lib" / "antsdr-runtime.sh").read_text(encoding="utf-8")
+        diagnostic = (RUNTIME / "sbin" / "antsdr-diagnostic").read_text(encoding="utf-8")
+        post_build = (BUILDROOT / "board" / "e310" / "post-build.sh").read_text(encoding="utf-8")
+        overlay = (BUILDROOT / "overlay.yaml").read_text(encoding="utf-8")
+
+        self.assertIn("antsdr_iio_check_device rf ad936x-phy ad9361-phy", health)
+        self.assertIn("antsdr_iio_check_device rx_dma cf-ad9361-lpc", health)
+        self.assertIn("antsdr_iio_check_device tx_dma cf-ad9361-dds-core-lpc", health)
+        self.assertIn("pidof iiod", health)
+        self.assertNotIn("iio_info", health)
+        self.assertNotIn("/sys/bus/iio/devices/iio:device*/", health)
+
+        self.assertIn("for expected_name do", runtime)
+        self.assertIn("antsdr-iio-health", diagnostic)
+        self.assertIn("antsdr-iio-health", post_build)
+        self.assertIn("runtime/sbin/antsdr-iio-health", overlay)
 
     def test_input_event_daemon_matches_the_e310_input_devices(self) -> None:
         config_path = BUILDROOT / "board" / "e310" / "input-event-daemon.conf"

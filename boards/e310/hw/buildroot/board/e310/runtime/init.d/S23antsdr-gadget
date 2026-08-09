@@ -84,7 +84,7 @@ write_libiio_context() {
     model=$(tr -d '\000' < /sys/firmware/devicetree/base/model 2>/dev/null || printf '%s' "$BOARD_MODEL")
     rf_model=unknown
     xo_correction=
-    candidate=$(antsdr_find_iio_device ad9361-phy || true)
+    candidate=$(antsdr_find_iio_device ad936x-phy ad9361-phy || true)
     if [ -n "$candidate" ]; then
         rf_model=$(tr '\000' '\n' < "$candidate/of_node/compatible" 2>/dev/null | sed -n 's/^adi,//p' | head -n 1)
         xo_correction=$(cat "$candidate/xo_correction" 2>/dev/null || true)

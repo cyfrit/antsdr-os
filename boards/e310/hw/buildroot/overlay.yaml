@@ -30,6 +30,8 @@ files:
     destination: board/e310/runtime/sbin/antsdr-config
   - source: board/e310/runtime/sbin/antsdr-diagnostic
     destination: board/e310/runtime/sbin/antsdr-diagnostic
+  - source: board/e310/runtime/sbin/antsdr-iio-health
+    destination: board/e310/runtime/sbin/antsdr-iio-health
   - source: board/e310/runtime/sbin/antsdr-motd
     destination: board/e310/runtime/sbin/antsdr-motd
   - source: board/e310/runtime/sbin/antsdr-persist

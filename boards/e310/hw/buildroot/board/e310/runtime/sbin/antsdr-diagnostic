@@ -29,6 +29,9 @@ for device in /sys/bus/iio/devices/iio:device*; do
     cat "$device/name"
 done
 
+section iio-health
+/usr/sbin/antsdr-iio-health || true
+
 section network
 ip -o -4 addr show 2>/dev/null || true
 ip route show 2>/dev/null || true
