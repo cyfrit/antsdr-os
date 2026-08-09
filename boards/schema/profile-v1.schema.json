@@ -33,9 +33,9 @@
       "additionalProperties": false,
       "required": ["mode", "interface", "sample_width_bits", "dma_width_bits"],
       "properties": {
-        "mode": { "enum": ["1r1t", "2r2t"] },
-        "interface": { "const": "cmos-full-port" },
-        "sample_width_bits": { "const": 12 },
+        "mode": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+        "interface": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+        "sample_width_bits": { "type": "integer", "minimum": 1 },
         "dma_width_bits": {
           "type": "object",
           "required": ["rx", "tx"],
