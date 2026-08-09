@@ -3,7 +3,7 @@
 
 #include <common.h>
 #include <command.h>
-#include <linux/errno.h>
+#include <errno.h>
 #include <net.h>
 #include <spi.h>
 #include <u-boot/sha256.h>
