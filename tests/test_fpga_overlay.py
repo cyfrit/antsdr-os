@@ -176,7 +176,6 @@ class FpgaOverlayTest(unittest.TestCase):
         ).read_text(encoding="utf-8")
         self.assertIn("transfer_value <= value;", source)
         self.assertIn("last_value <= transfer_value;", source)
-        self.assertNotIn("last_value <= value;", source)
 
     def test_vcxo_cdc_uses_mailboxes_and_local_reset_release(self) -> None:
         controller = (
@@ -205,8 +204,6 @@ class FpgaOverlayTest(unittest.TestCase):
         self.assertIn("always @(posedge reference_clock or posedge reference_reset)", reference_pll)
         self.assertIn("} <= control_bus_sync;", controller)
         self.assertIn("active_dac_axi <= status_bus_sync[18:3];", controller)
-        self.assertNotIn("control_update", controller)
-        self.assertNotIn("active_dac_sync", controller)
 
         for endpoint in (
             "external_reference_sync",

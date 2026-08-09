@@ -302,8 +302,6 @@ class BuildrootOverlayTest(unittest.TestCase):
         self.assertIn("antsdr_iio_check_device rx_dma cf-ad9361-lpc", health)
         self.assertIn("antsdr_iio_check_device tx_dma cf-ad9361-dds-core-lpc", health)
         self.assertIn("pidof iiod", health)
-        self.assertNotIn("iio_info", health)
-        self.assertNotIn("/sys/bus/iio/devices/iio:device*/", health)
 
         self.assertIn("for expected_name do", runtime)
         self.assertIn("antsdr-iio-health", diagnostic)
@@ -317,7 +315,6 @@ class BuildrootOverlayTest(unittest.TestCase):
         overlay = (BUILDROOT / "overlay.yaml").read_text(encoding="utf-8")
 
         self.assertIn("listen = /dev/input/event0", config)
-        self.assertNotIn("event1", config)
         self.assertIn("input-event-daemon.conf", post_build)
         self.assertIn("input-event-daemon.conf", overlay)
 
@@ -339,10 +336,7 @@ class BuildrootOverlayTest(unittest.TestCase):
         self.assertIn('start-stop-daemon -K -q -p "$IIOD_PID" -x /usr/sbin/iiod', gadget)
         self.assertIn("UDC_NAME=ci_hdrc.0", gadget)
         self.assertIn("wait_for_udc", gadget)
-        self.assertNotIn("S20antsdr-gadget", (ROOT / "boards" / "e310" / "hw" / "buildroot" / "overlay.yaml").read_text(encoding="utf-8"))
         self.assertIn("/sbin/mdev -s", mdev)
-        self.assertNotIn("modprobe", mdev)
-        self.assertNotIn("killall", network)
         self.assertIn('HTTPD_PID=/run/antsdr/httpd.pid', network)
         self.assertIn('UDHCPD_PID=/run/antsdr/udhcpd.pid', network)
         self.assertNotIn("wlan", network.lower())

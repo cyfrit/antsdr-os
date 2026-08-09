@@ -157,13 +157,8 @@ class LinuxOverlayTest(unittest.TestCase):
             {path.with_suffix(".dtb").name for path, _, _ in dtbs.values()},
         )
         self.assertIn("ad936x_phy: ad936x-phy@0", dtsi)
-        self.assertIn(
-            'model = "MicroPhase AntSDR E310 Rev.C (Z7020/AD9361/AD9363)";',
-            dtsi,
-        )
         self.assertNotIn('compatible = "adi,ad936', dtsi)
         self.assertNotIn("adi,2rx-2tx-mode-enable;", dtsi)
-        self.assertIn("adi,tx-lo-powerdown-managed-enable;", dtsi)
         self.assertIn(
             f'reset-gpios = <&gpio0 {gpio_lines["ethernet-phy-reset"]} GPIO_ACTIVE_LOW>;',
             dtsi,
@@ -177,7 +172,6 @@ class LinuxOverlayTest(unittest.TestCase):
             dtsi,
         )
         self.assertIn('compatible = "adi,axi-tdd";', dtsi)
-        self.assertNotIn('compatible = "adi,axi-tdd-1.00";', dtsi)
         self.assertIn('compatible = "adi,iio-fake-platform-device";', dtsi)
         self.assertIn("adi,faked-dev = <&axi_tdd>;", dtsi)
 

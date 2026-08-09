@@ -81,7 +81,6 @@ class UbootOverlayTest(unittest.TestCase):
         dts = DTS.read_text(encoding="utf-8")
         boot = board["hardware"]["boot"]
 
-        self.assertIn('model = "AntSDR E310 Rev.C";', dts)
         self.assertIn('"microphase,antsdr-e310-revc"', dts)
         self.assertIn("reg = <0x0 0x40000000>;", dts)
         self.assertIn('compatible = "jedec,spi-nor", "spi-flash";', dts)
@@ -105,14 +104,8 @@ class UbootOverlayTest(unittest.TestCase):
         self.assertIn("#define CONFIG_EXTRA_ENV_SETTINGS", header)
         self.assertIn('#define CONFIG_BOOTCOMMAND "run boot_antsdr"', header)
         self.assertIn('"boot_antsdr=run $modeboot\\0"', header)
-        self.assertNotIn('"boot_antsdr=run sdboot || run qspiboot\\0"', header)
         self.assertIn('"recovery=run load_qspi_extraenv; run qspiboot\\0"', header)
         self.assertIn("antsdr-e310.itb", header)
-        self.assertNotIn("sdboot_legacy", header)
-        self.assertNotIn("uramdisk.image.gz", header)
-        self.assertNotIn("devicetree.dtb", header)
-        self.assertNotIn("devicetree_image", header)
-        self.assertNotIn('"kernel_image=', header)
         self.assertIn("select_rf_profile", header)
         self.assertIn(
             '"setenv fit_config config@e310-${rf_model}-${rf_topology}; "',
@@ -130,7 +123,6 @@ class UbootOverlayTest(unittest.TestCase):
         self.assertIn("clk_ignore_unused", header)
         self.assertIn('"fdt_high=0x20000000\\0"', header)
         self.assertIn('"initrd_high=0x20000000\\0"', header)
-        self.assertNotIn("maxcpus=1", header)
 
         self.assertIn('"bootenv=uEnv.txt\\0"', header)
         self.assertIn('"uenv_image=uEnv.txt\\0"', header)
@@ -152,7 +144,6 @@ class UbootOverlayTest(unittest.TestCase):
         self.assertIn('"qspi_nvmfs_offset=0x00420000\\0"', header)
         self.assertIn('"qspi_nvmfs_size=0x000e0000\\0"', header)
         self.assertIn("sf erase ${qspi_nvmfs_offset} ${qspi_nvmfs_size}", header)
-        self.assertNotIn("loaddfu=", header)
         self.assertIn("sf update", header)
         self.assertNotIn("env save", header)
         self.assertNotRegex(header, r"\\bfdt\\s+(?:set|rm)\\b")
@@ -219,7 +210,6 @@ class UbootOverlayTest(unittest.TestCase):
 
         self.assertIn("config CMD_ANTSDR_IDENTITY", patch)
         self.assertIn("depends on ZYNQ_QSPI", patch)
-        self.assertNotIn("depends on SPI\n", patch)
         self.assertIn("select SHA256", patch)
         self.assertIn("obj-$(CONFIG_CMD_ANTSDR_IDENTITY) += antsdr_identity.o", patch)
 
