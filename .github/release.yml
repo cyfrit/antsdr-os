@@ -1,0 +1,33 @@
+# GitHub native configuration for `gh release create --generate-notes`.
+# Keep labels stable: they are part of the release-note contract.
+changelog:
+  exclude:
+    labels:
+      - skip-changelog
+      - dependencies
+    authors:
+      - dependabot
+  categories:
+    - title: Features
+      labels:
+        - feature
+        - enhancement
+    - title: Bug Fixes
+      labels:
+        - bug
+        - fix
+    - title: Security
+      labels:
+        - security
+    - title: Build and CI
+      labels:
+        - ci
+        - build
+        - performance
+    - title: Documentation
+      labels:
+        - documentation
+        - docs
+    - title: Other Changes
+      labels:
+        - "*"

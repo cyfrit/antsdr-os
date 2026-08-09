@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: MIT
 import sys
+import yaml
 import unittest
 from pathlib import Path
 
@@ -11,6 +12,15 @@ import validate_workflows  # noqa: E402
 
 
 class WorkflowPolicyTest(unittest.TestCase):
+    def test_release_notes_configuration_has_fallback_category(self) -> None:
+        config = yaml.safe_load((ROOT / ".github" / "release.yml").read_text(encoding="utf-8"))
+        changelog = config["changelog"]
+        categories = changelog["categories"]
+        self.assertTrue(categories)
+        self.assertEqual(categories[-1]["title"], "Other Changes")
+        self.assertIn("*", categories[-1]["labels"])
+        self.assertIn("skip-changelog", changelog["exclude"]["labels"])
+
     def test_all_workflows_follow_supply_chain_policy(self) -> None:
         paths = validate_workflows.workflow_files(ROOT)
         self.assertTrue(paths)
