@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 # GitHub native configuration for `gh release create --generate-notes`.
 # Keep labels stable: they are part of the release-note contract.
 changelog:
