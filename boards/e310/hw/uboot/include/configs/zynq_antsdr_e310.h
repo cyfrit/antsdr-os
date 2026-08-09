@@ -72,7 +72,8 @@
 			"env import -c ${qspi_extraenv_load_address} ${qspi_extraenv_size} || true; " \
 		"fi; " \
 	"fi\0" \
-	"preboot=if test \"${modeboot}\" = sdboot; then " \
+	"preboot=antsdr_identity; " \
+		"if test \"${modeboot}\" = sdboot; then " \
 		"run load_uenv; " ANTSDR_UENV_POSTLOAD \
 		"else if test \"${modeboot}\" = qspiboot; then run load_qspi_extraenv; fi; fi\0" \
 	"validate_rf_model=if test \"${rf_model}\" = ad9363; then true; " \

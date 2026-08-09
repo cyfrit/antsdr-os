@@ -16,7 +16,9 @@ UBOOT = BOARD / "hw" / "uboot"
 DTS = UBOOT / "dts" / "zynq-antsdr-e310.dts"
 DEFCONFIG = UBOOT / "configs" / "zynq_antsdr_e310_defconfig"
 HEADER = UBOOT / "include" / "configs" / "zynq_antsdr_e310.h"
+IDENTITY_COMMAND = UBOOT / "cmd" / "antsdr_identity.c"
 UENV_COMMAND = UBOOT / "cmd" / "antsdr_uenv.c"
+IDENTITY_PATCH = BOARD / "patches" / "u_boot" / "0002-add-e310-hardware-identity-command.patch"
 UPSTREAM = ROOT / "upstream" / "adi-plutosdr-fw" / "u-boot-xlnx"
 
 
@@ -52,6 +54,7 @@ class UbootOverlayTest(unittest.TestCase):
             "CONFIG_ZYNQ_QSPI=y",
             "CONFIG_SPI_FLASH_BAR=y",
             "CONFIG_SPI_FLASH_STMICRO=y",
+            "CONFIG_SPI_FLASH_WINBOND=y",
             "CONFIG_USB_GADGET=y",
             "CONFIG_CI_UDC=y",
             "CONFIG_USB_GADGET_DOWNLOAD=y",
@@ -59,6 +62,7 @@ class UbootOverlayTest(unittest.TestCase):
             "CONFIG_G_DNL_PRODUCT_NUM=0xb674",
             "CONFIG_DFU_SF=y",
             "CONFIG_CMD_IMPORTENV=y",
+            "CONFIG_CMD_ANTSDR_IDENTITY=y",
             "CONFIG_CMD_ANTSDR_UENV=y",
             "CONFIG_ANTSDR_UENV_COMPAT=y",
         }
@@ -136,7 +140,8 @@ class UbootOverlayTest(unittest.TestCase):
         self.assertIn('"run_uenvcmd=if test -n ${uenvcmd}; then run uenvcmd; fi\\0"', header)
         self.assertIn("CONFIG_ANTSDR_UENV_COMPAT", header)
         self.assertIn("antsdr_uenv ${uenv_load_address} ${filesize};", header)
-        self.assertIn('"preboot=if test \\"${modeboot}\\" = sdboot; then "', header)
+        self.assertIn('"preboot=antsdr_identity; "', header)
+        self.assertIn('"if test \\"${modeboot}\\" = sdboot; then "', header)
         self.assertIn("qspi_extraenv_offset=0x003ff000", header)
         self.assertIn("env import -c ${qspi_extraenv_load_address}", header)
         self.assertIn('"dfu_alt_info=qspi-boot.bin raw 0x00000000 0x00400000\\\\;"', header)
@@ -192,6 +197,31 @@ class UbootOverlayTest(unittest.TestCase):
         self.assertIn("setenv(key_buffer, value_buffer)", command)
         self.assertNotIn('\"uenvcmd\"', command)
         self.assertNotIn("saveenv", command)
+
+    def test_hardware_identity_is_stable_local_and_non_persistent(self) -> None:
+        command = IDENTITY_COMMAND.read_text(encoding="utf-8")
+        patch = IDENTITY_PATCH.read_text(encoding="utf-8")
+
+        self.assertIn("#define ANTSDR_WINBOND_MANUFACTURER_ID 0xef", command)
+        self.assertIn("#define ANTSDR_READ_UNIQUE_ID 0x4b", command)
+        self.assertIn("#define ANTSDR_UNIQUE_ID_SIZE 8", command)
+        self.assertIn('static const u8 domain[] = "ANTSDR E310 Ethernet MAC";', command)
+        self.assertIn("sha256_csum_wd", command)
+        self.assertIn("address[0] = (address[0] & 0xfc) | 0x02;", command)
+        self.assertIn('antsdr_mac_valid(getenv("ethaddr"))', command)
+        self.assertIn('getenv("serial#") && *getenv("serial#")', command)
+        self.assertIn('setenv("serial#", serial)', command)
+        self.assertIn('setenv("ethaddr", text)', command)
+        self.assertNotIn("saveenv", command)
+        self.assertNotIn("env save", command)
+        self.assertNotIn("sf write", command)
+        self.assertNotIn("sf update", command)
+
+        self.assertIn("config CMD_ANTSDR_IDENTITY", patch)
+        self.assertIn("depends on ZYNQ_QSPI", patch)
+        self.assertNotIn("depends on SPI\n", patch)
+        self.assertIn("select SHA256", patch)
+        self.assertIn("obj-$(CONFIG_CMD_ANTSDR_IDENTITY) += antsdr_identity.o", patch)
 
     @unittest.skipUnless(shutil.which("cpp") and shutil.which("dtc"), "cpp and dtc are required")
     def test_device_tree_compiles(self) -> None:

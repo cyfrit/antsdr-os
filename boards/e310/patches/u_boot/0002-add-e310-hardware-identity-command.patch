@@ -1,0 +1,34 @@
+From: Cyfrit <i@cli.tf>
+Subject: [PATCH] cmd: add ANTSDR E310 hardware identity command
+SPDX-License-Identifier: GPL-2.0-or-later
+
+Build the board-owned command that publishes a stable serial number and
+Ethernet address before U-Boot applies its device-tree fixups.
+
+diff --git a/cmd/Kconfig b/cmd/Kconfig
+--- a/cmd/Kconfig
++++ b/cmd/Kconfig
+@@ -284,6 +284,13 @@ config ANTSDR_FIT_SIGNATURE_REQUIRED
+ 	  Enforce the release signing key for every selected FIT configuration.
+ 	  Enable this only for signed release builds.
+ 
++config CMD_ANTSDR_IDENTITY
++	bool "ANTSDR hardware identity"
++	depends on ZYNQ_QSPI
++	select SHA256
++	help
++	  Derive stable board identity from the SPI NOR unique ID.
++
+ endmenu
+ 
+ menu "Memory commands"
+diff --git a/cmd/Makefile b/cmd/Makefile
+--- a/cmd/Makefile
++++ b/cmd/Makefile
+@@ -152,5 +152,6 @@ obj-$(CONFIG_CMD_ZYNQ_RSA) += zynq_rsa.o
+ 
+ obj-$(CONFIG_CMD_DFU) += dfu.o
+ obj-$(CONFIG_CMD_ANTSDR_UENV) += antsdr_uenv.o
++obj-$(CONFIG_CMD_ANTSDR_IDENTITY) += antsdr_identity.o
+ obj-$(CONFIG_CMD_GPT) += gpt.o
+ obj-$(CONFIG_CMD_ETHSW) += ethsw.o
