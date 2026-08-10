@@ -9,6 +9,7 @@ import os
 import shlex
 import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable
 
@@ -26,6 +27,11 @@ FPGA_CACHE = ROOT / "tools" / "fpga_cache.py"
 HARDWARE_CACHE = ROOT / "tools" / "hardware_cache.py"
 CREATE_BOOT_BIN = ROOT / "tools" / "create_zynq_boot_bin.py"
 COMPONENTS = ("hdl", "linux", "u_boot", "buildroot")
+KBUILD_IDENTITY = {
+    "KBUILD_BUILD_USER": "builder",
+    "KBUILD_BUILD_HOST": "antsdr-os",
+    "KBUILD_BUILD_VERSION": "1",
+}
 
 
 class BuildError(RuntimeError):
@@ -290,6 +296,14 @@ def require_sources(workspace: Path, components: Iterable[str]) -> None:
 
 def build_environment(workspace: Path) -> dict[str, str]:
     environment = os.environ.copy()
+    environment.update(KBUILD_IDENTITY)
+    source_date_epoch = environment.get("SOURCE_DATE_EPOCH")
+    if source_date_epoch:
+        try:
+            timestamp = datetime.fromtimestamp(int(source_date_epoch), timezone.utc)
+        except (OverflowError, OSError, ValueError) as error:
+            raise BuildError("SOURCE_DATE_EPOCH must be a valid Unix timestamp") from error
+        environment["KBUILD_BUILD_TIMESTAMP"] = timestamp.strftime("%Y-%m-%d %H:%M:%S UTC")
     host_bin = output_dir(workspace, "buildroot") / "host" / "bin"
     if host_bin.is_dir():
         environment["PATH"] = str(host_bin) + os.pathsep + environment.get("PATH", "")

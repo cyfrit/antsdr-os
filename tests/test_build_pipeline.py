@@ -4,6 +4,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -52,8 +53,13 @@ class BuildPipelineTest(unittest.TestCase):
             workspace = Path(directory)
             host_bin = workspace / "out" / "buildroot" / "host" / "bin"
             host_bin.mkdir(parents=True)
-            environment = e310_build.build_environment(workspace)
+            with mock.patch.dict(e310_build.os.environ, {"SOURCE_DATE_EPOCH": "0"}):
+                environment = e310_build.build_environment(workspace)
             self.assertEqual(environment["PATH"].split(e310_build.os.pathsep)[0], str(host_bin))
+            self.assertEqual(environment["KBUILD_BUILD_USER"], "builder")
+            self.assertEqual(environment["KBUILD_BUILD_HOST"], "antsdr-os")
+            self.assertEqual(environment["KBUILD_BUILD_VERSION"], "1")
+            self.assertEqual(environment["KBUILD_BUILD_TIMESTAMP"], "1970-01-01 00:00:00 UTC")
 
     def test_verified_fpga_bundle_replaces_only_the_vivado_build(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
