@@ -4,6 +4,8 @@
 
 set -u
 
+. /usr/lib/antsdr/runtime.sh
+
 antsdr_motd_escape=$(printf '\033')
 if [ -t 1 ]; then
     antsdr_motd_bold="${antsdr_motd_escape}[1m"
@@ -78,12 +80,12 @@ antsdr_motd_qspi_notice() {
     printf '\n'
     antsdr_motd_notice_line 'Full QSPI provisioning (U-Boot):'
     antsdr_motd_notice_command 'run qspi_provision'
-    antsdr_motd_notice_line 'Requires on SD: qspi-boot.bin and antsdr-e310.itb.'
+    antsdr_motd_notice_line "Requires on SD: $BOOT_UPDATE_IMAGE and $FIRMWARE_IMAGE."
     antsdr_motd_notice_line 'Writes the current QSPI boot/FIT layout and resets qspi-nvmfs.'
     printf '\n'
     antsdr_motd_notice_line 'SD-only persistent storage initialization (Linux):'
     antsdr_motd_notice_command 'antsdr-persist init --confirm'
-    antsdr_motd_notice_line 'Erases /dev/mtd2 and creates clean JFFS2 metadata.'
+    antsdr_motd_notice_line "Erases $PERSIST_MTD_DEVICE and creates clean JFFS2 metadata."
     antsdr_motd_notice_line 'This also removes saved persistent configuration and credentials.'
     printf '\n'
     antsdr_motd_notice_line 'No QSPI operation is performed automatically.'
@@ -185,7 +187,7 @@ if [ -r /etc/antsdr/release ]; then
     [ -n "$antsdr_motd_firmware" ] || antsdr_motd_firmware=development
 fi
 
-antsdr_motd_board=$(antsdr_motd_read /sys/firmware/devicetree/base/model 'AntSDR E310 Rev.C')
+antsdr_motd_board=$(antsdr_motd_read /sys/firmware/devicetree/base/model "$BOARD_MODEL")
 antsdr_motd_cpu=$(awk -F: '
     /^Processor[[:space:]]*:/ { sub(/^[[:space:]]+/, "", $2); print $2; exit }
     /^model name[[:space:]]*:/ { sub(/^[[:space:]]+/, "", $2); print $2; exit }
@@ -228,17 +230,15 @@ if [ -n "$antsdr_motd_rf_device" ] && [ -r "$antsdr_motd_rf_device/out_altvoltag
 fi
 
 antsdr_motd_qspi_state=FAIL
-antsdr_motd_qspi_detail='qspi-nvmfs partition not found'
-if [ -r /sys/class/mtd/mtd2/name ]; then
-    antsdr_motd_qspi_name=$(antsdr_motd_read /sys/class/mtd/mtd2/name)
-    antsdr_motd_qspi_size=$(antsdr_motd_read /sys/class/mtd/mtd2/size)
-    if [ "$antsdr_motd_qspi_name" != 'qspi-nvmfs' ]; then
-        antsdr_motd_qspi_detail="mtd2 is ${antsdr_motd_qspi_name:-unknown}"
-    elif [ "$antsdr_motd_qspi_size" != '917504' ] &&
-         [ "$antsdr_motd_qspi_size" != '0xe0000' ] &&
-         [ "$antsdr_motd_qspi_size" != '0xE0000' ]; then
-        antsdr_motd_qspi_detail='qspi-nvmfs has an unexpected size'
-    elif grep -qs ' /mnt/antsdr-persist ' /proc/mounts; then
+antsdr_motd_qspi_detail="$PERSIST_MTD_LABEL partition not found"
+if [ -r "$PERSIST_MTD_SYSFS/name" ]; then
+    antsdr_motd_qspi_name=$(antsdr_motd_read "$PERSIST_MTD_SYSFS/name")
+    antsdr_motd_qspi_size=$(antsdr_motd_read "$PERSIST_MTD_SYSFS/size")
+    if [ "$antsdr_motd_qspi_name" != "$PERSIST_MTD_LABEL" ]; then
+        antsdr_motd_qspi_detail="$PERSIST_MTD_NAME is ${antsdr_motd_qspi_name:-unknown}"
+    elif [ "$antsdr_motd_qspi_size" != "$PERSIST_MTD_SIZE_BYTES" ]; then
+        antsdr_motd_qspi_detail="$PERSIST_MTD_LABEL has an unexpected size"
+    elif antsdr_is_mounted "$PERSIST_MOUNT_DIR"; then
         antsdr_motd_qspi_state=OK
         antsdr_motd_qspi_detail='persistent storage mounted'
     else

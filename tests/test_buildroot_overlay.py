@@ -349,16 +349,16 @@ class BuildrootOverlayTest(unittest.TestCase):
         self.assertNotIn("mount -t jffs2", gadget)
         self.assertNotIn("mtd2 /mnt/antsdr-persist jffs2", post_build)
         self.assertIn("trap restore_mode EXIT", suspend)
-        self.assertIn("UPDATE_STATE_FILE=/mnt/antsdr-persist/etc/firmware-update.sha256", volume)
-        self.assertIn("flash_erase -j /dev/mtd2 0 0", persist)
+        self.assertIn('UPDATE_STATE_FILE="$PERSIST_MOUNT_DIR/etc/firmware-update.sha256"', volume)
+        self.assertIn('flash_erase -j "$PERSIST_MTD_DEVICE" 0 0', persist)
         self.assertIn('rm -f "$MOUNT_DIR/firmware-update.conf"', volume)
         self.assertNotIn("\n        reboot", volume)
         self.assertIn("flashcp -v", updater)
         self.assertIn("sha256sum", updater)
         self.assertNotIn("md5", updater.lower())
         self.assertLess(
-            updater.index('flash_image qspi-linux "$ROOT_DIR/$firmware_name"'),
-            updater.index('flash_image qspi-fsbl-uboot "$ROOT_DIR/$boot_name"'),
+            updater.index('flash_image "$FIRMWARE_MTD_PARTITION" "$ROOT_DIR/$firmware_name"'),
+            updater.index('flash_image "$BOOT_MTD_PARTITION" "$ROOT_DIR/$boot_name"'),
         )
 
     def test_runtime_excludes_unsafe_vendor_update_paths(self) -> None:

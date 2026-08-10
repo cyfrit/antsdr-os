@@ -8,17 +8,25 @@ from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PIPELINE = ROOT / "tools" / "e310_build.py"
+PIPELINE = ROOT / "tools" / "firmware_build.py"
 sys.path.insert(0, str(ROOT / "tools"))
-import e310_build  # noqa: E402
+import firmware_build  # noqa: E402
 
 
 class BuildPipelineTest(unittest.TestCase):
     def test_plan_is_read_only_and_covers_the_delivery_chain(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            workspace = Path(directory) / "e310-workspace"
+            workspace = Path(directory) / "workspace"
             result = subprocess.run(
-                [sys.executable, str(PIPELINE), "plan", "--workspace", str(workspace)],
+                [
+                    sys.executable,
+                    str(PIPELINE),
+                    "plan",
+                    "--board",
+                    "e310",
+                    "--workspace",
+                    str(workspace),
+                ],
                 cwd=ROOT,
                 check=False,
                 capture_output=True,
@@ -39,7 +47,15 @@ class BuildPipelineTest(unittest.TestCase):
 
     def test_pipeline_refuses_a_workspace_inside_the_repository(self) -> None:
         result = subprocess.run(
-            [sys.executable, str(PIPELINE), "plan", "--workspace", str(ROOT / "build" / "forbidden")],
+            [
+                sys.executable,
+                str(PIPELINE),
+                "plan",
+                "--board",
+                "e310",
+                "--workspace",
+                str(ROOT / "build" / "forbidden"),
+            ],
             cwd=ROOT,
             check=False,
             capture_output=True,
@@ -53,9 +69,9 @@ class BuildPipelineTest(unittest.TestCase):
             workspace = Path(directory)
             host_bin = workspace / "out" / "buildroot" / "host" / "bin"
             host_bin.mkdir(parents=True)
-            with mock.patch.dict(e310_build.os.environ, {"SOURCE_DATE_EPOCH": "0"}):
-                environment = e310_build.build_environment(workspace)
-            self.assertEqual(environment["PATH"].split(e310_build.os.pathsep)[0], str(host_bin))
+            with mock.patch.dict(firmware_build.os.environ, {"SOURCE_DATE_EPOCH": "0"}):
+                environment = firmware_build.build_environment(workspace)
+            self.assertEqual(environment["PATH"].split(firmware_build.os.pathsep)[0], str(host_bin))
             self.assertEqual(environment["KBUILD_BUILD_USER"], "builder")
             self.assertEqual(environment["KBUILD_BUILD_HOST"], "antsdr-os")
             self.assertEqual(environment["KBUILD_BUILD_VERSION"], "1")
@@ -69,6 +85,8 @@ class BuildPipelineTest(unittest.TestCase):
                     sys.executable,
                     str(PIPELINE),
                     "plan",
+                    "--board",
+                    "e310",
                     "--workspace",
                     str(base / "workspace"),
                     "--fpga-cache-bundle",
@@ -95,6 +113,8 @@ class BuildPipelineTest(unittest.TestCase):
                     sys.executable,
                     str(PIPELINE),
                     "plan",
+                    "--board",
+                    "e310",
                     "--workspace",
                     str(base / "workspace"),
                     "--hardware-cache-bundle",

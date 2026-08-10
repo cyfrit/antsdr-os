@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: MIT
-"""Create and consume content-addressed E310 FPGA build bundles."""
+"""Create and consume content-addressed board FPGA build bundles."""
 
 from __future__ import annotations
 
@@ -20,9 +20,6 @@ from board_data import BoardDataError, REPOSITORY_ROOT, external_path, load_boar
 
 
 SCHEMA_VERSION = 1
-CACHE_NAMESPACE = "antsdr-fpga-e310-v1"
-FPGA_SOURCE_ROOT = REPOSITORY_ROOT / "boards" / "e310" / "hw" / "fpga"
-FPGA_PATCH_ROOT = REPOSITORY_ROOT / "boards" / "e310" / "patches" / "hdl"
 HDL_UPSTREAM = REPOSITORY_ROOT / "upstream" / "adi-plutosdr-fw" / "hdl"
 MATERIALIZER = REPOSITORY_ROOT / "tools" / "prepare_component.py"
 IGNORED_SOURCE_FILES = {"THIRD_PARTY.md"}
@@ -31,6 +28,18 @@ BUNDLE_FILES = ("system_top.bit", "system_top.xsa", "timing_impl.log")
 
 class FpgaCacheError(RuntimeError):
     pass
+
+
+def cache_namespace(board_id: str) -> str:
+    return f"antsdr-fpga-{board_id}-v{SCHEMA_VERSION}"
+
+
+def fpga_source_root(board_id: str) -> Path:
+    return REPOSITORY_ROOT / "boards" / board_id / "hw" / "fpga"
+
+
+def fpga_patch_root(board_id: str) -> Path:
+    return REPOSITORY_ROOT / "boards" / board_id / "patches" / "hdl"
 
 
 def sha256_file(path: Path) -> str:
@@ -58,7 +67,7 @@ def without_provenance(value: Any) -> Any:
     return value
 
 
-def source_inventory(root: Path = FPGA_SOURCE_ROOT) -> dict[str, str]:
+def source_inventory(root: Path, patch_root: Path | None = None) -> dict[str, str]:
     if not root.is_dir():
         raise FpgaCacheError(f"FPGA source root is missing: {root}")
     inventory = {
@@ -66,11 +75,11 @@ def source_inventory(root: Path = FPGA_SOURCE_ROOT) -> dict[str, str]:
         for path in sorted(root.rglob("*"))
         if path.is_file() and path.name not in IGNORED_SOURCE_FILES
     }
-    if FPGA_PATCH_ROOT.is_dir():
+    if patch_root and patch_root.is_dir():
         inventory.update(
             {
-                f"patches/hdl/{path.relative_to(FPGA_PATCH_ROOT).as_posix()}": sha256_file(path)
-                for path in sorted(FPGA_PATCH_ROOT.rglob("*"))
+                f"patches/hdl/{path.relative_to(patch_root).as_posix()}": sha256_file(path)
+                for path in sorted(patch_root.rglob("*"))
                 if path.is_file()
             }
         )
@@ -151,21 +160,22 @@ def build_identity(
         },
     }
     digest = canonical_digest(inputs)
+    namespace = cache_namespace(str(board["id"]))
     return {
         "schema_version": SCHEMA_VERSION,
-        "cache_namespace": CACHE_NAMESPACE,
-        "cache_key": f"{CACHE_NAMESPACE}-{digest}",
+        "cache_namespace": namespace,
+        "cache_key": f"{namespace}-{digest}",
         "input_sha256": digest,
         "inputs": inputs,
     }
 
 
-def resolve_identity(vivado: str) -> dict[str, Any]:
-    board = load_board("e310")
+def resolve_identity(board_id: str, vivado: str) -> dict[str, Any]:
+    board = load_board(board_id)
     return build_identity(
         board,
         vivado_version(vivado),
-        source_inventory(),
+        source_inventory(fpga_source_root(board_id), fpga_patch_root(board_id)),
         git_head(HDL_UPSTREAM),
     )
 
@@ -182,9 +192,14 @@ def load_json(path: Path, label: str) -> dict[str, Any]:
 
 def load_identity(path: Path) -> dict[str, Any]:
     value = load_json(path, "FPGA cache identity")
-    if value.get("schema_version") != SCHEMA_VERSION or value.get("cache_namespace") != CACHE_NAMESPACE:
+    inputs = value.get("inputs")
+    board_id = inputs.get("board") if isinstance(inputs, dict) else None
+    if not isinstance(board_id, str) or not board_id:
+        raise FpgaCacheError("FPGA cache identity lacks a board")
+    namespace = cache_namespace(board_id)
+    if value.get("schema_version") != SCHEMA_VERSION or value.get("cache_namespace") != namespace:
         raise FpgaCacheError("unsupported FPGA cache identity")
-    if value.get("cache_key") != f"{CACHE_NAMESPACE}-{value.get('input_sha256', '')}":
+    if value.get("cache_key") != f"{namespace}-{value.get('input_sha256', '')}":
         raise FpgaCacheError("FPGA cache identity key does not match its input digest")
     if value.get("input_sha256") != canonical_digest(value.get("inputs")):
         raise FpgaCacheError("FPGA cache identity digest is invalid")
@@ -230,11 +245,13 @@ def validate_bundle(bundle: Path, identity: dict[str, Any]) -> dict[str, Any]:
     return manifest
 
 
-def artifact_paths(workspace: Path) -> dict[str, Path]:
-    project = workspace / "src" / "hdl" / "projects" / "e310"
+def artifact_paths(workspace: Path, project_name: str) -> dict[str, Path]:
+    if not project_name or Path(project_name).name != project_name:
+        raise FpgaCacheError(f"invalid FPGA project name: {project_name!r}")
+    project = workspace / "src" / "hdl" / "projects" / project_name
     return {
-        "system_top.bit": project / "e310.runs" / "impl_1" / "system_top.bit",
-        "system_top.xsa": project / "e310.sdk" / "system_top.xsa",
+        "system_top.bit": project / f"{project_name}.runs" / "impl_1" / "system_top.bit",
+        "system_top.xsa": project / f"{project_name}.sdk" / "system_top.xsa",
         "timing_impl.log": project / "timing_impl.log",
     }
 
@@ -242,7 +259,7 @@ def artifact_paths(workspace: Path) -> dict[str, Path]:
 def pack_bundle(workspace: Path, bundle: Path, identity: dict[str, Any]) -> None:
     workspace = external_path(workspace, "--workspace")
     bundle = external_path(bundle, "--bundle")
-    artifacts = artifact_paths(workspace)
+    artifacts = artifact_paths(workspace, str(identity["inputs"]["build"]["project"]))
     for name, source in artifacts.items():
         if not source.is_file() or source.stat().st_size == 0:
             raise FpgaCacheError(f"FPGA build artifact is missing: {source}")
@@ -282,7 +299,8 @@ def pack_bundle(workspace: Path, bundle: Path, identity: dict[str, Any]) -> None
 def restore_bundle(bundle: Path, workspace: Path, identity: dict[str, Any]) -> None:
     validate_bundle(bundle, identity)
     workspace = external_path(workspace, "--workspace")
-    for name, destination in artifact_paths(workspace).items():
+    project = str(identity["inputs"]["build"]["project"])
+    for name, destination in artifact_paths(workspace, project).items():
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(bundle / name, destination)
 
@@ -306,6 +324,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="action", required=True)
     identity_parser = subparsers.add_parser("identity")
+    identity_parser.add_argument("--board", required=True)
     identity_parser.add_argument("--vivado", default="vivado")
     identity_parser.add_argument("--output", required=True, type=Path)
     identity_parser.add_argument("--github-output", type=Path)
@@ -321,7 +340,7 @@ def main() -> int:
     args = parser.parse_args()
     try:
         if args.action == "identity":
-            value = resolve_identity(args.vivado)
+            value = resolve_identity(args.board, args.vivado)
             write_json(args.output, value)
             if args.github_output:
                 with args.github_output.open("a", encoding="utf-8") as stream:

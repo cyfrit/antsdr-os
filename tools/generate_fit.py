@@ -40,10 +40,10 @@ def quoted(value: str) -> str:
     return f'"{value}"'
 
 
-def profile_description(profile: dict[str, Any]) -> str:
+def profile_description(board: dict[str, Any], profile: dict[str, Any]) -> str:
     transceiver = profile["transceiver"]["physical_marking"]
     topology = profile["datapath"]["mode"].upper()
-    return f"AntSDR E310 {transceiver} {topology}"
+    return f"{board['name']} {transceiver} {topology}"
 
 
 def render_its(
@@ -65,6 +65,7 @@ def render_its(
     bitstream = next(iter(bitstreams))
     fpga_image = fit_image_name("fpga", bitstream)
     description = f"{board['name']} multi-profile firmware"
+    fpga_description = f"{board['name']} universal 2R2T-capable FPGA"
     lines = [
         "/dts-v1/;",
         "",
@@ -97,7 +98,7 @@ def render_its(
         "\t\t};",
         "",
         f"\t\t{fpga_image} {{",
-        '\t\t\tdescription = "E310 universal 2R2T-capable FPGA";',
+        f"\t\t\tdescription = {quoted(fpga_description)};",
         f"\t\t\tdata = /incbin/({quoted(bitstream)});",
         '\t\t\ttype = "fpga";',
         '\t\t\tarch = "arm";',
@@ -114,7 +115,7 @@ def render_its(
         lines.extend(
             [
                 f"\t\t{fdt_image} {{",
-                f"\t\t\tdescription = {quoted(profile_description(profile))};",
+                f"\t\t\tdescription = {quoted(profile_description(board, profile))};",
                 f"\t\t\tdata = /incbin/({quoted(artifact)});",
                 '\t\t\ttype = "flat_dt";',
                 '\t\t\tarch = "arm";',
@@ -132,7 +133,7 @@ def render_its(
         lines.extend(
             [
                 f"\t\t{configuration} {{",
-                f"\t\t\tdescription = {quoted(profile_description(profile))};",
+                f"\t\t\tdescription = {quoted(profile_description(board, profile))};",
                 '\t\t\tkernel = "kernel";',
                 '\t\t\tramdisk = "ramdisk";',
                 f"\t\t\tfdt = {quoted(fdt_image)};",

@@ -8,7 +8,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
-import assemble_e310  # noqa: E402
+import assemble_firmware  # noqa: E402
 
 
 class FirmwareAssemblyTest(unittest.TestCase):
@@ -28,7 +28,7 @@ class FirmwareAssemblyTest(unittest.TestCase):
 
             dtb_dir = inputs / "dtbs"
             dtb_dir.mkdir()
-            board, profiles = assemble_e310.load_board()
+            board, profiles = assemble_firmware.load_board("e310")
             for profile in profiles:
                 (dtb_dir / profile["artifacts"]["linux_dtb"]).write_bytes(profile["id"].encode("ascii"))
 
@@ -45,8 +45,9 @@ class FirmwareAssemblyTest(unittest.TestCase):
                     self.assertEqual(command[1:3], ["-s", "0x1000"])
                     Path(command[4]).write_bytes(bytes(0x1000))
 
-            assembled = assemble_e310.build_release(
-                assemble_e310.AssemblyInputs(
+            assembled = assemble_firmware.build_release(
+                assemble_firmware.AssemblyInputs(
+                    board="e310",
                     kernel=kernel,
                     rootfs=rootfs,
                     bitstream=bitstream,
@@ -117,8 +118,8 @@ class FirmwareAssemblyTest(unittest.TestCase):
                 )
 
     def test_output_inside_repository_is_rejected(self) -> None:
-        with self.assertRaises(assemble_e310.AssemblyError):
-            assemble_e310.ensure_external_output(ROOT / "build" / "release")
+        with self.assertRaises(assemble_firmware.AssemblyError):
+            assemble_firmware.ensure_external_output(ROOT / "build" / "release")
 
 
 if __name__ == "__main__":

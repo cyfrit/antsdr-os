@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-# E310 Rev.C runtime baseline. Keep package selection explicit so this file is
+# Board runtime baseline. Keep package selection explicit so this file is
 # both the reproducible Buildroot input and the supported service inventory.
 BR2_arm=y
 BR2_cortex_a9=y
@@ -11,8 +11,8 @@ BR2_TOOLCHAIN_EXTERNAL_LINARO_ARM=y
 BR2_PRIMARY_SITE="https://sources.buildroot.net"
 BR2_OPTIMIZE_2=y
 BR2_REPRODUCIBLE=y
-BR2_TARGET_GENERIC_HOSTNAME="antsdr-e310"
-BR2_TARGET_GENERIC_ISSUE="AntSDR E310"
+BR2_TARGET_GENERIC_HOSTNAME="antsdr"
+BR2_TARGET_GENERIC_ISSUE="AntSDR OS"
 BR2_ROOTFS_DEVICE_CREATION_DYNAMIC_MDEV=y
 BR2_TARGET_GENERIC_ROOT_PASSWD="antsdr"
 BR2_TARGET_GENERIC_GETTY_PORT="ttyPS0"
@@ -34,7 +34,7 @@ BR2_PACKAGE_MTD_FLASH_ERASE=y
 # BR2_PACKAGE_MTD_UBINIZE is not set
 # BR2_PACKAGE_MTD_UBIRENAME is not set
 # BR2_PACKAGE_MTD_UBIRMVOL is not set
-# USB WLAN and its regulatory userspace are outside the E310 runtime contract.
+# USB WLAN and its regulatory userspace are outside the runtime contract.
 # BR2_PACKAGE_LINUX_FIRMWARE is not set
 # BR2_PACKAGE_WIRELESS_REGDB is not set
 BR2_PACKAGE_INPUT_EVENT_DAEMON=y

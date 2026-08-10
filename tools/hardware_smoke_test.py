@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: MIT
-"""Run read-only E310 boot smoke checks after an operator explicitly permits it."""
+"""Run read-only AntSDR OS smoke checks after an operator explicitly permits it."""
 
 from __future__ import annotations
 
@@ -132,7 +132,7 @@ def main() -> int:
             check_ssh(args)
         if args.serial_port:
             check_serial(args.serial_port, args.serial_baud, args.serial_expect, args.timeout)
-        print("E310 read-only smoke checks passed")
+        print("AntSDR OS read-only smoke checks passed")
         return 0
     except SmokeError as error:
         print(error, file=sys.stderr)

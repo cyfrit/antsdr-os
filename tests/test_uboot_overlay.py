@@ -196,7 +196,6 @@ class UbootOverlayTest(unittest.TestCase):
         self.assertIn("#define ANTSDR_WINBOND_MANUFACTURER_ID 0xef", command)
         self.assertIn("#define ANTSDR_READ_UNIQUE_ID 0x4b", command)
         self.assertIn("#define ANTSDR_UNIQUE_ID_SIZE 8", command)
-        self.assertIn('static const u8 domain[] = "AntSDR E310 Ethernet MAC";', command)
         self.assertIn("sha256_csum_wd", command)
         self.assertIn("address[0] = (address[0] & 0xfc) | 0x02;", command)
         self.assertIn('getenv("serial#") && *getenv("serial#")', command)

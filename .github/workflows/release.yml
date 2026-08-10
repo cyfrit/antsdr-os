@@ -18,6 +18,8 @@ jobs:
     name: Validate release identity
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+    outputs:
+      targets: ${{ steps.targets.outputs.targets }}
     steps:
       - name: Check out release source
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -31,24 +33,39 @@ jobs:
       - name: Install metadata dependencies
         run: python -m pip install --disable-pip-version-check -r requirements-dev.txt
       - name: Check tag against release manifest
-        run: python tools/release_metadata.py check --tag "$GITHUB_REF_NAME"
+        id: targets
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tools/release_metadata.py check --tag "$GITHUB_REF_NAME"
+          targets="$(python tools/release_metadata.py targets --build-label release)"
+          printf 'targets=%s\n' "$targets" >> "$GITHUB_OUTPUT"
   build:
     name: Build release source
     needs: preflight
-    uses: ./.github/workflows/build-e310.yml
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJSON(needs.preflight.outputs.targets) }}
+    uses: ./.github/workflows/build-os.yml
     secrets: inherit
     with:
+      board: ${{ matrix.target.board }}
       build_label: release
       uenv_mode: compat
       runner_mode: release-hosted
       release_signing: true
   verify:
     name: Verify release source
-    needs: build
+    needs: [preflight, build]
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJSON(needs.preflight.outputs.targets) }}
     uses: ./.github/workflows/verify-artifacts.yml
     with:
-      artifact_name: ${{ needs.build.outputs.artifact_name }}
-      board: e310
+      artifact_name: ${{ matrix.target.artifact_name }}
+      board: ${{ matrix.target.board }}
   publish:
     name: Publish signed release
     needs: [build, verify]
@@ -63,17 +80,66 @@ jobs:
       - name: Download verified bundle
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: ${{ needs.verify.outputs.verified_artifact_name }}
-          path: ${{ runner.temp }}/release-bundle
-      - name: Locate release package
+          pattern: verified-*
+          path: ${{ runner.temp }}/release-bundles
+      - name: Assemble release assets
         id: package
         shell: bash
         run: |
           set -euo pipefail
-          release_dir="$RUNNER_TEMP/release-bundle"
-          test "$(find "$release_dir" -maxdepth 1 -type f -name '*.zip' | wc -l)" -gt 0
-          test -f "$release_dir/SHA256SUMS"
-          (cd "$release_dir" && sha256sum -c SHA256SUMS)
+          bundles="$RUNNER_TEMP/release-bundles"
+          release_dir="$RUNNER_TEMP/release-assets"
+          mkdir -p "$release_dir"
+          mapfile -t checksums < <(find "$bundles" -name SHA256SUMS -type f -print | sort)
+          ((${#checksums[@]} > 0))
+          for checksum_file in "${checksums[@]}"; do
+            bundle="$(dirname "$checksum_file")"
+            (cd "$bundle" && sha256sum -c SHA256SUMS)
+            metadata="$bundle/build-metadata.json"
+            test -f "$metadata"
+            target="$(python - "$metadata" <<'PY'
+          import json
+          import re
+          import sys
+
+          value = json.load(open(sys.argv[1], encoding="utf-8")).get("hardware_target", "")
+          if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", value):
+              raise SystemExit("invalid hardware target in build metadata")
+          print(value)
+          PY
+          )"
+            mapfile -t archives < <(find "$bundle" -maxdepth 1 -name '*.zip' -type f -print | sort)
+            ((${#archives[@]} > 0))
+            for archive in "${archives[@]}"; do
+              destination="$release_dir/$(basename "$archive")"
+              test ! -e "$destination"
+              cp "$archive" "$destination"
+            done
+            cp "$bundle/manifest.json" "$release_dir/${target}-manifest.json"
+            cp "$metadata" "$release_dir/${target}-build-metadata.json"
+            cp "$bundle/sbom.spdx.json" "$release_dir/${target}-sbom.spdx.json"
+            if [ -e "$release_dir/antsdr-os-release.crt" ]; then
+              cmp "$bundle/antsdr-os-release.crt" "$release_dir/antsdr-os-release.crt"
+            else
+              cp "$bundle/antsdr-os-release.crt" "$release_dir/antsdr-os-release.crt"
+            fi
+          done
+          python - "$release_dir" <<'PY'
+          import hashlib
+          import pathlib
+          import sys
+
+          root = pathlib.Path(sys.argv[1])
+          lines = []
+          for path in sorted(
+              item
+              for item in root.iterdir()
+              if item.is_file() and item.name not in {"SHA256SUMS", "SHA256SUMS.sig"}
+          ):
+              digest = hashlib.sha256(path.read_bytes()).hexdigest()
+              lines.append(f"{digest}  {path.name}")
+          (root / "SHA256SUMS").write_text("\n".join(lines) + "\n", encoding="ascii")
+          PY
           echo "release_dir=$release_dir" >> "$GITHUB_OUTPUT"
       - name: Sign and verify release checksums
         env:
@@ -111,10 +177,4 @@ jobs:
             --verify-tag \
             --title "AntSDR OS $version" \
             --generate-notes \
-            "$RELEASE_DIR"/*.zip \
-            "$RELEASE_DIR/manifest.json" \
-            "$RELEASE_DIR/build-metadata.json" \
-            "$RELEASE_DIR/sbom.spdx.json" \
-            "$RELEASE_DIR/SHA256SUMS" \
-            "$RELEASE_DIR/SHA256SUMS.sig" \
-            "$RELEASE_DIR/antsdr-os-release.crt"
+            "$RELEASE_DIR"/*

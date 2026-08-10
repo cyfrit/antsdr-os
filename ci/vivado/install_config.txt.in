@@ -8,7 +8,7 @@ Product=Vivado
 # workspace so the installer and FPGA build share the same filesystem.
 Destination=@DESTINATION@
 
-# E310 requires the Zynq-7000 device database and the embedded command-line
+# The current hardware target requires the Zynq-7000 device database and embedded
 # tools that provide XSCT and bootgen.
 Modules=Zynq-7000:1,Vitis Embedded Development:1
 

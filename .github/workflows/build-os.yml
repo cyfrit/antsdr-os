@@ -1,9 +1,12 @@
 # SPDX-License-Identifier: MIT
-name: AntSDR OS E310 build
+name: AntSDR OS build
 
 on:
   workflow_call:
     inputs:
+      board:
+        required: true
+        type: string
       version:
         required: false
         type: string
@@ -58,6 +61,10 @@ on:
         required: false
   workflow_dispatch:
     inputs:
+      board:
+        description: Board contract ID
+        required: true
+        type: string
       version:
         description: AntSDR OS major.point version
         required: true
@@ -104,18 +111,19 @@ permissions:
   contents: read
 
 concurrency:
-  group: antsdr-os-build-${{ github.workflow }}-${{ github.ref }}-${{ inputs.build_label || 'push' }}
+  group: antsdr-os-build-${{ github.workflow }}-${{ github.ref }}-${{ inputs.board }}-${{ inputs.build_label || 'push' }}
   cancel-in-progress: false
 
 jobs:
   build:
-    name: Build E310 Rev.C
+    name: Build ${{ inputs.board }}
     runs-on: ${{ inputs.runner_mode == 'aliyun-persistent' && 'self-hosted' || inputs.runner_mode == 'release-hosted' && 'ubicloud-standard-8-ubuntu-2204' || 'ubicloud-standard-4-ubuntu-2204' }}
     timeout-minutes: 90
     environment: ${{ inputs.release_signing && 'release' || '' }}
     outputs:
       artifact_name: ${{ steps.metadata.outputs.artifact_name }}
     env:
+      BOARD_ID: ${{ inputs.board }}
       TZ: UTC
       LANG: C
       LC_ALL: C
@@ -162,7 +170,7 @@ jobs:
             python tools/release_metadata.py check --tag "$GITHUB_REF_NAME"
             version="${GITHUB_REF_NAME#antsdr-os-}"
           elif [ -z "$version" ]; then
-            version="$(python tools/release_metadata.py show --board e310 --format github | sed -n 's/^os_version=//p')"
+            version="$(python tools/release_metadata.py show --board "$BOARD_ID" --format github | sed -n 's/^os_version=//p')"
           fi
           test -n "$version"
           epoch="$INPUT_EPOCH"
@@ -170,13 +178,24 @@ jobs:
             epoch="$(git show -s --format=%ct "$GITHUB_SHA")"
           fi
           export SOURCE_DATE_EPOCH="$epoch"
-          python tools/release_metadata.py show --board e310 --version "$version" --channel stable > "$RUNNER_TEMP/build-metadata.json"
+          python tools/release_metadata.py show --board "$BOARD_ID" --version "$version" --channel stable > "$RUNNER_TEMP/build-metadata.json"
           python - "$RUNNER_TEMP/build-metadata.json" "$BUILD_LABEL" >> "$GITHUB_OUTPUT" <<'PY'
           import json
           import sys
+          from pathlib import Path
+
+          sys.path.insert(0, str(Path.cwd() / "tools"))
+          from board_data import load_board
+
           metadata = json.load(open(sys.argv[1], encoding="utf-8"))
+          board = load_board(metadata["board"])
+          build = board["build"]
+          firmware = build["firmware"]
           label = sys.argv[2]
           print(f"artifact_name={metadata['artifact_stem']}-{label}")
+          print(f"board_id={metadata['board']}")
+          print(f"fit_image={firmware['fit_image']}")
+          print(f"hdl_project={build['hdl_project']}")
           print(f"version={metadata['os_version']}")
           PY
           echo "SOURCE_DATE_EPOCH=$epoch" >> "$GITHUB_ENV"
@@ -194,6 +213,7 @@ jobs:
         run: |
           set -euo pipefail
           python tools/hardware_cache.py identity \
+            --board "$BOARD_ID" \
             --output "$RUNNER_TEMP/hardware-cache-identity.json" \
             --github-output "$GITHUB_OUTPUT"
       - name: Restore FPGA and FSBL bundle
@@ -201,7 +221,7 @@ jobs:
         id: hardware_cache
         uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
-          path: ${{ runner.temp }}/antsdr-e310-hardware-cache
+          path: ${{ runner.temp }}/antsdr-hardware-cache
           key: ${{ steps.hardware_cache_identity.outputs.key }}
       - name: Validate FPGA and FSBL bundle
         if: inputs.toolchain_only != true
@@ -212,11 +232,11 @@ jobs:
           valid=false
           if [ "${{ steps.hardware_cache.outputs.cache-hit }}" = true ] && \
              python tools/hardware_cache.py validate \
-               --bundle "$RUNNER_TEMP/antsdr-e310-hardware-cache" \
+               --bundle "$RUNNER_TEMP/antsdr-hardware-cache" \
                --identity "$RUNNER_TEMP/hardware-cache-identity.json"; then
             valid=true
           else
-            rm -rf "$RUNNER_TEMP/antsdr-e310-hardware-cache"
+            rm -rf "$RUNNER_TEMP/antsdr-hardware-cache"
           fi
           printf 'valid=%s\n' "$valid" >> "$GITHUB_OUTPUT"
       - name: Resolve AMD toolchain cache identity
@@ -410,6 +430,7 @@ jobs:
           set -euo pipefail
           source "$VIVADO_SETTINGS"
           python tools/fpga_cache.py identity \
+            --board "$BOARD_ID" \
             --vivado vivado \
             --output "$RUNNER_TEMP/fpga-cache-identity.json" \
             --github-output "$GITHUB_OUTPUT"
@@ -420,7 +441,7 @@ jobs:
         id: fpga_cache
         uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
-          path: ${{ runner.temp }}/antsdr-e310-fpga-cache
+          path: ${{ runner.temp }}/antsdr-fpga-cache
           key: ${{ steps.fpga_cache_identity.outputs.key }}
       - name: Validate legacy FPGA build bundle
         if: >-
@@ -433,11 +454,11 @@ jobs:
           valid=false
           if [ "${{ steps.fpga_cache.outputs.cache-hit }}" = true ] && \
              python tools/fpga_cache.py validate \
-               --bundle "$RUNNER_TEMP/antsdr-e310-fpga-cache" \
+               --bundle "$RUNNER_TEMP/antsdr-fpga-cache" \
                --identity "$RUNNER_TEMP/fpga-cache-identity.json"; then
             valid=true
           else
-            rm -rf "$RUNNER_TEMP/antsdr-e310-fpga-cache"
+            rm -rf "$RUNNER_TEMP/antsdr-fpga-cache"
           fi
           printf 'valid=%s\n' "$valid" >> "$GITHUB_OUTPUT"
       - name: Record hardware build provenance
@@ -462,7 +483,7 @@ jobs:
           if [ "${{ steps.hardware_cache_state.outputs.valid }}" != true ]; then
             source "$VIVADO_SETTINGS"
           fi
-          workspace="$ANTSDR_BUILD_ROOT/e310"
+          workspace="$ANTSDR_BUILD_ROOT/workspace"
           jobs="$(nproc)"
           case "$jobs" in
             ''|*[!0-9]*)
@@ -481,12 +502,12 @@ jobs:
           fpga_cache_args=()
           if [ "${{ steps.hardware_cache_state.outputs.valid }}" = true ]; then
             hardware_cache_args=(
-              --hardware-cache-bundle "$RUNNER_TEMP/antsdr-e310-hardware-cache"
+              --hardware-cache-bundle "$RUNNER_TEMP/antsdr-hardware-cache"
               --hardware-cache-identity "$RUNNER_TEMP/hardware-cache-identity.json"
             )
           elif [ "${{ steps.fpga_cache_state.outputs.valid }}" = true ]; then
             fpga_cache_args=(
-              --fpga-cache-bundle "$RUNNER_TEMP/antsdr-e310-fpga-cache"
+              --fpga-cache-bundle "$RUNNER_TEMP/antsdr-fpga-cache"
               --fpga-cache-identity "$RUNNER_TEMP/fpga-cache-identity.json"
             )
           fi
@@ -499,22 +520,23 @@ jobs:
             cp keys/fit/antsdr-os-release.crt "$key_dir/antsdr-os-release.crt"
             signing_args=(--fit-signing-key-dir "$key_dir")
           fi
-          python tools/e310_build.py all \
+          python tools/firmware_build.py all \
+            --board "$BOARD_ID" \
             --workspace "$workspace" \
             --jobs "$jobs" \
             --uenv-mode "$UENV_MODE" \
             --xsct "$GITHUB_WORKSPACE/ci/vivado/xsct-headless.sh" \
-            --release "$RUNNER_TEMP/antsdr-e310-release" \
+            --release "$RUNNER_TEMP/antsdr-release" \
             "${signing_args[@]}" \
             "${hardware_cache_args[@]}" \
             "${fpga_cache_args[@]}" \
             --execute
           if [ "${{ inputs.release_signing }}" = true ]; then
             python tools/verify_fit_profiles.py \
-              --fit "$RUNNER_TEMP/antsdr-e310-release/common/antsdr-e310.itb" \
+              --fit "$RUNNER_TEMP/antsdr-release/common/${{ steps.metadata.outputs.fit_image }}" \
               --control-dtb "$workspace/out/u-boot/dts/dt.dtb" \
               --fit-check-sign "$workspace/out/u-boot/tools/fit_check_sign" \
-              --board e310
+              --board "$BOARD_ID"
           fi
       - name: Pack FPGA and FSBL bundle
         if: >-
@@ -523,8 +545,8 @@ jobs:
         shell: bash
         run: |
           python tools/hardware_cache.py pack \
-            --workspace "$ANTSDR_BUILD_ROOT/e310" \
-            --bundle "$RUNNER_TEMP/antsdr-e310-hardware-cache" \
+            --workspace "$ANTSDR_BUILD_ROOT/workspace" \
+            --bundle "$RUNNER_TEMP/antsdr-hardware-cache" \
             --identity "$RUNNER_TEMP/hardware-cache-identity.json"
       - name: Save FPGA and FSBL bundle
         if: >-
@@ -532,12 +554,12 @@ jobs:
           steps.hardware_cache_state.outputs.valid != 'true'
         uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
-          path: ${{ runner.temp }}/antsdr-e310-hardware-cache
+          path: ${{ runner.temp }}/antsdr-hardware-cache
           key: ${{ steps.hardware_cache_identity.outputs.key }}
       - name: Clear hardware cache staging
         if: always() && inputs.toolchain_only != true
         shell: bash
-        run: rm -rf "$RUNNER_TEMP/antsdr-e310-hardware-cache" "$RUNNER_TEMP/antsdr-e310-fpga-cache"
+        run: rm -rf "$RUNNER_TEMP/antsdr-hardware-cache" "$RUNNER_TEMP/antsdr-fpga-cache"
       - name: Remove FIT signing private key
         if: always() && inputs.release_signing
         shell: bash
@@ -547,9 +569,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          hdl="$ANTSDR_BUILD_ROOT/e310/src/hdl"
-          project_log="$hdl/projects/e310/e310_vivado.log"
-          bitstream="$hdl/projects/e310/e310.runs/impl_1/system_top.bit"
+          hdl="$ANTSDR_BUILD_ROOT/workspace/src/hdl"
+          project="${{ steps.metadata.outputs.hdl_project }}"
+          project_log="$hdl/projects/$project/${project}_vivado.log"
+          bitstream="$hdl/projects/$project/${project}.runs/impl_1/system_top.bit"
           if [ -s "$bitstream" ]; then
             printf 'FPGA bitstream was generated; the build failed in a later stage.\n'
           elif [ -r "$project_log" ]; then
@@ -570,16 +593,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          release="$RUNNER_TEMP/antsdr-e310-release"
+          release="$RUNNER_TEMP/antsdr-release"
           cp "$RUNNER_TEMP/build-metadata.json" "$release/build-metadata.json"
-          python tools/verify_release.py --release "$release" --board e310
-          mkdir -p "$RUNNER_TEMP/antsdr-e310-package/release"
-          cp -a "$release/." "$RUNNER_TEMP/antsdr-e310-package/release/"
+          python tools/verify_release.py --release "$release" --board "$BOARD_ID"
+          mkdir -p "$RUNNER_TEMP/antsdr-package/release"
+          cp -a "$release/." "$RUNNER_TEMP/antsdr-package/release/"
       - name: Upload unmodified build output
         if: inputs.toolchain_only != true && inputs.debug_enabled != true
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: ${{ steps.metadata.outputs.artifact_name }}
-          path: ${{ runner.temp }}/antsdr-e310-package
+          path: ${{ runner.temp }}/antsdr-package
           if-no-files-found: error
           retention-days: 14

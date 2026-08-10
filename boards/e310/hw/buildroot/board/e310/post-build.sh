@@ -1,13 +1,19 @@
 #!/bin/sh
 # SPDX-License-Identifier: MIT
-# Install the E310 runtime policy after Buildroot has populated TARGET_DIR.
+# Install the AntSDR OS runtime policy after Buildroot has populated TARGET_DIR.
 
 set -eu
 
 BOARD_DIR=$(dirname "$0")
 RUNTIME_DIR="$BOARD_DIR/runtime"
-CONFIG_PAYLOAD="$BUILD_DIR/antsdr-e310-config-volume"
-GENIMAGE_TMP="$BUILD_DIR/antsdr-e310-genimage"
+CONFIG_PAYLOAD="$BUILD_DIR/antsdr-config-volume"
+GENIMAGE_TMP="$BUILD_DIR/antsdr-genimage"
+
+# shellcheck disable=SC1091
+. "$BOARD_DIR/board.conf"
+: "${BOARD_ID:?board.conf must define BOARD_ID}"
+: "${PERSIST_MTD_NAME:?board.conf must define PERSIST_MTD_NAME}"
+: "${PERSIST_MOUNT_DIR:?board.conf must define PERSIST_MOUNT_DIR}"
 
 install -d "$TARGET_DIR/etc/antsdr" "$TARGET_DIR/opt/antsdr" \
     "$TARGET_DIR/usr/lib/antsdr" "$TARGET_DIR/www" \
@@ -39,11 +45,11 @@ grep -q '^ttyGS0::' "$TARGET_DIR/etc/inittab" || \
 ttyGS0::respawn:/sbin/getty -L ttyGS0 0 vt100 # USB ACM console' "$TARGET_DIR/etc/inittab"
 
 # S15antsdr-persistence validates and owns this mount after mdev is ready.
-sed -i '\|^mtd2 /mnt/antsdr-persist |d' "$TARGET_DIR/etc/fstab"
+sed -i "\|^$PERSIST_MTD_NAME $PERSIST_MOUNT_DIR |d" "$TARGET_DIR/etc/fstab"
 
 cat > "$TARGET_DIR/etc/antsdr/release" <<EOF
 firmware=${ANTSDR_OS_VERSION:-development}
-board=e310
+board=$BOARD_ID
 buildroot=${BR2_VERSION_FULL:-unknown}
 EOF
 

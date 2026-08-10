@@ -180,7 +180,7 @@ import_config() {
     esac
 
     # Refuse to initialize an unknown environment partition. fw_setenv -s
-    # updates only the listed keys, but its input must still be a known E310
+    # updates only the listed keys, but its input must still be a recognized
     # boot environment rather than erased or corrupt flash.
     fw_printenv qspiboot >/dev/null 2>&1 || {
         echo "refusing to update an unrecognized U-Boot environment" >&2
@@ -208,7 +208,7 @@ import_config() {
 export_config() {
     load_values
     cat <<EOF
-# AntSDR E310 configuration file
+# AntSDR OS configuration file
 # Save and eject the USB configuration volume. Changes are persisted for the
 # next boot; no update, flash, or reboot action is executed automatically.
 

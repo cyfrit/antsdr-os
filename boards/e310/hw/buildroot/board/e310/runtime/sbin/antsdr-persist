@@ -6,41 +6,38 @@ set -eu
 
 . /usr/lib/antsdr/runtime.sh
 
-PERSIST_DEVICE=/dev/mtdblock2
-PERSIST_DIR=/mnt/antsdr-persist
-
 mount_persist() {
-    mkdir -p "$PERSIST_DIR"
-    if ! antsdr_is_mounted "$PERSIST_DIR"; then
-        mount -t jffs2 -o rw,noatime "$PERSIST_DEVICE" "$PERSIST_DIR"
+    mkdir -p "$PERSIST_MOUNT_DIR"
+    if ! antsdr_is_mounted "$PERSIST_MOUNT_DIR"; then
+        mount -t jffs2 -o rw,noatime "$PERSIST_MTD_BLOCK_DEVICE" "$PERSIST_MOUNT_DIR"
     fi
 }
 
 save_credentials() {
     mount_persist
-    install -D -m 0644 /etc/passwd "$PERSIST_DIR/etc/passwd"
-    install -D -m 0600 /etc/shadow "$PERSIST_DIR/etc/shadow"
-    install -D -m 0644 /etc/group "$PERSIST_DIR/etc/group"
+    install -D -m 0644 /etc/passwd "$PERSIST_MOUNT_DIR/etc/passwd"
+    install -D -m 0600 /etc/shadow "$PERSIST_MOUNT_DIR/etc/shadow"
+    install -D -m 0644 /etc/group "$PERSIST_MOUNT_DIR/etc/group"
     (
-        cd "$PERSIST_DIR/etc"
+        cd "$PERSIST_MOUNT_DIR/etc"
         sha256sum passwd shadow group > credentials.sha256
     )
 }
 
 save_keys() {
     mount_persist
-    mkdir -p "$PERSIST_DIR/etc/dropbear" "$PERSIST_DIR/root/.ssh"
+    mkdir -p "$PERSIST_MOUNT_DIR/etc/dropbear" "$PERSIST_MOUNT_DIR/root/.ssh"
     if ls /etc/dropbear/dropbear_*_host_key >/dev/null 2>&1; then
-        install -m 0600 /etc/dropbear/dropbear_*_host_key "$PERSIST_DIR/etc/dropbear/"
+        install -m 0600 /etc/dropbear/dropbear_*_host_key "$PERSIST_MOUNT_DIR/etc/dropbear/"
         (
-            cd "$PERSIST_DIR/etc/dropbear"
+            cd "$PERSIST_MOUNT_DIR/etc/dropbear"
             sha256sum dropbear_*_host_key > keys.sha256
         )
     fi
     if [ -f /root/.ssh/authorized_keys ]; then
-        install -m 0600 /root/.ssh/authorized_keys "$PERSIST_DIR/root/.ssh/authorized_keys"
+        install -m 0600 /root/.ssh/authorized_keys "$PERSIST_MOUNT_DIR/root/.ssh/authorized_keys"
         (
-            cd "$PERSIST_DIR/root/.ssh"
+            cd "$PERSIST_MOUNT_DIR/root/.ssh"
             sha256sum authorized_keys > authorized_keys.sha256
         )
     fi
@@ -56,11 +53,11 @@ case "${1:-}" in
             echo "refusing to erase persistent storage: $reason" >&2
             exit 1
         fi
-        if antsdr_is_mounted "$PERSIST_DIR"; then
-            umount "$PERSIST_DIR"
+        if antsdr_is_mounted "$PERSIST_MOUNT_DIR"; then
+            umount "$PERSIST_MOUNT_DIR"
         fi
-        flash_erase -j /dev/mtd2 0 0
-        mkdir -p "$PERSIST_DIR"
+        flash_erase -j "$PERSIST_MTD_DEVICE" 0 0
+        mkdir -p "$PERSIST_MOUNT_DIR"
         mount_persist
         ;;
     credentials)

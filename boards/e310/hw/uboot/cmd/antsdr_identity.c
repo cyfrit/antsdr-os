@@ -4,7 +4,6 @@
 #include <common.h>
 #include <command.h>
 #include <errno.h>
-#include <net.h>
 #include <spi.h>
 #include <u-boot/sha256.h>
 
@@ -74,11 +73,41 @@ static int antsdr_uid_valid(const u8 uid[ANTSDR_UNIQUE_ID_SIZE])
 	return !all_zero && !all_ff;
 }
 
-static int antsdr_mac_valid(void)
+static int antsdr_mac_valid(const char *text)
 {
 	u8 address[6];
+	char *end;
+	unsigned long octet;
+	unsigned int index;
 
-	return eth_getenv_enetaddr("ethaddr", address);
+	if (!text || strlen(text) != sizeof(address) * 3 - 1)
+		return 0;
+
+	for (index = 0; index < ARRAY_SIZE(address); index++) {
+		octet = simple_strtoul(text, &end, 16);
+		if (end != text + 2 || octet > 0xff)
+			return 0;
+		address[index] = octet;
+
+		if (index == ARRAY_SIZE(address) - 1) {
+			if (*end != '\0')
+				return 0;
+		} else {
+			if (*end != ':')
+				return 0;
+			text = end + 1;
+		}
+	}
+
+	if (address[0] & 0x01)
+		return 0;
+
+	for (index = 0; index < ARRAY_SIZE(address); index++) {
+		if (address[index])
+			return 1;
+	}
+
+	return 0;
 }
 
 static int antsdr_set_serial(const u8 uid[ANTSDR_UNIQUE_ID_SIZE])
@@ -97,12 +126,13 @@ static int antsdr_set_serial(const u8 uid[ANTSDR_UNIQUE_ID_SIZE])
 
 static int antsdr_set_mac(const u8 uid[ANTSDR_UNIQUE_ID_SIZE])
 {
-	static const u8 domain[] = "AntSDR E310 Ethernet MAC";
+	static const u8 domain[] = "AntSDR OS Ethernet MAC";
 	u8 input[sizeof(domain) - 1 + ANTSDR_UNIQUE_ID_SIZE];
 	u8 digest[SHA256_SUM_LEN];
 	u8 address[6];
+	char text[18];
 
-	if (antsdr_mac_valid())
+	if (antsdr_mac_valid(getenv("ethaddr")))
 		return 0;
 
 	memcpy(input, domain, sizeof(domain) - 1);
@@ -111,7 +141,10 @@ static int antsdr_set_mac(const u8 uid[ANTSDR_UNIQUE_ID_SIZE])
 	memcpy(address, digest, sizeof(address));
 	address[0] = (address[0] & 0xfc) | 0x02;
 
-	return eth_setenv_enetaddr("ethaddr", address);
+	sprintf(text, "%02x:%02x:%02x:%02x:%02x:%02x",
+		address[0], address[1], address[2],
+		address[3], address[4], address[5]);
+	return setenv("ethaddr", text);
 }
 
 static int do_antsdr_identity(cmd_tbl_t *cmdtp, int flag, int argc,
@@ -123,7 +156,7 @@ static int do_antsdr_identity(cmd_tbl_t *cmdtp, int flag, int argc,
 	if (argc != 1)
 		return CMD_RET_USAGE;
 	if (getenv("serial#") && *getenv("serial#") &&
-	    antsdr_mac_valid())
+	    antsdr_mac_valid(getenv("ethaddr")))
 		return CMD_RET_SUCCESS;
 
 	ret = antsdr_read_unique_id(uid);

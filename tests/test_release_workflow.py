@@ -32,7 +32,7 @@ class ReleaseWorkflowTest(unittest.TestCase):
 
     def test_reusable_build_validates_version_before_expensive_host_setup(self) -> None:
         workflow = yaml.safe_load(
-            (ROOT / ".github" / "workflows" / "build-e310.yml").read_text(encoding="utf-8")
+            (ROOT / ".github" / "workflows" / "build-os.yml").read_text(encoding="utf-8")
         )
         steps = workflow["jobs"]["build"]["steps"]
         names = [step.get("name", "") for step in steps]

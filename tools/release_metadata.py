@@ -168,6 +168,26 @@ def build_metadata(
     return result
 
 
+def release_targets(build_label: str = "release") -> list[dict[str, str]]:
+    if not build_label or any(character.isspace() for character in build_label):
+        raise ReleaseMetadataError("build label must be non-empty and contain no whitespace")
+    data = load_metadata()
+    targets: list[dict[str, str]] = []
+    for entry in data["supported_boards"]:
+        metadata = build_metadata(
+            str(entry["id"]),
+            git_sha="unknown",
+            source_date_epoch="0",
+        )
+        targets.append(
+            {
+                "board": str(metadata["board"]),
+                "artifact_name": f"{metadata['artifact_stem']}-{build_label}",
+            }
+        )
+    return targets
+
+
 def validate_tag(value: str) -> str:
     data = load_metadata()
     product = data["product"]
@@ -191,6 +211,8 @@ def main() -> int:
     show.add_argument("--format", choices=("json", "github"), default="json")
     show.add_argument("--version")
     show.add_argument("--channel")
+    targets = subparsers.add_parser("targets")
+    targets.add_argument("--build-label", default="release")
     check = subparsers.add_parser("check")
     check.add_argument("--tag", required=True)
     args = parser.parse_args()
@@ -198,6 +220,8 @@ def main() -> int:
         if args.action == "check":
             validate_tag(args.tag)
             print(f"valid tag: {args.tag}")
+        elif args.action == "targets":
+            print(json.dumps(release_targets(args.build_label), separators=(",", ":")))
         else:
             payload = build_metadata(args.board, version=args.version, channel=args.channel)
             if args.format == "json":

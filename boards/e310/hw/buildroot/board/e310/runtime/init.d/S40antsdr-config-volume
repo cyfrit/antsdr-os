@@ -9,7 +9,7 @@ set -eu
 IMAGE=/opt/antsdr/config.vfat
 MOUNT_DIR=/run/antsdr/config-volume
 STATE_FILE=/run/antsdr/config-volume.sha256
-UPDATE_STATE_FILE=/mnt/antsdr-persist/etc/firmware-update.sha256
+UPDATE_STATE_FILE="$PERSIST_MOUNT_DIR/etc/firmware-update.sha256"
 PID_FILE=/run/antsdr/config-volume.pid
 LUN=/sys/kernel/config/usb_gadget/antsdr/functions/mass_storage.0/lun.0/file
 CONFIG=/usr/sbin/antsdr-config

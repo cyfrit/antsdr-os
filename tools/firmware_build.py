@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: MIT
-"""Build E310 components only in an explicitly selected external workspace."""
+"""Build AntSDR OS components in an explicitly selected external workspace."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ from validate_boards import ContractError
 
 ROOT = REPOSITORY_ROOT
 PREPARE = ROOT / "tools" / "prepare_component.py"
-ASSEMBLE = ROOT / "tools" / "assemble_e310.py"
+ASSEMBLE = ROOT / "tools" / "assemble_firmware.py"
 SELECT_UENV = ROOT / "tools" / "select_uboot_uenv.py"
 FPGA_CACHE = ROOT / "tools" / "fpga_cache.py"
 HARDWARE_CACHE = ROOT / "tools" / "hardware_cache.py"
@@ -38,8 +38,8 @@ class BuildError(RuntimeError):
     pass
 
 
-def load_board() -> dict[str, object]:
-    return load_board_data("e310")
+def load_board(board_id: str) -> dict[str, object]:
+    return load_board_data(board_id)
 
 
 def external_workspace(path: Path) -> Path:
@@ -81,6 +81,7 @@ def artifact_paths(workspace: Path, board: dict[str, object]) -> dict[str, Path]
 
 def plan_commands(args: argparse.Namespace, board: dict[str, object]) -> list[tuple[str, list[str]]]:
     workspace = external_workspace(args.workspace)
+    board_id = str(board["id"])
     build = board["build"]
     assert isinstance(build, dict)
     commands: list[tuple[str, list[str]]] = []
@@ -94,7 +95,7 @@ def plan_commands(args: argparse.Namespace, board: dict[str, object]) -> list[tu
                     [
                         sys.executable,
                         str(PREPARE),
-                        "e310",
+                        board_id,
                         component,
                         "--output",
                         str(source_dir(workspace, component)),
@@ -261,6 +262,8 @@ def plan_commands(args: argparse.Namespace, board: dict[str, object]) -> list[tu
                 [
                     sys.executable,
                     str(ASSEMBLE),
+                    "--board",
+                    board_id,
                     "--kernel",
                     str(artifacts["kernel"]),
                     "--rootfs",
@@ -333,6 +336,7 @@ def parser() -> argparse.ArgumentParser:
     subparsers = result.add_subparsers(dest="action", required=True)
     for name in ("plan", "prepare", "rootfs", "linux", "u_boot", "hdl", "boot_bin", "assemble", "all"):
         command = subparsers.add_parser(name)
+        command.add_argument("--board", required=True)
         command.add_argument("--workspace", required=True, type=Path)
         command.add_argument("--jobs", type=int, default=1)
         command.add_argument("--make", default="make")
@@ -366,7 +370,7 @@ def main() -> int:
             raise BuildError("--fpga-cache-bundle and --fpga-cache-identity must be provided together")
         if args.hardware_cache_bundle and args.fpga_cache_bundle:
             raise BuildError("hardware and legacy FPGA cache bundles are mutually exclusive")
-        board = load_board()
+        board = load_board(args.board)
         workspace = external_workspace(args.workspace)
         commands = plan_commands(args, board)
         for label, command in commands:

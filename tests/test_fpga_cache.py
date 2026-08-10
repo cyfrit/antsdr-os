@@ -26,7 +26,7 @@ class FpgaCacheTest(unittest.TestCase):
         )
 
     def create_artifacts(self, workspace: Path, bitstream: bytes = b"fpga-bitstream") -> None:
-        paths = fpga_cache.artifact_paths(workspace)
+        paths = fpga_cache.artifact_paths(workspace, "e310")
         for path in paths.values():
             path.parent.mkdir(parents=True, exist_ok=True)
         paths["system_top.bit"].write_bytes(bitstream)
@@ -74,11 +74,11 @@ class FpgaCacheTest(unittest.TestCase):
             manifest = fpga_cache.validate_bundle(bundle, identity)
             self.assertEqual(manifest["timing_status"], "passed")
 
-            for path in fpga_cache.artifact_paths(workspace).values():
+            for path in fpga_cache.artifact_paths(workspace, "e310").values():
                 path.unlink()
             fpga_cache.restore_bundle(bundle, workspace, identity)
             self.assertEqual(
-                fpga_cache.artifact_paths(workspace)["system_top.bit"].read_bytes(),
+                fpga_cache.artifact_paths(workspace, "e310")["system_top.bit"].read_bytes(),
                 b"fpga-bitstream",
             )
 

@@ -35,7 +35,7 @@ class HardwareCacheTest(unittest.TestCase):
         )
 
     def create_artifacts(self, workspace: Path, bitstream: bytes = b"fpga-bitstream") -> None:
-        paths = hardware_cache.artifact_paths(workspace)
+        paths = hardware_cache.artifact_paths(workspace, "e310")
         for path in paths.values():
             path.parent.mkdir(parents=True, exist_ok=True)
         paths["system_top.bit"].write_bytes(bitstream)
@@ -85,10 +85,10 @@ class HardwareCacheTest(unittest.TestCase):
             manifest = hardware_cache.validate_bundle(bundle, identity)
             self.assertEqual(manifest["timing_status"], "passed")
 
-            for path in hardware_cache.artifact_paths(workspace).values():
+            for path in hardware_cache.artifact_paths(workspace, "e310").values():
                 path.unlink()
             hardware_cache.restore_bundle(bundle, workspace, identity)
-            restored = hardware_cache.artifact_paths(workspace)
+            restored = hardware_cache.artifact_paths(workspace, "e310")
             self.assertEqual(restored["system_top.bit"].read_bytes(), b"fpga-bitstream")
             self.assertEqual(restored["fsbl.elf"].read_bytes(), zynq_elf())
 

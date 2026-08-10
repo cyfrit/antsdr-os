@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: MIT
-"""Create and consume content-addressed E310 FPGA and FSBL bundles."""
+"""Create and consume content-addressed board FPGA and FSBL bundles."""
 
 from __future__ import annotations
 
@@ -15,11 +15,13 @@ from typing import Any
 
 from board_data import BoardDataError, REPOSITORY_ROOT, external_path, load_board
 from fpga_cache import (
-    FPGA_SOURCE_ROOT,
     HDL_UPSTREAM,
     MATERIALIZER,
+    artifact_paths as fpga_artifact_paths,
     canonical_digest,
     embedded_bitstream,
+    fpga_patch_root,
+    fpga_source_root,
     git_head,
     sha256_file,
     source_inventory,
@@ -28,7 +30,6 @@ from fpga_cache import (
 
 
 SCHEMA_VERSION = 1
-CACHE_NAMESPACE = "antsdr-hardware-e310-v1"
 FSBL_GENERATOR = HDL_UPSTREAM / "projects" / "scripts" / "adi_make_boot_bin.tcl"
 TOOLCHAIN_INPUT_FILES = (
     REPOSITORY_ROOT / "ci" / "vivado" / "install-vivado.sh",
@@ -40,6 +41,10 @@ BUNDLE_FILES = ("system_top.bit", "system_top.xsa", "timing_impl.log", "fsbl.elf
 
 class HardwareCacheError(RuntimeError):
     pass
+
+
+def cache_namespace(board_id: str) -> str:
+    return f"antsdr-hardware-{board_id}-v{SCHEMA_VERSION}"
 
 
 def build_identity(
@@ -87,21 +92,22 @@ def build_identity(
         },
     }
     digest = canonical_digest(inputs)
+    namespace = cache_namespace(str(board["id"]))
     return {
         "schema_version": SCHEMA_VERSION,
-        "cache_namespace": CACHE_NAMESPACE,
-        "cache_key": f"{CACHE_NAMESPACE}-{digest}",
+        "cache_namespace": namespace,
+        "cache_key": f"{namespace}-{digest}",
         "input_sha256": digest,
         "inputs": inputs,
     }
 
 
-def resolve_identity() -> dict[str, Any]:
+def resolve_identity(board_id: str) -> dict[str, Any]:
     if not FSBL_GENERATOR.is_file():
         raise HardwareCacheError(f"FSBL generator is missing: {FSBL_GENERATOR}")
     return build_identity(
-        load_board("e310"),
-        source_inventory(FPGA_SOURCE_ROOT),
+        load_board(board_id),
+        source_inventory(fpga_source_root(board_id), fpga_patch_root(board_id)),
         git_head(HDL_UPSTREAM),
         sha256_file(FSBL_GENERATOR),
         {
@@ -123,25 +129,26 @@ def load_json(path: Path, label: str) -> dict[str, Any]:
 
 def load_identity(path: Path) -> dict[str, Any]:
     value = load_json(path, "hardware cache identity")
+    inputs = value.get("inputs")
+    board_id = inputs.get("board") if isinstance(inputs, dict) else None
+    if not isinstance(board_id, str) or not board_id:
+        raise HardwareCacheError("hardware cache identity lacks a board")
+    namespace = cache_namespace(board_id)
     if value.get("schema_version") != SCHEMA_VERSION:
         raise HardwareCacheError("unsupported hardware cache identity schema")
-    if value.get("cache_namespace") != CACHE_NAMESPACE:
+    if value.get("cache_namespace") != namespace:
         raise HardwareCacheError("unsupported hardware cache namespace")
-    if value.get("cache_key") != f"{CACHE_NAMESPACE}-{value.get('input_sha256', '')}":
+    if value.get("cache_key") != f"{namespace}-{value.get('input_sha256', '')}":
         raise HardwareCacheError("hardware cache identity key does not match its input digest")
     if value.get("input_sha256") != canonical_digest(value.get("inputs")):
         raise HardwareCacheError("hardware cache identity digest is invalid")
     return value
 
 
-def artifact_paths(workspace: Path) -> dict[str, Path]:
-    project = workspace / "src" / "hdl" / "projects" / "e310"
-    return {
-        "system_top.bit": project / "e310.runs" / "impl_1" / "system_top.bit",
-        "system_top.xsa": project / "e310.sdk" / "system_top.xsa",
-        "timing_impl.log": project / "timing_impl.log",
-        "fsbl.elf": workspace / "out" / "boot" / "fsbl.elf",
-    }
+def artifact_paths(workspace: Path, project_name: str) -> dict[str, Path]:
+    paths = fpga_artifact_paths(workspace, project_name)
+    paths["fsbl.elf"] = workspace / "out" / "boot" / "fsbl.elf"
+    return paths
 
 
 def validate_zynq_fsbl(path: Path) -> None:
@@ -184,7 +191,7 @@ def validate_bundle(bundle: Path, identity: dict[str, Any]) -> dict[str, Any]:
 def pack_bundle(workspace: Path, bundle: Path, identity: dict[str, Any]) -> None:
     workspace = external_path(workspace, "--workspace")
     bundle = external_path(bundle, "--bundle")
-    artifacts = artifact_paths(workspace)
+    artifacts = artifact_paths(workspace, str(identity["inputs"]["build"]["project"]))
     for source in artifacts.values():
         if not source.is_file() or source.stat().st_size == 0:
             raise HardwareCacheError(f"hardware build artifact is missing: {source}")
@@ -225,7 +232,8 @@ def pack_bundle(workspace: Path, bundle: Path, identity: dict[str, Any]) -> None
 def restore_bundle(bundle: Path, workspace: Path, identity: dict[str, Any]) -> None:
     validate_bundle(bundle, identity)
     workspace = external_path(workspace, "--workspace")
-    for name, destination in artifact_paths(workspace).items():
+    project = str(identity["inputs"]["build"]["project"])
+    for name, destination in artifact_paths(workspace, project).items():
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(bundle / name, destination)
 
@@ -250,6 +258,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="action", required=True)
     identity_parser = subparsers.add_parser("identity")
+    identity_parser.add_argument("--board", required=True)
     identity_parser.add_argument("--output", required=True, type=Path)
     identity_parser.add_argument("--github-output", type=Path)
     for name in ("validate", "restore", "pack"):
@@ -264,7 +273,7 @@ def main() -> int:
     args = parser.parse_args()
     try:
         if args.action == "identity":
-            value = resolve_identity()
+            value = resolve_identity(args.board)
             write_json(args.output, value)
             if args.github_output:
                 with args.github_output.open("a", encoding="utf-8") as stream:

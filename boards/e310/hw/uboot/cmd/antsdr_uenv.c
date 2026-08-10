@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Import only E310 RF profile selectors from a text uEnv file.
+ * Import only approved RF profile selectors from a text uEnv file.
  *
  * Copyright (C) 2026 Cyfrit <i@cli.tf>
  */

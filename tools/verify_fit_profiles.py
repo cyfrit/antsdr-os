@@ -55,8 +55,8 @@ def verify_profiles(
     if not configurations or len(configurations) != len(set(configurations)):
         raise FitVerificationError("board profiles must provide unique FIT configurations")
 
-    # ADI's fit_check_sign only selects /configurations/default.  E310 chooses
-    # profiles explicitly at boot, so add that property only to disposable copies.
+    # ADI's fit_check_sign only selects /configurations/default. AntSDR OS
+    # selects profiles explicitly, so add it only to disposable copies.
     with tempfile.TemporaryDirectory(prefix="antsdr-fit-verify-") as directory:
         temporary = Path(directory)
         for index, configuration in enumerate(configurations):

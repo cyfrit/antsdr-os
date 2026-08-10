@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: MIT
-"""Select the E310 U-Boot uEnv compatibility mode in an external build."""
+"""Select the AntSDR OS U-Boot uEnv mode in an external build."""
 
 from __future__ import annotations
 

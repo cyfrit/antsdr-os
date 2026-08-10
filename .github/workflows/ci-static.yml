@@ -41,12 +41,20 @@ jobs:
       - name: Validate board contracts
         run: python tools/validate_boards.py
       - name: Validate release metadata
-        run: python tools/release_metadata.py show --board e310 --format json
+        run: python tools/release_metadata.py targets
       - name: Validate FIT release public key
-        run: >-
-          python tools/verify_fit_release_key.py
-          --certificate keys/fit/antsdr-os-release.crt
-          --dtsi boards/e310/hw/uboot/dts/antsdr-os-release-key.dtsi
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t key_sources < <(
+            find boards -type f -path '*/hw/uboot/dts/antsdr-os-release-key.dtsi' -print | sort
+          )
+          ((${#key_sources[@]} > 0))
+          for key_source in "${key_sources[@]}"; do
+            python tools/verify_fit_release_key.py \
+              --certificate keys/fit/antsdr-os-release.crt \
+              --dtsi "$key_source"
+          done
       - name: Run repository tests
         run: python -m unittest discover --start-directory tests --pattern 'test_*.py' --verbose
       - name: Check shell syntax

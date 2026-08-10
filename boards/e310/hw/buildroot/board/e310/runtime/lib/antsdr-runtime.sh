@@ -1,6 +1,12 @@
 #!/bin/sh
 # SPDX-License-Identifier: MIT
-# Shared side-effect-free discovery helpers for E310 runtime services.
+# Shared side-effect-free discovery helpers for AntSDR OS runtime services.
+
+ANTSDR_BOARD_CONF=${ANTSDR_BOARD_CONF:-/etc/antsdr/board.conf}
+if [ -r "$ANTSDR_BOARD_CONF" ]; then
+    # shellcheck disable=SC1090
+    . "$ANTSDR_BOARD_CONF"
+fi
 
 antsdr_is_mounted() {
     grep -qs " $1 " /proc/mounts
@@ -34,27 +40,33 @@ antsdr_pid_matches() {
 }
 
 antsdr_persist_layout_status() {
-    [ -b /dev/mtdblock2 ] || {
-        printf '%s\n' 'mtdblock2 is unavailable'
+    [ -n "${PERSIST_MTD_BLOCK_DEVICE:-}" ] &&
+    [ -n "${PERSIST_MTD_DEVICE:-}" ] &&
+    [ -n "${PERSIST_MTD_SYSFS:-}" ] &&
+    [ -n "${PERSIST_MTD_LABEL:-}" ] &&
+    [ -n "${PERSIST_MTD_SIZE_BYTES:-}" ] || {
+        printf '%s\n' 'persistent storage is not defined for this hardware'
         return 1
     }
-    [ -r /sys/class/mtd/mtd2/name ] || {
-        printf '%s\n' 'mtd2 metadata is unavailable'
+    [ -b "$PERSIST_MTD_BLOCK_DEVICE" ] || {
+        printf '%s is unavailable\n' "$PERSIST_MTD_BLOCK_DEVICE"
         return 1
     }
-    name=$(cat /sys/class/mtd/mtd2/name)
-    [ "$name" = qspi-nvmfs ] || {
-        printf 'mtd2 is %s, expected qspi-nvmfs\n' "$name"
+    [ -r "$PERSIST_MTD_SYSFS/name" ] || {
+        printf '%s metadata is unavailable\n' "$PERSIST_MTD_NAME"
         return 1
     }
-    size=$(cat /sys/class/mtd/mtd2/size 2>/dev/null || true)
-    case "$size" in
-        917504|0xe0000|0xE0000) ;;
-        *)
-            printf 'qspi-nvmfs size is %s, expected 917504\n' "${size:-unknown}"
-            return 1
-            ;;
-    esac
+    name=$(cat "$PERSIST_MTD_SYSFS/name")
+    [ "$name" = "$PERSIST_MTD_LABEL" ] || {
+        printf '%s is %s, expected %s\n' "$PERSIST_MTD_NAME" "$name" "$PERSIST_MTD_LABEL"
+        return 1
+    }
+    size=$(cat "$PERSIST_MTD_SYSFS/size" 2>/dev/null || true)
+    [ "$size" = "$PERSIST_MTD_SIZE_BYTES" ] || {
+        printf '%s size is %s, expected %s\n' \
+            "$PERSIST_MTD_LABEL" "${size:-unknown}" "$PERSIST_MTD_SIZE_BYTES"
+        return 1
+    }
 }
 
 antsdr_persist_media_status() {
@@ -62,11 +74,12 @@ antsdr_persist_media_status() {
         printf '%s\n' "$reason"
         return 1
     fi
-    signature=$(od -An -N2 -tx1 /dev/mtd2 2>/dev/null | tr -d ' \n')
+    signature=$(od -An -N2 -tx1 "$PERSIST_MTD_DEVICE" 2>/dev/null | tr -d ' \n')
     case "$signature" in
         8519|ffff) return 0 ;;
         *)
-            printf 'qspi-nvmfs has an invalid JFFS2 header (%s)\n' "${signature:-unreadable}"
+            printf '%s has an invalid JFFS2 header (%s)\n' \
+                "$PERSIST_MTD_LABEL" "${signature:-unreadable}"
             return 1
             ;;
     esac

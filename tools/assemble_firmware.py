@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: MIT
-"""Assemble validated E310 firmware artifacts without programming hardware."""
+"""Assemble validated AntSDR OS artifacts without programming hardware."""
 
 from __future__ import annotations
 
@@ -38,6 +38,7 @@ class AssemblyError(RuntimeError):
 
 @dataclass(frozen=True)
 class AssemblyInputs:
+    board: str
     kernel: Path
     rootfs: Path
     bitstream: Path
@@ -49,8 +50,8 @@ class AssemblyInputs:
     signing_key_dir: Path | None = None
 
 
-def load_board() -> tuple[dict[str, object], list[dict[str, object]]]:
-    return load_board_data("e310"), load_profiles("e310")
+def load_board(board_id: str) -> tuple[dict[str, object], list[dict[str, object]]]:
+    return load_board_data(board_id), load_profiles(board_id)
 
 
 def sha256(path: Path) -> str:
@@ -180,7 +181,7 @@ def ensure_external_output(output: Path) -> Path:
 
 
 def build_release(inputs: AssemblyInputs, runner: MkimageRunner = default_runner) -> Path:
-    board, profiles = load_board()
+    board, profiles = load_board(inputs.board)
     build = board["build"]
     assert isinstance(build, dict)
     firmware = build["firmware"]
@@ -344,6 +345,7 @@ def build_release(inputs: AssemblyInputs, runner: MkimageRunner = default_runner
 
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(description=__doc__)
+    result.add_argument("--board", required=True)
     result.add_argument("--kernel", required=True, type=Path)
     result.add_argument("--rootfs", required=True, type=Path)
     result.add_argument("--bitstream", required=True, type=Path)
@@ -361,6 +363,7 @@ def main() -> int:
     try:
         output = build_release(
             AssemblyInputs(
+                board=args.board,
                 kernel=args.kernel,
                 rootfs=args.rootfs,
                 bitstream=args.bitstream,

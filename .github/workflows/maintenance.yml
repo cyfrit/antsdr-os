@@ -35,8 +35,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for component in hdl linux u_boot buildroot; do
-            python tools/prepare_component.py e310 "$component" --check
+          mapfile -t contracts < <(find boards -mindepth 2 -maxdepth 2 -name board.yaml -print | sort)
+          ((${#contracts[@]} > 0))
+          for contract in "${contracts[@]}"; do
+            board="$(basename "$(dirname "$contract")")"
+            for component in hdl linux u_boot buildroot; do
+              python tools/prepare_component.py "$board" "$component" --check
+            done
           done
       - name: Recheck contracts and licenses
         run: |
