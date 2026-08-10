@@ -27,6 +27,8 @@
  * Pluto-specific runtime DT mutations from zynq-common.h. It retains the
  * conventional SD-card uEnv.txt interface for user-managed boot settings.
  */
+#define CONFIG_ENV_OFFSET 0x00400000
+
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	"fit_image=antsdr-e310.itb\0" \
 	"fit_load_address=0x02080000\0" \

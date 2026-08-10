@@ -99,8 +99,15 @@ class UbootOverlayTest(unittest.TestCase):
             self.assertIn(f"reg = <{offset:#08x} {size:#08x}>;", dts)
 
     def test_environment_is_board_local_and_constrained(self) -> None:
+        board = yaml.safe_load((BOARD / "board.yaml").read_text(encoding="utf-8"))
         header = HEADER.read_text(encoding="utf-8")
+        environment = next(
+            partition
+            for partition in board["hardware"]["boot"]["qspi"]["partitions"]
+            if partition["name"] == "qspi-uboot-env"
+        )
 
+        self.assertIn(f'#define CONFIG_ENV_OFFSET {environment["offset"]:#010x}', header)
         self.assertIn("#define CONFIG_EXTRA_ENV_SETTINGS", header)
         self.assertIn('#define CONFIG_BOOTCOMMAND "run boot_antsdr"', header)
         self.assertIn('"boot_antsdr=run $modeboot\\0"', header)
