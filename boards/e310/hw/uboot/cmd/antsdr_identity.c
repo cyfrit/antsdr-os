@@ -74,25 +74,11 @@ static int antsdr_uid_valid(const u8 uid[ANTSDR_UNIQUE_ID_SIZE])
 	return !all_zero && !all_ff;
 }
 
-static int antsdr_mac_valid(const char *text)
+static int antsdr_mac_valid(void)
 {
-	unsigned int octet[6];
-	unsigned char address[6];
-	char extra;
-	unsigned int index;
+	u8 address[6];
 
-	if (!text || sscanf(text, "%2x:%2x:%2x:%2x:%2x:%2x%c",
-			    &octet[0], &octet[1], &octet[2], &octet[3],
-			    &octet[4], &octet[5], &extra) != 6)
-		return 0;
-
-	for (index = 0; index < ARRAY_SIZE(octet); index++) {
-		if (octet[index] > 0xff)
-			return 0;
-		address[index] = octet[index];
-	}
-
-	return is_valid_ethaddr(address);
+	return eth_getenv_enetaddr("ethaddr", address);
 }
 
 static int antsdr_set_serial(const u8 uid[ANTSDR_UNIQUE_ID_SIZE])
@@ -115,9 +101,8 @@ static int antsdr_set_mac(const u8 uid[ANTSDR_UNIQUE_ID_SIZE])
 	u8 input[sizeof(domain) - 1 + ANTSDR_UNIQUE_ID_SIZE];
 	u8 digest[SHA256_SUM_LEN];
 	u8 address[6];
-	char text[18];
 
-	if (antsdr_mac_valid(getenv("ethaddr")))
+	if (antsdr_mac_valid())
 		return 0;
 
 	memcpy(input, domain, sizeof(domain) - 1);
@@ -126,10 +111,7 @@ static int antsdr_set_mac(const u8 uid[ANTSDR_UNIQUE_ID_SIZE])
 	memcpy(address, digest, sizeof(address));
 	address[0] = (address[0] & 0xfc) | 0x02;
 
-	sprintf(text, "%02x:%02x:%02x:%02x:%02x:%02x",
-		address[0], address[1], address[2],
-		address[3], address[4], address[5]);
-	return setenv("ethaddr", text);
+	return eth_setenv_enetaddr("ethaddr", address);
 }
 
 static int do_antsdr_identity(cmd_tbl_t *cmdtp, int flag, int argc,
@@ -141,7 +123,7 @@ static int do_antsdr_identity(cmd_tbl_t *cmdtp, int flag, int argc,
 	if (argc != 1)
 		return CMD_RET_USAGE;
 	if (getenv("serial#") && *getenv("serial#") &&
-	    antsdr_mac_valid(getenv("ethaddr")))
+	    antsdr_mac_valid())
 		return CMD_RET_SUCCESS;
 
 	ret = antsdr_read_unique_id(uid);
