@@ -78,7 +78,7 @@ static int antsdr_mac_valid(void)
 {
 	u8 address[6];
 
-	return eth_getenv_enetaddr("ethaddr", address);
+	return eth_env_get_enetaddr("ethaddr", address);
 }
 
 static int antsdr_set_serial(const u8 uid[ANTSDR_UNIQUE_ID_SIZE])
@@ -111,7 +111,7 @@ static int antsdr_set_mac(const u8 uid[ANTSDR_UNIQUE_ID_SIZE])
 	memcpy(address, digest, sizeof(address));
 	address[0] = (address[0] & 0xfc) | 0x02;
 
-	return eth_setenv_enetaddr("ethaddr", address);
+	return eth_env_set_enetaddr("ethaddr", address);
 }
 
 static int do_antsdr_identity(cmd_tbl_t *cmdtp, int flag, int argc,
