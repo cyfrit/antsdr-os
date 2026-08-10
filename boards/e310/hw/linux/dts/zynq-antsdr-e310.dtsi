@@ -33,6 +33,10 @@
 		stdout-path = "serial0:115200n8";
 	};
 
+	pmu@f8891000 {
+		interrupt-affinity = <&cpu0>, <&cpu1>;
+	};
+
 	thermal-zones {
 		ethphy-thermal {
 			polling-delay = <5000>;
