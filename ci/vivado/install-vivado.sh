@@ -36,9 +36,13 @@ require_fingerprint() {
 
 emit_toolchain_environment() {
   local settings="$install_root/Vitis/$VIVADO_VERSION/settings64.sh"
+  local tclapp_repo="$install_root/Vivado/$VIVADO_VERSION/data/XilinxTclStore"
   test -r "$settings"
+  test -d "$tclapp_repo"
   # shellcheck disable=SC1090
   source "$settings"
+  export XILINX_TCLAPP_REPO="$tclapp_repo"
+  export XILINX_LOCAL_USER_DATA=NO
   command -v vivado
   command -v xsct
   command -v bootgen
@@ -46,6 +50,8 @@ emit_toolchain_environment() {
   {
     printf 'VIVADO_SETTINGS=%s\n' "$settings"
     printf 'XILINX_INSTALL_ROOT=%s\n' "$install_root"
+    printf 'XILINX_TCLAPP_REPO=%s\n' "$tclapp_repo"
+    printf 'XILINX_LOCAL_USER_DATA=NO\n'
     printf 'ANTSDR_BUILD_ROOT=%s\n' "$RUNNER_TEMP/antsdr-os-build"
   } >> "$GITHUB_ENV"
 }

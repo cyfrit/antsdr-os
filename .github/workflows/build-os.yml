@@ -472,6 +472,17 @@ jobs:
         if: github.event_name == 'workflow_dispatch' && inputs.debug_enabled
         uses: mxschmitt/action-tmate@35b54afac29c97fb54faba5b513f8fbd1882f113 # v3
         timeout-minutes: 45
+      - name: Verify deterministic Vivado Tcl Store
+        if: >-
+          inputs.toolchain_only != true && inputs.debug_enabled != true &&
+          steps.hardware_cache_state.outputs.valid != 'true' &&
+          steps.fpga_cache_state.outputs.valid != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          source "$VIVADO_SETTINGS"
+          vivado -mode batch -nolog -nojournal -notrace \
+            -source "$GITHUB_WORKSPACE/ci/vivado/verify-tclstore.tcl"
       - name: Build Linux, Buildroot, U-Boot, FPGA and BOOT.BIN
         if: inputs.toolchain_only != true && inputs.debug_enabled != true
         shell: bash
