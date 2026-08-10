@@ -137,7 +137,7 @@ antsdr_motd_find_phy_temperature() {
         [ -r "$zone/temp" ] || continue
         type=$(antsdr_motd_read "$zone/type")
         case "$type" in
-            *ethernet*phy*)
+            *ethernet*phy*|*ethphy*)
                 cat "$zone/temp" 2>/dev/null
                 return 0
                 ;;

@@ -284,7 +284,7 @@ class BuildrootOverlayTest(unittest.TestCase):
         self.assertIn("antsdr_motd_find_soc_temperature", motd)
         self.assertIn('= xadc ]', motd)
         self.assertIn("antsdr_motd_find_phy_temperature", motd)
-        self.assertIn("*ethernet*phy*", motd)
+        self.assertIn("*ethernet*phy*|*ethphy*", motd)
         self.assertIn("'SoC temp'", motd)
         self.assertIn("'PHY temp'", motd)
         self.assertIn("/usr/sbin/antsdr-motd", profile)

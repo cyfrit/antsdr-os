@@ -175,7 +175,7 @@ class LinuxOverlayTest(unittest.TestCase):
         self.assertIn('compatible = "adi,iio-fake-platform-device";', dtsi)
         self.assertIn("adi,faked-dev = <&axi_tdd>;", dtsi)
 
-        self.assertIn("ethernet-phy-thermal", dtsi)
+        self.assertIn("ethphy-thermal", dtsi)
         self.assertIn("thermal-sensors = <&ethernet_phy>;", dtsi)
         self.assertIn("#thermal-sensor-cells = <0>;", dtsi)
         self.assertIn("temperature = <100000>;", dtsi)
